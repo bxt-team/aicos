@@ -1,0 +1,127 @@
+.content-generator {
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 0 2rem;
+}
+
+.generator-container {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.generator-container h2 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 2rem;
+  text-align: center;
+}
+
+.generator-description {
+  color: #666;
+  font-size: 1.1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.generator-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.feature {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.feature h3 {
+  color: #333;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.feature p {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.generator-actions {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.generate-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.generate-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.generate-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ffffff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border-left: 4px solid #c33;
+  margin-bottom: 2rem;
+}
+
+.generator-info {
+  background: #f0f8ff;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  border-left: 4px solid #667eea;
+}
+
+.generator-info h3 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.generator-info ol {
+  color: #666;
+  padding-left: 1.5rem;
+}
+
+.generator-info li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
