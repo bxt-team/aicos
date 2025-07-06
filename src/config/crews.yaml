@@ -1,0 +1,23 @@
+qa_crew:
+  agents:
+    - qa_agent
+  process: sequential
+  verbose: true
+  memory: false
+  embedder:
+    provider: openai
+  cache: true
+  max_rpm: 10
+  share_crew: false
+
+affirmations_crew:
+  agents:
+    - affirmations_agent
+  process: sequential
+  verbose: true
+  memory: false
+  embedder:
+    provider: openai
+  cache: true
+  max_rpm: 10
+  share_crew: false

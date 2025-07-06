@@ -5,13 +5,14 @@ class WriterAgent:
     def create_agent(self):
         return Agent(
             role="Instagram Content Writer",
-            goal="Create compelling, engaging Instagram captions and content that inspire, motivate, and connect with audiences",
+            goal="Create powerful, personalized affirmations for each of the 7 periods of the 7 Cycles app that inspire personal growth and development",
             backstory=dedent("""
-                You are a skilled social media content writer specializing in Instagram. 
-                You have a deep understanding of what makes content viral and engaging on 
-                Instagram. You excel at crafting captions that are authentic, motivational, 
-                and optimized for maximum engagement. Your writing style is conversational, 
-                inspiring, and perfectly suited for the Instagram platform.
+                You are a skilled affirmation writer specializing in the 7 Cycles system. 
+                You have deep understanding of personal development and the unique energy of each 
+                of the 7 periods. You excel at crafting powerful, personalized affirmations that 
+                resonate with each period's specific themes and help users align with their current 
+                cycle. Your writing style is inspiring, empowering, and perfectly suited for 
+                spiritual and personal growth.
             """),
             verbose=True,
             allow_delegation=False,
@@ -22,36 +23,43 @@ class WriterAgent:
         return [
             {
                 "description": dedent("""
-                    Based on the research findings, create engaging Instagram content including:
+                    Based on the research findings, create powerful affirmations for each of the 7 periods:
                     
-                    1. Write compelling captions (150-300 words) that include:
-                       - Hook that grabs attention in the first line
-                       - Valuable content that educates or inspires
-                       - Call-to-action that encourages engagement
-                       - Relevant hashtags (10-15 strategic hashtags)
+                    1. Write personalized affirmations for each period that include:
+                       - Core theme alignment with the period's energy
+                       - Empowering language that resonates with personal growth
+                       - Positive present-tense statements
+                       - Integration of the period's unique characteristics
                     
-                    2. Create content variations for different post types:
-                       - Inspirational quotes
-                       - Educational carousels
-                       - Personal stories/testimonials
-                       - Tips and advice posts
+                    2. Create affirmation variations for different aspects:
+                       - Personal development affirmations
+                       - Professional growth affirmations
+                       - Spiritual and emotional well-being affirmations
+                       - Relationship and social connection affirmations
                     
-                    3. Ensure content is:
-                       - Authentic and relatable
-                       - Optimized for Instagram algorithm
-                       - Engaging and shareable
-                       - Aligned with wellness/self-improvement themes
+                    3. Ensure affirmations are:
+                       - Authentic and personally resonant
+                       - Aligned with each period's specific energy and themes
+                       - Empowering and transformative
+                       - Suitable for daily practice and reflection
                     
-                    4. Include specific visual content suggestions for each post
+                    4. Include color-coded formatting suggestions for each period
                 """),
                 "expected_output": dedent("""
-                    Complete Instagram content package including:
-                    - 3-5 ready-to-post captions with hooks, body, and CTAs
-                    - Strategic hashtag suggestions for each post
-                    - Visual content recommendations (colors, style, imagery)
-                    - Post timing and engagement strategy suggestions
-                    - Content variations for different audience segments
-                    - Engagement optimization tips for each post
+                    Complete affirmation package for the 7 periods including:
+                    - 3-5 personalized affirmations for each of the 7 periods
+                    - Color-coded formatting using each period's dedicated color:
+                      * Image (#DAA520 - Gold)
+                      * Change (#2196F3 - Blue)
+                      * Energy (#F44336 - Red)
+                      * Creativity (#FFD700 - Yellow)
+                      * Success (#CC0066 - Magenta)
+                      * Relaxation (#4CAF50 - Green)
+                      * Prudence (#9C27B0 - Purple)
+                    - Variations for different life areas (personal, professional, spiritual)
+                    - Integration suggestions for daily practice
+                    - Timing recommendations based on period cycles
+                    - Personalization guidelines for individual users
                 """),
                 "agent": "writer"
             }

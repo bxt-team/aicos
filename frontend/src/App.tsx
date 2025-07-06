@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
 import ContentGenerator from './components/ContentGenerator';
 import ContentViewer from './components/ContentViewer';
+import QAInterface from './components/QAInterface';
+import AffirmationsInterface from './components/AffirmationsInterface';
 import Header from './components/Header';
 
 function App() {
@@ -12,7 +14,10 @@ function App() {
         <Header />
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<ContentGenerator />} />
+            <Route path="/" element={<QAInterface />} />
+            <Route path="/qa" element={<QAInterface />} />
+            <Route path="/affirmations" element={<AffirmationsInterface />} />
+            <Route path="/content-generator" element={<ContentGenerator />} />
             <Route path="/content/:contentId" element={<ContentViewer />} />
           </Routes>
         </main>

@@ -16,7 +16,14 @@
       "Bash(do mv \"$f\" \"$f%.md.txt\")",
       "Bash(done)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:docs.crewai.com)",
+      "Bash(lsof:*)",
+      "Bash(PYTHONPATH=/Users/marc/IdeaProjects/7cycles-ai python backend/main.py)",
+      "Bash(pip3 install:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

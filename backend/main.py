@@ -15,11 +15,13 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src.flows.content_generation_wrapper import ContentGenerationWrapper
 from src.tools.image_generator import ImageGenerator
+from src.agents.qa_agent import QAAgent
+from src.agents.affirmations_agent import AffirmationsAgent
 from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI(title="Instagram Content Generator API", version="1.0.0")
+app = FastAPI(title="7 Cycles of Life AI Assistant API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +40,8 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 content_storage = {}
 image_generator = None
+qa_agent = None
+affirmations_agent = None
 
 class ContentRequest(BaseModel):
     knowledge_files: Optional[List[str]] = None
@@ -57,18 +61,29 @@ class ContentResponse(BaseModel):
     status: str
     created_at: str
 
+class QuestionRequest(BaseModel):
+    question: str
+
+class AffirmationRequest(BaseModel):
+    period_type: str
+    period_info: Dict[str, Any]
+    count: Optional[int] = 5
+
 @app.on_event("startup")
 async def startup_event():
-    global image_generator
+    global image_generator, qa_agent, affirmations_agent
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if openai_api_key:
         image_generator = ImageGenerator(openai_api_key)
+        qa_agent = QAAgent(openai_api_key)
+        affirmations_agent = AffirmationsAgent(openai_api_key)
+        print("Successfully initialized all agents")
     else:
-        print("Warning: OPENAI_API_KEY not found. Image generation will be disabled.")
+        print("Warning: OPENAI_API_KEY not found. All AI features will be disabled.")
 
 @app.get("/")
 async def root():
-    return {"message": "Instagram Content Generator API", "version": "1.0.0"}
+    return {"message": "7 Cycles of Life AI Assistant API", "version": "1.0.0"}
 
 @app.post("/generate-content")
 async def generate_content(request: ContentRequest, background_tasks: BackgroundTasks):
@@ -220,13 +235,107 @@ async def delete_content(content_id: str):
     
     return {"message": "Content deleted successfully"}
 
+@app.post("/ask-question")
+async def ask_question(request: QuestionRequest):
+    """Ask a question about the 7 Cycles of Life"""
+    try:
+        if not qa_agent:
+            raise HTTPException(status_code=503, detail="Q&A agent not available")
+        
+        result = qa_agent.answer_question(request.question)
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "question": request.question,
+                "answer": result["answer"],
+                "context_preview": result.get("context_used", "")
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing question: {str(e)}")
+
+@app.get("/knowledge-overview")
+async def get_knowledge_overview():
+    """Get an overview of the knowledge base"""
+    try:
+        if not qa_agent:
+            raise HTTPException(status_code=503, detail="Q&A agent not available")
+        
+        result = qa_agent.get_knowledge_overview()
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "overview": result["overview"]
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting knowledge overview: {str(e)}")
+
+@app.post("/generate-affirmations")
+async def generate_affirmations(request: AffirmationRequest):
+    """Generate affirmations for a specific period"""
+    try:
+        if not affirmations_agent:
+            raise HTTPException(status_code=503, detail="Affirmations agent not available")
+        
+        result = affirmations_agent.generate_affirmations(
+            request.period_type, 
+            request.period_info, 
+            request.count
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating affirmations: {str(e)}")
+
+@app.get("/affirmations")
+async def get_affirmations(period_type: Optional[str] = None):
+    """Get all affirmations, optionally filtered by period type"""
+    try:
+        if not affirmations_agent:
+            raise HTTPException(status_code=503, detail="Affirmations agent not available")
+        
+        result = affirmations_agent.get_affirmations_by_period(period_type)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting affirmations: {str(e)}")
+
+@app.get("/periods")
+async def get_available_periods():
+    """Get information about available period types"""
+    try:
+        if not affirmations_agent:
+            raise HTTPException(status_code=503, detail="Affirmations agent not available")
+        
+        return affirmations_agent.get_available_periods()
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting periods: {str(e)}")
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "image_generation_enabled": image_generator is not None
+        "image_generation_enabled": image_generator is not None,
+        "qa_agent_enabled": qa_agent is not None,
+        "affirmations_agent_enabled": affirmations_agent is not None
     }
 
 if __name__ == "__main__":
