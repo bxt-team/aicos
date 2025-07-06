@@ -23,6 +23,30 @@
         "phase": "Transformation"
       },
       "id": "3cb307dfbb1cc7195bea60c60c99960d"
+    },
+    {
+      "text": "Meine Energie flie\u00dft kraftvoll und unterst\u00fctzt mich in allem, was ich tue.",
+      "theme": "Energie",
+      "focus": "Vitalit\u00e4t und Unterst\u00fctzung im Handeln",
+      "period_color": "#F44336",
+      "created_at": "2025-07-06T17:11:02.672534",
+      "period_name": "Energie",
+      "period_info": {
+        "phase": "Meine Energie"
+      },
+      "id": "67043668adbcc7c5e4fe8c5be77a0cea"
+    },
+    {
+      "text": "Ich bin voller Vitalit\u00e4t und nutze meine Energie, um Ziele zu erreichen.",
+      "theme": "Energie",
+      "focus": "Energetisches Handeln und Zielverwirklichung",
+      "period_color": "#F44336",
+      "created_at": "2025-07-06T17:11:02.672550",
+      "period_name": "Energie",
+      "period_info": {
+        "phase": "Meine Energie"
+      },
+      "id": "b3a47aa6faa0375af3c4ebb25a52857f"
     }
   ],
   "by_period": {
@@ -50,6 +74,32 @@
           "phase": "Transformation"
         },
         "id": "3cb307dfbb1cc7195bea60c60c99960d"
+      }
+    ],
+    "a22bc13732bd02a67b83d5929a7a8ec5": [
+      {
+        "text": "Meine Energie flie\u00dft kraftvoll und unterst\u00fctzt mich in allem, was ich tue.",
+        "theme": "Energie",
+        "focus": "Vitalit\u00e4t und Unterst\u00fctzung im Handeln",
+        "period_color": "#F44336",
+        "created_at": "2025-07-06T17:11:02.672534",
+        "period_name": "Energie",
+        "period_info": {
+          "phase": "Meine Energie"
+        },
+        "id": "67043668adbcc7c5e4fe8c5be77a0cea"
+      },
+      {
+        "text": "Ich bin voller Vitalit\u00e4t und nutze meine Energie, um Ziele zu erreichen.",
+        "theme": "Energie",
+        "focus": "Energetisches Handeln und Zielverwirklichung",
+        "period_color": "#F44336",
+        "created_at": "2025-07-06T17:11:02.672550",
+        "period_name": "Energie",
+        "period_info": {
+          "phase": "Meine Energie"
+        },
+        "id": "b3a47aa6faa0375af3c4ebb25a52857f"
       }
     ]
   }

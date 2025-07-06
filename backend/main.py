@@ -327,6 +327,168 @@ async def get_available_periods():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting periods: {str(e)}")
 
+# Visual Posts API Endpoints
+
+@app.post("/search-images")
+async def search_images(request: dict):
+    """Search for background images using the ImageSearchAgent"""
+    try:
+        tags = request.get("tags", [])
+        period = request.get("period", "")
+        count = request.get("count", 5)
+        
+        if not tags or not period:
+            raise HTTPException(status_code=400, detail="Tags and period are required")
+        
+        # Initialize image search agent
+        from src.agents.image_search_agent import ImageSearchAgent
+        pexels_key = os.getenv('PEXELS_API_KEY')
+        
+        if not pexels_key:
+            raise HTTPException(status_code=503, detail="Pexels API key not configured")
+        
+        image_agent = ImageSearchAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
+        result = image_agent.search_images(tags, period, count)
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching images: {str(e)}")
+
+@app.post("/create-visual-post")
+async def create_visual_post(request: dict):
+    """Create a visual affirmation post"""
+    try:
+        text = request.get("text", "")
+        period = request.get("period", "")
+        tags = request.get("tags", [])
+        image_style = request.get("image_style", "minimal")
+        force_new = request.get("force_new", False)
+        
+        if not text or not period:
+            raise HTTPException(status_code=400, detail="Text and period are required")
+        
+        if not tags:
+            tags = ["inspiration", "motivation", "peaceful"]
+        
+        # Initialize visual post creator agent
+        from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
+        pexels_key = os.getenv('PEXELS_API_KEY')
+        
+        if not pexels_key:
+            raise HTTPException(status_code=503, detail="Pexels API key not configured")
+        
+        visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
+        result = visual_agent.create_visual_post(text, period, tags, image_style, force_new)
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating visual post: {str(e)}")
+
+@app.get("/visual-posts")
+async def get_visual_posts(period: str = None):
+    """Get all visual posts, optionally filtered by period"""
+    try:
+        from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
+        pexels_key = os.getenv('PEXELS_API_KEY')
+        
+        if not pexels_key:
+            raise HTTPException(status_code=503, detail="Pexels API key not configured")
+        
+        visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
+        result = visual_agent.get_posts_by_period(period)
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting visual posts: {str(e)}")
+
+@app.delete("/visual-posts/{post_id}")
+async def delete_visual_post(post_id: str):
+    """Delete a visual post"""
+    try:
+        from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
+        pexels_key = os.getenv('PEXELS_API_KEY')
+        
+        if not pexels_key:
+            raise HTTPException(status_code=503, detail="Pexels API key not configured")
+        
+        visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
+        result = visual_agent.delete_post(post_id)
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting visual post: {str(e)}")
+
+@app.post("/create-affirmation-post")
+async def create_affirmation_post(request: dict):
+    """Create visual post directly from existing affirmation"""
+    try:
+        affirmation_id = request.get("affirmation_id", "")
+        image_style = request.get("image_style", "minimal")
+        custom_tags = request.get("tags", [])
+        force_new = request.get("force_new", False)
+        
+        if not affirmation_id:
+            raise HTTPException(status_code=400, detail="Affirmation ID is required")
+        
+        # Get affirmation from storage
+        if not affirmations_agent:
+            raise HTTPException(status_code=503, detail="Affirmations agent not available")
+        
+        affirmations_result = affirmations_agent.get_affirmations_by_period()
+        
+        if not affirmations_result["success"]:
+            raise HTTPException(status_code=500, detail="Error getting affirmations")
+        
+        # Find the specific affirmation
+        affirmation = None
+        for aff in affirmations_result["affirmations"]:
+            if aff["id"] == affirmation_id:
+                affirmation = aff
+                break
+        
+        if not affirmation:
+            raise HTTPException(status_code=404, detail="Affirmation not found")
+        
+        # Generate tags based on period and text
+        tags = custom_tags if custom_tags else []
+        if not tags:
+            # Default tags based on period
+            period_tags = {
+                "Image": ["portrait", "confidence", "mirror", "self"],
+                "Veränderung": ["transformation", "change", "growth", "new"],
+                "Energie": ["energy", "power", "vitality", "strength"],
+                "Kreativität": ["creative", "art", "inspiration", "colorful"],
+                "Erfolg": ["success", "achievement", "goal", "victory"],
+                "Entspannung": ["peace", "calm", "meditation", "nature"],
+                "Umsicht": ["wisdom", "thoughtful", "planning", "contemplation"]
+            }
+            tags = period_tags.get(affirmation["period_name"], ["inspiration", "motivation"])
+        
+        # Create visual post
+        from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
+        pexels_key = os.getenv('PEXELS_API_KEY')
+        
+        if not pexels_key:
+            raise HTTPException(status_code=503, detail="Pexels API key not configured")
+        
+        visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
+        result = visual_agent.create_visual_post(
+            affirmation["text"], 
+            affirmation["period_name"], 
+            tags, 
+            image_style, 
+            force_new
+        )
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating affirmation post: {str(e)}")
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -335,7 +497,8 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "image_generation_enabled": image_generator is not None,
         "qa_agent_enabled": qa_agent is not None,
-        "affirmations_agent_enabled": affirmations_agent is not None
+        "affirmations_agent_enabled": affirmations_agent is not None,
+        "visual_posts_enabled": os.getenv('PEXELS_API_KEY') is not None
     }
 
 if __name__ == "__main__":

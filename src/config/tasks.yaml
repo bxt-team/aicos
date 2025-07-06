@@ -102,3 +102,54 @@ generate_affirmations_task:
     }}
   expected_output: "JSON formatierte Liste von Affirmationen spezifisch für die gewählte 7 Cycles Periode"
   agent: affirmations_agent
+
+search_images_task:
+  description: |
+    Suche nach passenden Hintergrundbildern für visuelle Affirmationen basierend auf den gegebenen Tags und der 7 Cycles Periode.
+    
+    Eingabe-Parameter:
+    - tags: {tags} (Liste von Suchbegriffen)
+    - period: {period} (7 Cycles Periode)
+    - count: {count} (Anzahl der zu suchenden Bilder)
+    
+    Suche nach Bildern, die:
+    1. Zur Periode {period} passen und deren Energie widerspiegeln
+    2. Hochwertig und ästhetisch ansprechend sind
+    3. Als Hintergrund für Text geeignet sind
+    4. Die passende Stimmung und Farben haben
+    
+    Nutze die Pexels API für die Suche und berücksichtige:
+    - Bildqualität (mindestens 1080px Breite)
+    - Portrait-Orientierung (für Instagram Stories)
+    - Lizenzkonformität
+    - Emotionale Wirkung
+  expected_output: "Liste von passenden Hintergrundbildern mit URLs, Metadaten und Lizenzinformationen"
+  agent: image_search_agent
+
+create_visual_post_task:
+  description: |
+    Erstelle einen visuellen Affirmations-Post im Instagram Story Format (1080x1920px) mit:
+    
+    Eingabe-Parameter:
+    - text: {text} (Affirmationstext)
+    - period: {period} (7 Cycles Periode)
+    - tags: {tags} (Tags für Hintergrundbildsuche)
+    - image_style: {image_style} (Stil: minimal, dramatic, gradient)
+    - background_image: {background_image} (Optional: spezifisches Hintergrundbild)
+    
+    Erstelle einen Post mit:
+    1. Passendem Hintergrundbild (über Bildsuche oder bereitgestellt)
+    2. Farb-Overlay basierend auf der 7 Cycles Periode:
+       - Image: #DAA520 (Gold)
+       - Veränderung: #2196F3 (Blau)
+       - Energie: #F44336 (Rot)
+       - Kreativität: #FFD700 (Gelb)
+       - Erfolg: #CC0066 (Magenta)
+       - Entspannung: #4CAF50 (Grün)
+       - Umsicht: #9C27B0 (Lila)
+    3. Zentriertem, gut lesbarem Text mit Schatten
+    4. Modernem, ansprechendem Design
+    
+    Speichere das finale Bild als JPG mit 95% Qualität.
+  expected_output: "Pfad zum erstellten visuellen Post mit Metadaten (Größe, Format, Farben)"
+  agent: visual_post_creator_agent

@@ -12,6 +12,7 @@ const Header: React.FC = () => {
         <nav className="header-nav">
           <Link to="/qa" className="nav-link">Fragen & Antworten</Link>
           <Link to="/affirmations" className="nav-link">Affirmationen</Link>
+          <Link to="/visual-posts" className="nav-link">Visuelle Posts</Link>
           <Link to="/content-generator" className="nav-link">Inhalts-Generator</Link>
         </nav>
       </div>
