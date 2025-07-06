@@ -1,0 +1,56 @@
+{
+  "affirmations": [
+    {
+      "text": "Ich ver\u00e4ndere mich und wachse mit jeder Herausforderung.",
+      "theme": "Ver\u00e4nderung",
+      "focus": "Mut zur Ver\u00e4nderung und pers\u00f6nliche Transformation",
+      "period_color": "#2196F3",
+      "created_at": "2025-07-06T16:07:07.072330",
+      "period_name": "Ver\u00e4nderung",
+      "period_info": {
+        "phase": "Transformation"
+      },
+      "id": "aa0a33584e5be5dc2e252786365f5712"
+    },
+    {
+      "text": "Ich bin offen f\u00fcr neue Wege und entdecke mein volles Potenzial.",
+      "theme": "Ver\u00e4nderung",
+      "focus": "Flexibilit\u00e4t und neue M\u00f6glichkeiten annehmen",
+      "period_color": "#2196F3",
+      "created_at": "2025-07-06T16:07:07.072352",
+      "period_name": "Ver\u00e4nderung",
+      "period_info": {
+        "phase": "Transformation"
+      },
+      "id": "3cb307dfbb1cc7195bea60c60c99960d"
+    }
+  ],
+  "by_period": {
+    "8bec11f0c230ae9a611733619afeb358": [
+      {
+        "text": "Ich ver\u00e4ndere mich und wachse mit jeder Herausforderung.",
+        "theme": "Ver\u00e4nderung",
+        "focus": "Mut zur Ver\u00e4nderung und pers\u00f6nliche Transformation",
+        "period_color": "#2196F3",
+        "created_at": "2025-07-06T16:07:07.072330",
+        "period_name": "Ver\u00e4nderung",
+        "period_info": {
+          "phase": "Transformation"
+        },
+        "id": "aa0a33584e5be5dc2e252786365f5712"
+      },
+      {
+        "text": "Ich bin offen f\u00fcr neue Wege und entdecke mein volles Potenzial.",
+        "theme": "Ver\u00e4nderung",
+        "focus": "Flexibilit\u00e4t und neue M\u00f6glichkeiten annehmen",
+        "period_color": "#2196F3",
+        "created_at": "2025-07-06T16:07:07.072352",
+        "period_name": "Ver\u00e4nderung",
+        "period_info": {
+          "phase": "Transformation"
+        },
+        "id": "3cb307dfbb1cc7195bea60c60c99960d"
+      }
+    ]
+  }
+}
