@@ -9,6 +9,7 @@ interface VisualPost {
   tags: string[];
   period_color: string;
   image_style: string;
+  post_format?: string;
   file_path: string;
   file_url: string;
   background_image: {
@@ -52,6 +53,7 @@ const VisualPostsInterface: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
   const [customTags, setCustomTags] = useState<string>('');
   const [imageStyle, setImageStyle] = useState<string>('minimal');
+  const [postFormat, setPostFormat] = useState<string>('post');
   const [filterPeriod, setFilterPeriod] = useState<string>('');
   
   // Search states
@@ -69,6 +71,11 @@ const VisualPostsInterface: React.FC = () => {
     { value: 'minimal', label: 'Minimal (leichtes Overlay)' },
     { value: 'dramatic', label: 'Dramatisch (starkes Overlay)' },
     { value: 'gradient', label: 'Gradient (Verlauf)' }
+  ];
+
+  const postFormats = [
+    { value: 'post', label: 'Instagram Post (4:5 - 1080x1350)' },
+    { value: 'story', label: 'Instagram Story (9:16 - 1080x1920)' }
   ];
 
   useEffect(() => {
@@ -141,6 +148,7 @@ const VisualPostsInterface: React.FC = () => {
         response = await axios.post(`${API_BASE_URL}/create-affirmation-post`, {
           affirmation_id: selectedAffirmation,
           image_style: imageStyle,
+          post_format: postFormat,
           tags: tags.length > 0 ? tags : undefined,
           force_new: true
         });
@@ -158,6 +166,7 @@ const VisualPostsInterface: React.FC = () => {
           period: selectedPeriod,
           tags: tags.length > 0 ? tags : undefined,
           image_style: imageStyle,
+          post_format: postFormat,
           force_new: true
         });
       }
@@ -171,6 +180,7 @@ const VisualPostsInterface: React.FC = () => {
         setSelectedPeriod('');
         setCustomTags('');
         setImageStyle('minimal');
+        setPostFormat('post');
         
         alert(response.data.message);
       } else {
@@ -219,7 +229,7 @@ const VisualPostsInterface: React.FC = () => {
     <div className="visual-posts-interface">
       <div className="visual-posts-header">
         <h2>7 Cycles Visuelle Posts Generator</h2>
-        <p>Erstelle visuell ansprechende Instagram/TikTok Posts für deine Affirmationen</p>
+        <p>Erstelle visuell ansprechende Instagram Posts (4:5) und Stories (9:16) für deine Affirmationen</p>
       </div>
 
       {/* Image Search Section */}
@@ -357,6 +367,20 @@ const VisualPostsInterface: React.FC = () => {
             <div className="common-options">
               <div className="form-row">
                 <div className="form-group">
+                  <label>Format:</label>
+                  <select 
+                    value={postFormat} 
+                    onChange={(e) => setPostFormat(e.target.value)}
+                    disabled={loading}
+                  >
+                    {postFormats.map(format => (
+                      <option key={format.value} value={format.value}>
+                        {format.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
                   <label>Bildstil:</label>
                   <select 
                     value={imageStyle} 
@@ -370,6 +394,8 @@ const VisualPostsInterface: React.FC = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+              <div className="form-row">
                 <div className="form-group">
                   <label>Zusätzliche Tags (optional):</label>
                   <input
@@ -445,6 +471,7 @@ const VisualPostsInterface: React.FC = () => {
                     </div>
                     <div className="dimensions">
                       {post.dimensions.width}x{post.dimensions.height}px
+                      {post.post_format === 'post' ? ' (Instagram Post)' : ' (Instagram Story)'}
                     </div>
                   </div>
                   <div className="post-actions">

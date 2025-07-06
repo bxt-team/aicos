@@ -45,9 +45,13 @@ class VisualPostCreatorAgent(BaseCrew):
             "Umsicht": "#9C27B0"       # Purple
         }
         
-        # Instagram Story dimensions
+        # Instagram dimensions
         self.story_width = 1080
         self.story_height = 1920
+        
+        # Instagram Post dimensions (4:5 aspect ratio)
+        self.post_width = 1080
+        self.post_height = 1350
         
     def _load_posts_storage(self) -> Dict[str, Any]:
         """Load previously created posts"""
@@ -74,7 +78,7 @@ class VisualPostCreatorAgent(BaseCrew):
         return hashlib.md5(post_key.encode()).hexdigest()
     
     def create_visual_post(self, text: str, period: str, tags: List[str], 
-                          image_style: str = "minimal", force_new: bool = False) -> Dict[str, Any]:
+                          image_style: str = "minimal", post_format: str = "story", force_new: bool = False) -> Dict[str, Any]:
         """Create a visual affirmation post"""
         try:
             # Check if post already exists
@@ -115,7 +119,8 @@ class VisualPostCreatorAgent(BaseCrew):
                 text,
                 period,
                 post_hash,
-                image_style
+                image_style,
+                post_format
             )
             
             if not post_result["success"]:
@@ -129,6 +134,7 @@ class VisualPostCreatorAgent(BaseCrew):
                 "tags": tags,
                 "period_color": self.period_colors.get(period, "#808080"),
                 "image_style": image_style,
+                "post_format": post_format,
                 "file_path": post_result["output_path"],
                 "file_url": post_result["output_url"],
                 "background_image": {
@@ -138,8 +144,8 @@ class VisualPostCreatorAgent(BaseCrew):
                 },
                 "created_at": datetime.now().isoformat(),
                 "dimensions": {
-                    "width": self.story_width,
-                    "height": self.story_height
+                    "width": self.post_width if post_format == "post" else self.story_width,
+                    "height": self.post_height if post_format == "post" else self.story_height
                 }
             }
             
@@ -188,24 +194,29 @@ class VisualPostCreatorAgent(BaseCrew):
             }
     
     def _create_post_image(self, background_path: str, text: str, period: str, 
-                          post_hash: str, image_style: str) -> Dict[str, Any]:
+                          post_hash: str, image_style: str, post_format: str = "story") -> Dict[str, Any]:
         """Create the final post image with text overlay"""
         try:
             # Load background image
             background = Image.open(background_path)
             
-            # Resize to Instagram Story format
-            background = self._resize_to_story_format(background)
+            # Resize to appropriate Instagram format
+            if post_format == "post":
+                background = self._resize_to_post_format(background)
+                canvas_width, canvas_height = self.post_width, self.post_height
+            else:
+                background = self._resize_to_story_format(background)
+                canvas_width, canvas_height = self.story_width, self.story_height
             
             # Create overlay
-            overlay = Image.new('RGBA', (self.story_width, self.story_height), (0, 0, 0, 0))
+            overlay = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
             
             # Add color overlay
-            color_overlay = self._create_color_overlay(period, image_style)
+            color_overlay = self._create_color_overlay(period, image_style, post_format)
             overlay = Image.alpha_composite(overlay, color_overlay)
             
             # Add text
-            text_overlay = self._create_text_overlay(text, period, image_style)
+            text_overlay = self._create_text_overlay(text, period, image_style, post_format)
             overlay = Image.alpha_composite(overlay, text_overlay)
             
             # Combine background and overlay
@@ -218,7 +229,8 @@ class VisualPostCreatorAgent(BaseCrew):
             final_image = final_image.convert('RGB')
             
             # Save final image
-            output_filename = f"{period.lower()}_{post_hash[:8]}.jpg"
+            format_suffix = "post" if post_format == "post" else "story"
+            output_filename = f"{period.lower()}_{format_suffix}_{post_hash[:8]}.jpg"
             output_path = os.path.join(self.output_dir, output_filename)
             final_image.save(output_path, 'JPEG', quality=95)
             
@@ -270,9 +282,39 @@ class VisualPostCreatorAgent(BaseCrew):
         
         return image
     
-    def _create_color_overlay(self, period: str, image_style: str) -> Image.Image:
+    def _resize_to_post_format(self, image: Image.Image) -> Image.Image:
+        """Resize image to Instagram Post format (4:5 ratio - 1080x1350)"""
+        # Calculate aspect ratios
+        img_ratio = image.width / image.height
+        post_ratio = self.post_width / self.post_height
+        
+        if img_ratio > post_ratio:
+            # Image is wider than post format - crop width
+            new_height = self.post_height
+            new_width = int(new_height * img_ratio)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Center crop
+            left = (new_width - self.post_width) // 2
+            image = image.crop((left, 0, left + self.post_width, self.post_height))
+        else:
+            # Image is taller than post format - crop height
+            new_width = self.post_width
+            new_height = int(new_width / img_ratio)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Center crop
+            top = (new_height - self.post_height) // 2
+            image = image.crop((0, top, self.post_width, top + self.post_height))
+        
+        return image
+    
+    def _create_color_overlay(self, period: str, image_style: str, post_format: str = "story") -> Image.Image:
         """Create color overlay based on period and style"""
-        overlay = Image.new('RGBA', (self.story_width, self.story_height), (0, 0, 0, 0))
+        canvas_width = self.post_width if post_format == "post" else self.story_width
+        canvas_height = self.post_height if post_format == "post" else self.story_height
+        
+        overlay = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
         
         # Get period color
         period_color = self.period_colors.get(period, "#808080")
@@ -289,49 +331,65 @@ class VisualPostCreatorAgent(BaseCrew):
             overlay_color = color_rgb + (127,)  # 50% opacity
         elif image_style == "gradient":
             # Gradient overlay
-            return self._create_gradient_overlay(color_rgb)
+            return self._create_gradient_overlay(color_rgb, post_format)
         else:
             # Default overlay
             overlay_color = color_rgb + (102,)  # 40% opacity
         
         # Create solid color overlay
-        color_layer = Image.new('RGBA', (self.story_width, self.story_height), overlay_color)
+        color_layer = Image.new('RGBA', (canvas_width, canvas_height), overlay_color)
         return color_layer
     
-    def _create_gradient_overlay(self, color_rgb: Tuple[int, int, int]) -> Image.Image:
+    def _create_gradient_overlay(self, color_rgb: Tuple[int, int, int], post_format: str = "story") -> Image.Image:
         """Create gradient overlay"""
-        overlay = Image.new('RGBA', (self.story_width, self.story_height), (0, 0, 0, 0))
+        canvas_width = self.post_width if post_format == "post" else self.story_width
+        canvas_height = self.post_height if post_format == "post" else self.story_height
+        
+        overlay = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
         
         # Create vertical gradient
-        for y in range(self.story_height):
+        for y in range(canvas_height):
             # Stronger at top and bottom, lighter in middle
-            if y < self.story_height // 3:
-                alpha = int(127 * (1 - y / (self.story_height // 3)))
-            elif y > 2 * self.story_height // 3:
-                alpha = int(127 * (y - 2 * self.story_height // 3) / (self.story_height // 3))
+            if y < canvas_height // 3:
+                alpha = int(127 * (1 - y / (canvas_height // 3)))
+            elif y > 2 * canvas_height // 3:
+                alpha = int(127 * (y - 2 * canvas_height // 3) / (canvas_height // 3))
             else:
                 alpha = 51  # Light overlay in middle
             
             color = color_rgb + (alpha,)
-            draw.line([(0, y), (self.story_width, y)], fill=color)
+            draw.line([(0, y), (canvas_width, y)], fill=color)
         
         return overlay
     
-    def _create_text_overlay(self, text: str, period: str, image_style: str) -> Image.Image:
+    def _create_text_overlay(self, text: str, period: str, image_style: str, post_format: str = "story") -> Image.Image:
         """Create text overlay"""
-        overlay = Image.new('RGBA', (self.story_width, self.story_height), (0, 0, 0, 0))
+        canvas_width = self.post_width if post_format == "post" else self.story_width
+        canvas_height = self.post_height if post_format == "post" else self.story_height
+        
+        overlay = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
         
         # Try to load custom font, fallback to default
         try:
-            # Try different font sizes based on text length
-            if len(text) < 50:
-                font_size = 72
-            elif len(text) < 100:
-                font_size = 60
+            # Adjust font sizes based on format and text length
+            if post_format == "post":
+                # Smaller fonts for Instagram posts (4:5 format)
+                if len(text) < 50:
+                    font_size = 64
+                elif len(text) < 100:
+                    font_size = 52
+                else:
+                    font_size = 42
             else:
-                font_size = 48
+                # Original font sizes for Instagram stories
+                if len(text) < 50:
+                    font_size = 72
+                elif len(text) < 100:
+                    font_size = 60
+                else:
+                    font_size = 48
             
             # Try to load a nice font (you may need to install fonts)
             font_paths = [
@@ -353,13 +411,14 @@ class VisualPostCreatorAgent(BaseCrew):
             font = ImageFont.load_default()
         
         # Calculate text positioning
-        text_lines = self._wrap_text(text, font, self.story_width - 200)  # 100px margin each side
+        margin = 150 if post_format == "post" else 200  # Adjust margin for different formats
+        text_lines = self._wrap_text(text, font, canvas_width - margin)  # margin on each side
         
         # Calculate total text height
         total_height = len(text_lines) * (font_size + 10)
         
         # Center vertically
-        start_y = (self.story_height - total_height) // 2
+        start_y = (canvas_height - total_height) // 2
         
         # Draw text with shadow for better readability
         for i, line in enumerate(text_lines):
@@ -368,7 +427,7 @@ class VisualPostCreatorAgent(BaseCrew):
             text_width = bbox[2] - bbox[0]
             
             # Center horizontally
-            x = (self.story_width - text_width) // 2
+            x = (canvas_width - text_width) // 2
             y = start_y + i * (font_size + 10)
             
             # Draw shadow

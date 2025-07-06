@@ -24,7 +24,8 @@
       "Bash(PYTHONPATH=/Users/marc/IdeaProjects/7cycles-ai python backend/main.py)",
       "Bash(pip3 install:*)",
       "Bash(mv:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

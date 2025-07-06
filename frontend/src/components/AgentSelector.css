@@ -1,0 +1,283 @@
+.agent-selector {
+  position: relative;
+  display: inline-block;
+}
+
+.agent-selector-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  min-width: 200px;
+  backdrop-filter: blur(10px);
+}
+
+.agent-selector-trigger:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+}
+
+.current-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.agent-icon {
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+}
+
+.agent-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-arrow {
+  font-size: 0.8rem;
+  transition: transform 0.3s ease;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+.dropdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 998;
+  background: transparent;
+}
+
+.agent-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  min-width: 400px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  z-index: 999;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  animation: dropdownSlide 0.2s ease-out;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-header {
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-align: center;
+}
+
+.dropdown-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.dropdown-header p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.agent-category {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.agent-category:last-child {
+  border-bottom: none;
+}
+
+.category-title {
+  padding: 16px 20px 8px 20px;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.agents-list {
+  padding: 8px 0;
+}
+
+.agent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  text-decoration: none;
+  color: #333;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  position: relative;
+}
+
+.agent-item:hover {
+  background: #f8f9ff;
+  border-left-color: #667eea;
+  transform: translateX(2px);
+}
+
+.agent-item.active {
+  background: #f0f4ff;
+  border-left-color: #667eea;
+  color: #667eea;
+}
+
+.agent-item .agent-icon {
+  font-size: 1.3rem;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.agent-item.active .agent-icon {
+  background: rgba(102, 126, 234, 0.2);
+}
+
+.agent-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+
+.agent-description {
+  font-size: 0.8rem;
+  color: #666;
+  line-height: 1.3;
+}
+
+.agent-item.active .agent-description {
+  color: #5a67d8;
+}
+
+.agent-features {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.feature-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.agent-item.active .feature-tag {
+  background: rgba(102, 126, 234, 0.2);
+  color: #5a67d8;
+}
+
+.active-indicator {
+  color: #667eea;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.dropdown-footer {
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.agent-count {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .agent-selector-trigger {
+    min-width: 150px;
+    padding: 10px 12px;
+  }
+  
+  .agent-dropdown {
+    min-width: 300px;
+    left: -100px;
+    right: -100px;
+  }
+  
+  .agent-name {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .agent-selector-trigger {
+    min-width: 120px;
+    padding: 8px 10px;
+  }
+  
+  .agent-dropdown {
+    min-width: 280px;
+    left: -140px;
+    right: -140px;
+  }
+  
+  .current-agent {
+    gap: 6px;
+  }
+  
+  .agent-name {
+    font-size: 0.8rem;
+  }
+  
+  .agent-icon {
+    font-size: 1rem;
+  }
+}

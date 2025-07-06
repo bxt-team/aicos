@@ -6,6 +6,8 @@ import ContentViewer from './components/ContentViewer';
 import QAInterface from './components/QAInterface';
 import AffirmationsInterface from './components/AffirmationsInterface';
 import VisualPostsInterface from './components/VisualPostsInterface';
+import InstagramPostsInterface from './components/InstagramPostsInterface';
+import AgentManagement from './components/AgentManagement';
 import Header from './components/Header';
 
 function App() {
@@ -15,9 +17,11 @@ function App() {
         <Header />
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<QAInterface />} />
+            <Route path="/" element={<AgentManagement />} />
+            <Route path="/agents" element={<AgentManagement />} />
             <Route path="/qa" element={<QAInterface />} />
             <Route path="/affirmations" element={<AffirmationsInterface />} />
+            <Route path="/instagram-posts" element={<InstagramPostsInterface />} />
             <Route path="/visual-posts" element={<VisualPostsInterface />} />
             <Route path="/content-generator" element={<ContentGenerator />} />
             <Route path="/content/:contentId" element={<ContentViewer />} />

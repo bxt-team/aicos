@@ -1,0 +1,667 @@
+.instagram-posts-interface {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.instagram-header {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 30px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.instagram-header h2 {
+  color: #2d3748;
+  margin-bottom: 10px;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.instagram-header p {
+  color: #4a5568;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.generator-section {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 30px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.generator-section h3 {
+  color: #2d3748;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.generator-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.generate-button {
+  padding: 15px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+}
+
+.generate-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+.generate-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Input Mode Selector */
+.input-mode-selector {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.input-mode-selector label {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 1rem;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mode-button {
+  padding: 12px 20px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #4a5568;
+}
+
+.mode-button:hover:not(:disabled) {
+  border-color: #667eea;
+  background: #f7fafc;
+}
+
+.mode-button.active {
+  border-color: #667eea;
+  background: #667eea;
+  color: white;
+}
+
+.mode-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Existing Affirmations Section */
+.existing-affirmations-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.loading-affirmations {
+  text-align: center;
+  padding: 40px;
+  color: #4a5568;
+  font-size: 1.1rem;
+}
+
+.no-affirmations-message {
+  text-align: center;
+  padding: 40px;
+  color: #4a5568;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.create-first-link {
+  color: #667eea;
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.create-first-link:hover {
+  color: #5a67d8;
+}
+
+.affirmations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+}
+
+.affirmation-card {
+  padding: 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.affirmation-card:hover {
+  border-color: #cbd5e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.affirmation-card.selected {
+  border-color: #667eea;
+  background: #f0f4ff;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.affirmation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 10px;
+}
+
+.period-badge {
+  padding: 4px 10px;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+}
+
+.focus-text {
+  font-size: 0.85rem;
+  color: #718096;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+}
+
+.affirmation-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #2d3748;
+  margin-bottom: 8px;
+}
+
+.affirmation-date {
+  font-size: 0.8rem;
+  color: #a0aec0;
+  text-align: right;
+}
+
+/* Selected Affirmation Preview */
+.selected-affirmation-preview {
+  padding: 15px;
+  background: #e6fffa;
+  border: 1px solid #38b2ac;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.selected-affirmation-preview strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #2d3748;
+}
+
+.preview-content {
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-style: italic;
+  color: #2d3748;
+}
+
+.preview-period {
+  font-size: 0.9rem;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+/* Field Notes */
+.field-note {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.8rem;
+  color: #718096;
+  font-style: italic;
+}
+
+.posts-display {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.display-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.display-header h3 {
+  color: #2d3748;
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.filter-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-section label {
+  font-weight: 600;
+  color: #4a5568;
+  white-space: nowrap;
+}
+
+.filter-section select {
+  padding: 8px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: white;
+}
+
+.no-posts {
+  text-align: center;
+  padding: 60px 20px;
+  color: #4a5568;
+}
+
+.no-posts p {
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.posts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 25px;
+}
+
+.post-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border-left: 4px solid #667eea;
+}
+
+.post-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.post-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.period-tag,
+.style-tag {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+}
+
+.period-tag {
+  background-color: #667eea;
+}
+
+.style-tag {
+  background-color: #4a5568;
+}
+
+.copy-button {
+  background: #48bb78;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.copy-button:hover {
+  background: #38a169;
+  transform: scale(1.1);
+}
+
+.visual-post-button {
+  background: #9f7aea;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+}
+
+.visual-post-button:hover {
+  background: #805ad5;
+  transform: scale(1.1);
+}
+
+.visual-post-button:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.post-time {
+  font-size: 0.9rem;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.post-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.affirmation-source {
+  padding: 10px;
+  background: #f7fafc;
+  border-radius: 8px;
+  border-left: 3px solid #667eea;
+  font-size: 0.95rem;
+}
+
+.post-text,
+.hashtags-section,
+.call-to-action,
+.engagement-strategies {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 15px;
+}
+
+.post-text:last-child,
+.hashtags-section:last-child,
+.call-to-action:last-child,
+.engagement-strategies:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.text-content,
+.cta-content {
+  margin: 8px 0;
+  padding: 12px;
+  background: #f7fafc;
+  border-radius: 8px;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.hashtags-container {
+  margin-top: 8px;
+}
+
+.hashtags-preview,
+.hashtags-full {
+  padding: 10px;
+  background: #e6fffa;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  word-break: break-all;
+  color: #2d3748;
+}
+
+.hashtags-full {
+  background: #e6fffa;
+}
+
+.hashtags-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.toggle-hashtags,
+.copy-text-button,
+.copy-hashtags-button,
+.copy-cta-button {
+  padding: 6px 12px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.toggle-hashtags:hover,
+.copy-text-button:hover,
+.copy-hashtags-button:hover,
+.copy-cta-button:hover {
+  background: #f7fafc;
+  border-color: #cbd5e0;
+}
+
+.engagement-strategies ul {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+}
+
+.engagement-strategies li {
+  margin-bottom: 6px;
+  line-height: 1.5;
+  font-size: 0.9rem;
+  color: #4a5568;
+}
+
+.post-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+  color: #718096;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.source {
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .instagram-posts-interface {
+    padding: 15px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .posts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .display-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .post-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .hashtags-actions {
+    flex-direction: column;
+  }
+  
+  .post-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .mode-buttons {
+    flex-direction: column;
+  }
+  
+  .affirmations-grid {
+    grid-template-columns: 1fr;
+    max-height: 300px;
+  }
+  
+  .affirmation-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .focus-text {
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .instagram-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .instagram-header p {
+    font-size: 1rem;
+  }
+  
+  .posts-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .post-card {
+    padding: 15px;
+  }
+}

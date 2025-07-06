@@ -17,6 +17,7 @@ from src.flows.content_generation_wrapper import ContentGenerationWrapper
 from src.tools.image_generator import ImageGenerator
 from src.agents.qa_agent import QAAgent
 from src.agents.affirmations_agent import AffirmationsAgent
+from src.agents.write_hashtag_research_agent import WriteHashtagResearchAgent
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -42,6 +43,7 @@ content_storage = {}
 image_generator = None
 qa_agent = None
 affirmations_agent = None
+write_hashtag_agent = None
 
 class ContentRequest(BaseModel):
     knowledge_files: Optional[List[str]] = None
@@ -69,14 +71,20 @@ class AffirmationRequest(BaseModel):
     period_info: Optional[Dict[str, Any]] = {}
     count: Optional[int] = 5
 
+class InstagramPostRequest(BaseModel):
+    affirmation: str
+    period_name: str
+    style: Optional[str] = "inspirational"
+
 @app.on_event("startup")
 async def startup_event():
-    global image_generator, qa_agent, affirmations_agent
+    global image_generator, qa_agent, affirmations_agent, write_hashtag_agent
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if openai_api_key:
         image_generator = ImageGenerator(openai_api_key)
         qa_agent = QAAgent(openai_api_key)
         affirmations_agent = AffirmationsAgent(openai_api_key)
+        write_hashtag_agent = WriteHashtagResearchAgent(openai_api_key)
         print("Successfully initialized all agents")
     else:
         print("Warning: OPENAI_API_KEY not found. All AI features will be disabled.")
@@ -257,6 +265,25 @@ async def ask_question(request: QuestionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing question: {str(e)}")
 
+@app.get("/qa-health")
+async def qa_health_check():
+    """Simple health check for Q&A agent"""
+    try:
+        if not qa_agent:
+            raise HTTPException(status_code=503, detail="Q&A agent not available")
+        
+        # Simple check if vector store is loaded
+        if qa_agent.vector_store:
+            return {
+                "status": "healthy",
+                "message": "Q&A agent is ready"
+            }
+        else:
+            raise HTTPException(status_code=503, detail="Knowledge base not loaded")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
 @app.get("/knowledge-overview")
 async def get_knowledge_overview():
     """Get an overview of the knowledge base"""
@@ -363,6 +390,7 @@ async def create_visual_post(request: dict):
         period = request.get("period", "")
         tags = request.get("tags", [])
         image_style = request.get("image_style", "minimal")
+        post_format = request.get("post_format", "post")
         force_new = request.get("force_new", False)
         
         if not text or not period:
@@ -379,7 +407,7 @@ async def create_visual_post(request: dict):
             raise HTTPException(status_code=503, detail="Pexels API key not configured")
         
         visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
-        result = visual_agent.create_visual_post(text, period, tags, image_style, force_new)
+        result = visual_agent.create_visual_post(text, period, tags, image_style, post_format, force_new)
         
         return result
         
@@ -428,6 +456,7 @@ async def create_affirmation_post(request: dict):
     try:
         affirmation_id = request.get("affirmation_id", "")
         image_style = request.get("image_style", "minimal")
+        post_format = request.get("post_format", "post")
         custom_tags = request.get("tags", [])
         force_new = request.get("force_new", False)
         
@@ -481,6 +510,7 @@ async def create_affirmation_post(request: dict):
             affirmation["period_name"], 
             tags, 
             image_style, 
+            post_format,
             force_new
         )
         
@@ -488,6 +518,102 @@ async def create_affirmation_post(request: dict):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating affirmation post: {str(e)}")
+
+# Write and Hashtag Research Agent endpoints
+
+@app.post("/generate-instagram-post")
+async def generate_instagram_post(request: InstagramPostRequest):
+    """Generate an Instagram post with hashtags and call-to-action"""
+    try:
+        if not write_hashtag_agent:
+            raise HTTPException(status_code=503, detail="Write and Hashtag Research agent not available")
+        
+        result = write_hashtag_agent.generate_instagram_post(
+            request.affirmation,
+            request.period_name,
+            request.style
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating Instagram post: {str(e)}")
+
+@app.post("/create-visual-from-instagram-post")
+async def create_visual_from_instagram_post(request: dict):
+    """Create a visual post from an existing Instagram post"""
+    try:
+        # Extract data from Instagram post
+        instagram_post_id = request.get("instagram_post_id")
+        instagram_post = request.get("instagram_post", {})
+        
+        # Get required fields from Instagram post
+        affirmation = instagram_post.get("affirmation", "")
+        period_name = instagram_post.get("period_name", "")
+        period_color = instagram_post.get("period_color", "")
+        
+        # Optional parameters
+        image_style = request.get("image_style", "minimal")
+        custom_tags = request.get("custom_tags", [])
+        force_new = request.get("force_new", False)
+        
+        if not affirmation or not period_name:
+            raise HTTPException(status_code=400, detail="Affirmation and period_name are required")
+        
+        # Generate smart tags based on period and content
+        tags = custom_tags if custom_tags else []
+        if not tags:
+            # Default tags based on period
+            period_tags = {
+                "Image": ["self-reflection", "identity", "golden", "authentic"],
+                "Veränderung": ["transformation", "change", "blue", "growth"],
+                "Energie": ["vitality", "power", "red", "dynamic"],
+                "Kreativität": ["creative", "inspiration", "yellow", "artistic"],
+                "Erfolg": ["success", "achievement", "magenta", "goals"],
+                "Entspannung": ["relaxation", "peace", "green", "calm"],
+                "Umsicht": ["wisdom", "thoughtful", "purple", "mindful"]
+            }
+            tags = period_tags.get(period_name, ["inspiration", "motivation", "peaceful"])
+        
+        # Initialize visual post creator agent
+        from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
+        pexels_key = os.getenv('PEXELS_API_KEY')
+        
+        if not pexels_key:
+            raise HTTPException(status_code=503, detail="Pexels API key not configured")
+        
+        visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
+        result = visual_agent.create_visual_post(affirmation, period_name, tags, image_style, force_new)
+        
+        # Add reference to original Instagram post
+        if result.get("success"):
+            result["post"]["instagram_post_id"] = instagram_post_id
+            result["post"]["source"] = "instagram_integration"
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating visual post from Instagram post: {str(e)}")
+
+@app.get("/instagram-posts")
+async def get_instagram_posts(period_name: Optional[str] = None):
+    """Get all Instagram posts, optionally filtered by period"""
+    try:
+        if not write_hashtag_agent:
+            raise HTTPException(status_code=503, detail="Write and Hashtag Research agent not available")
+        
+        result = write_hashtag_agent.get_generated_posts(period_name)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting Instagram posts: {str(e)}")
 
 @app.get("/health")
 async def health_check():
@@ -498,7 +624,8 @@ async def health_check():
         "image_generation_enabled": image_generator is not None,
         "qa_agent_enabled": qa_agent is not None,
         "affirmations_agent_enabled": affirmations_agent is not None,
-        "visual_posts_enabled": os.getenv('PEXELS_API_KEY') is not None
+        "visual_posts_enabled": os.getenv('PEXELS_API_KEY') is not None,
+        "write_hashtag_agent_enabled": write_hashtag_agent is not None
     }
 
 if __name__ == "__main__":

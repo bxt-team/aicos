@@ -1,43 +1,106 @@
 .header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 1rem 0;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
 }
 
 .header-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 2rem;
+  padding: 0 30px;
+  height: 80px;
 }
 
 .header-title {
   text-decoration: none;
   color: white;
+  transition: transform 0.3s ease;
+}
+
+.header-title:hover {
+  transform: translateY(-2px);
+}
+
+.title-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title-icon {
+  font-size: 2rem;
+  animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .header-title h1 {
   margin: 0;
-  font-size: 1.8rem;
-  font-weight: 600;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(45deg, #ffffff, #e2e8f0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .header-nav {
   display: flex;
-  gap: 2rem;
+  align-items: center;
+  gap: 20px;
 }
 
-.nav-link {
-  color: white;
-  text-decoration: none;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  transition: background-color 0.3s ease;
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .header-container {
+    padding: 0 20px;
+    height: 70px;
+  }
+  
+  .header-title h1 {
+    font-size: 1.3rem;
+  }
+  
+  .title-icon {
+    font-size: 1.5rem;
+  }
+  
+  .title-content {
+    gap: 8px;
+  }
 }
 
-.nav-link:hover {
-  background-color: rgba(255,255,255,0.1);
+@media (max-width: 480px) {
+  .header-container {
+    padding: 0 15px;
+    height: 65px;
+  }
+  
+  .header-title h1 {
+    font-size: 1.1rem;
+  }
+  
+  .title-icon {
+    font-size: 1.3rem;
+  }
+  
+  .title-content {
+    gap: 6px;
+  }
 }

@@ -153,3 +153,63 @@ create_visual_post_task:
     Speichere das finale Bild als JPG mit 95% Qualität.
   expected_output: "Pfad zum erstellten visuellen Post mit Metadaten (Größe, Format, Farben)"
   agent: visual_post_creator_agent
+
+generate_instagram_post_task:
+  description: |
+    Erstelle einen ansprechenden Instagram Post für die 7 Cycles Periode "{period_name}" mit der folgenden Affirmation:
+    
+    Affirmation: "{affirmation}"
+    
+    Perioden-Information:
+    - Name: {period_name}
+    - Farbe: {period_color}
+    - Fokus: {period_focus}
+    - Beschreibung: {period_description}
+    - Schlüsselwörter: {period_keywords}
+    
+    Kontext aus der 7 Cycles Wissensdatenbank:
+    {context}
+    
+    Stil: {style}
+    
+    Erstelle einen vollständigen Instagram Post mit:
+    
+    1. POST TEXT (150-200 Wörter):
+       - Beginne mit einem ansprechenden Hook zur Periode
+       - Integriere die Affirmation natürlich in den Text
+       - Biete Kontext über die {period_name} Periode aus dem 7 Cycles System
+       - Mache es nachvollziehbar und inspirierend
+       - Beende mit einem überzeugenden Call-to-Action
+    
+    2. HASHTAGS (25-30 Hashtags):
+       - Mix aus trending Personal Development Hashtags
+       - 7 Cycles spezifische Hashtags
+       - Perioden-spezifische Hashtags für {period_name}
+       - Community Building Hashtags
+       - Engagement-fokussierte Hashtags
+       
+    3. CALL-TO-ACTION:
+       - Ermutige zu sinnvollem Engagement (Kommentare, Shares, Saves)
+       - Stelle zum Nachdenken anregende Fragen
+       - Lade Follower ein, ihre Erfahrungen zu teilen
+       - Fördere Community-Interaktion
+    
+    4. ENGAGEMENT-STRATEGIEN:
+       - Empfehle optimale Posting-Zeiten
+       - Schlage Story Follow-up Content vor
+       - Gib Tipps für Community Building
+    
+    Formatiere die Antwort als JSON:
+    {{
+        "post_text": "Vollständiger Instagram Post Text mit natürlicher Affirmations-Integration",
+        "hashtags": ["#hashtag1", "#hashtag2", ...],
+        "call_to_action": "Spezifischer Call-to-Action Text",
+        "engagement_strategies": ["strategie1", "strategie2", ...],
+        "optimal_posting_time": "Empfohlene Posting-Zeit",
+        "period_name": "{period_name}",
+        "period_color": "{period_color}",
+        "affirmation": "{affirmation}",
+        "style": "{style}"
+    }}
+  expected_output: "JSON formatierter Instagram Post mit Text, Hashtags, Call-to-Action und Engagement-Strategien"
+  agent: write_hashtag_research_agent
