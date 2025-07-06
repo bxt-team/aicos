@@ -23,7 +23,8 @@
       "Bash(lsof:*)",
       "Bash(PYTHONPATH=/Users/marc/IdeaProjects/7cycles-ai python backend/main.py)",
       "Bash(pip3 install:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

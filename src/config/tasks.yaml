@@ -35,22 +35,58 @@ knowledge_overview_task:
 
 generate_affirmations_task:
   description: |
-    Erstelle {count} kraftvolle Affirmationen für die {period_type}-Periode basierend auf dem 7 Lebenszyklen-Wissen.
+    Erstelle {count} kraftvolle Affirmationen für die 7 Cycles Periode "{period_name}".
     
-    Perioden-Typ: {period_type}
-    Perioden-Information: {period_info}
+    7 Cycles Periode: {period_name}
+    Farbe: {period_color}
+    Zusätzliche Informationen: {period_info}
     
     Kontext aus der Wissensdatenbank:
     {context}
     
-    Anweisungen:
-    - Erstelle Affirmationen, die mit den natürlichen Rhythmen dieser spezifischen Periode übereinstimmen
-    - Jede Affirmation sollte positiv, in der Gegenwartsform und persönlich stärkend sein
-    - Fokussiere auf die einzigartigen Eigenschaften und Möglichkeiten dieser Periode
-    - Integriere Themen wie Energie, Kreativität, Erfolg und Einklang mit natürlichen Zyklen
-    - Mache sie praktisch und im Alltag anwendbar
-    - Jede Affirmation sollte 10-20 Wörter lang sein
-    - Stelle Vielfalt in den Fokusbereich sicher (Energie, Kreativität, Erfolg, Beziehungen, Wachstum)
+    SPEZIFISCHE ANWEISUNGEN FÜR JEDE PERIODE:
+    
+    IMAGE (#DAA520 - Goldgrün):
+    - Fokus: Selbstbild, Identität, Selbstwahrnehmung, persönliche Ausstrahlung
+    - Themen: Selbstvertrauen, Authentizität, Selbstliebe, positive Selbstwahrnehmung
+    - Schlüsselwörter: "Ich bin", "Mein wahres Selbst", "Meine Ausstrahlung", "Meine Identität"
+    
+    VERÄNDERUNG (#2196F3 - Blau):
+    - Fokus: Transformation, Wandel, Anpassung, Neubeginn
+    - Themen: Mut zur Veränderung, Flexibilität, Wachstum, Transformation
+    - Schlüsselwörter: "Ich verändere", "Ich wachse", "Neue Wege", "Transformation"
+    
+    ENERGIE (#F44336 - Rot):
+    - Fokus: Vitalität, Schwung, Dynamik, körperliche/mentale Kraft
+    - Themen: Lebenskraft, Motivation, Ausdauer, vitale Energie
+    - Schlüsselwörter: "Meine Energie", "Ich bin kraftvoll", "Vitalität", "Schwung"
+    
+    KREATIVITÄT (#FFD700 - Gold):
+    - Fokus: Innovation, Inspiration, Schöpfung, künstlerischer Ausdruck
+    - Themen: Kreative Entfaltung, Inspiration, Innovation, künstlerische Kraft
+    - Schlüsselwörter: "Ich erschaffe", "Meine Kreativität", "Innovation", "Inspiration"
+    
+    ERFOLG (#CC0066 - Magenta):
+    - Fokus: Zielerreichung, Leistung, Manifestation, Erfolgserlebnisse
+    - Themen: Ziele erreichen, Erfolg manifestieren, Leistung, Anerkennung
+    - Schlüsselwörter: "Ich erreiche", "Mein Erfolg", "Ziele verwirklichen", "Erfolgreiche Umsetzung"
+    
+    ENTSPANNUNG (#4CAF50 - Grün):
+    - Fokus: Ruhe, Regeneration, Balance, innerer Frieden
+    - Themen: Gelassenheit, Erholung, Balance, innere Ruhe
+    - Schlüsselwörter: "Ich entspanne", "Innere Ruhe", "Balance", "Gelassenheit"
+    
+    UMSICHT (#9C27B0 - Lila):
+    - Fokus: Weisheit, Besonnenheit, durchdachte Planung, weise Entscheidungen
+    - Themen: Weisheit, Besonnenheit, kluge Entscheidungen, strategisches Denken
+    - Schlüsselwörter: "Ich entscheide weise", "Meine Weisheit", "Besonnenheit", "Klare Sicht"
+    
+    ALLGEMEINE ANWEISUNGEN:
+    - Jede Affirmation sollte 8-15 Wörter lang sein
+    - Verwende die Ich-Form und Gegenwartsform
+    - Integriere die spezifischen Schlüsselwörter der jeweiligen Periode
+    - Mache sie emotional kraftvoll und motivierend
+    - Stelle sicher, dass sie zur Energie der Periode passen
     - WICHTIG: Alle Affirmationen müssen auf Deutsch sein!
     
     Formatiere als JSON:
@@ -58,10 +94,11 @@ generate_affirmations_task:
         "affirmations": [
             {{
                 "text": "Affirmationstext",
-                "theme": "energie/kreativitaet/erfolg/beziehungen/wachstum",
-                "focus": "Kurze Beschreibung des Fokus dieser Affirmation"
+                "theme": "{period_name}",
+                "focus": "Spezifischer Fokus dieser Affirmation innerhalb der Periode",
+                "period_color": "{period_color}"
             }}
         ]
     }}
-  expected_output: "JSON formatierte Liste von Affirmationen mit Themen und Fokusbereichen"
+  expected_output: "JSON formatierte Liste von Affirmationen spezifisch für die gewählte 7 Cycles Periode"
   agent: affirmations_agent

@@ -65,8 +65,8 @@ class QuestionRequest(BaseModel):
     question: str
 
 class AffirmationRequest(BaseModel):
-    period_type: str
-    period_info: Dict[str, Any]
+    period_name: str
+    period_info: Optional[Dict[str, Any]] = {}
     count: Optional[int] = 5
 
 @app.on_event("startup")
@@ -285,7 +285,7 @@ async def generate_affirmations(request: AffirmationRequest):
             raise HTTPException(status_code=503, detail="Affirmations agent not available")
         
         result = affirmations_agent.generate_affirmations(
-            request.period_type, 
+            request.period_name, 
             request.period_info, 
             request.count
         )
@@ -299,13 +299,13 @@ async def generate_affirmations(request: AffirmationRequest):
         raise HTTPException(status_code=500, detail=f"Error generating affirmations: {str(e)}")
 
 @app.get("/affirmations")
-async def get_affirmations(period_type: Optional[str] = None):
+async def get_affirmations(period_name: Optional[str] = None):
     """Get all affirmations, optionally filtered by period type"""
     try:
         if not affirmations_agent:
             raise HTTPException(status_code=503, detail="Affirmations agent not available")
         
-        result = affirmations_agent.get_affirmations_by_period(period_type)
+        result = affirmations_agent.get_affirmations_by_period(period_name)
         
         if result["success"]:
             return result

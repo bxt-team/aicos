@@ -9,6 +9,7 @@ interface Affirmation {
   focus: string;
   created_at: string;
   period_type: string;
+  period_name?: string;
   period_info: any;
 }
 
@@ -16,6 +17,7 @@ interface PeriodType {
   description: string;
   phases?: string[];
   stages?: string[];
+  keywords?: string[];
 }
 
 interface PeriodsData {
@@ -52,7 +54,7 @@ const AffirmationsInterface: React.FC = () => {
   const loadAffirmations = async (periodFilter?: string) => {
     try {
       const url = periodFilter 
-        ? `${API_BASE_URL}/affirmations?period_type=${periodFilter}`
+        ? `${API_BASE_URL}/affirmations?period_name=${periodFilter}`
         : `${API_BASE_URL}/affirmations`;
       
       const response = await axios.get(url);
@@ -85,7 +87,7 @@ const AffirmationsInterface: React.FC = () => {
       }
 
       const response = await axios.post(`${API_BASE_URL}/generate-affirmations`, {
-        period_type: selectedPeriod,
+        period_name: selectedPeriod,
         period_info: periodInfo,
         count: affirmationCount
       });
@@ -120,23 +122,31 @@ const AffirmationsInterface: React.FC = () => {
     if (!periods || !selectedPeriod) return [];
     
     const periodData = periods.period_types[selectedPeriod];
-    return periodData?.phases || periodData?.stages || [];
+    return periodData?.keywords || [];
   };
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();
   };
 
-  const getThemeColor = (theme: string) => {
-    const themes: { [key: string]: string } = {
-      'energie': '#ff6b6b',
-      'kreativitaet': '#4ecdc4',
-      'erfolg': '#45b7d1',
-      'beziehungen': '#f9ca24',
-      'wachstum': '#6c5ce7',
-      'allgemein': '#a0a0a0'
+  const getThemeColor = (affirmation: any) => {
+    // First try to get color from period_color field
+    if (affirmation.period_color) {
+      return affirmation.period_color;
+    }
+    
+    // Fallback to 7 Cycles theme mapping
+    const cyclesColors: { [key: string]: string } = {
+      'Image': '#DAA520',
+      'Veränderung': '#2196F3', 
+      'Energie': '#F44336',
+      'Kreativität': '#FFD700',
+      'Erfolg': '#CC0066',
+      'Entspannung': '#4CAF50',
+      'Umsicht': '#9C27B0'
     };
-    return themes[theme] || themes.allgemein;
+    
+    return cyclesColors[affirmation.theme] || '#a0a0a0';
   };
 
   return (
@@ -159,16 +169,9 @@ const AffirmationsInterface: React.FC = () => {
               >
                 <option value="">Wähle einen Perioden-Typ</option>
                 {periods && Object.entries(periods.period_types).map(([key, value]) => {
-                  const germanNames: {[key: string]: string} = {
-                    'tag': 'Tag',
-                    'woche': 'Woche',
-                    'monat': 'Monat',
-                    'jahr': 'Jahr',
-                    'leben': 'Leben'
-                  };
                   return (
                     <option key={key} value={key}>
-                      {germanNames[key] || key} - {value.description}
+                      {key} - {value.description}
                     </option>
                   );
                 })}
@@ -176,43 +179,18 @@ const AffirmationsInterface: React.FC = () => {
             </div>
 
             <div className="form-group">
-              <label>Phase/Stadium:</label>
+              <label>Fokus-Stichwort:</label>
               <select 
                 value={selectedPhase} 
                 onChange={(e) => setSelectedPhase(e.target.value)}
                 disabled={loading || !selectedPeriod}
               >
-                <option value="">Wähle eine Phase (optional)</option>
-                {getPhaseOptions().map(phase => {
-                  const germanPhases: {[key: string]: string} = {
-                    'morgen': 'Morgen',
-                    'nachmittag': 'Nachmittag',
-                    'abend': 'Abend',
-                    'nacht': 'Nacht',
-                    'planung': 'Planung',
-                    'aktion': 'Aktion',
-                    'vollendung': 'Vollendung',
-                    'reflexion': 'Reflexion',
-                    'neumond': 'Neumond',
-                    'zunehmend': 'Zunehmend',
-                    'vollmond': 'Vollmond',
-                    'abnehmend': 'Abnehmend',
-                    'fruehling': 'Frühling',
-                    'sommer': 'Sommer',
-                    'herbst': 'Herbst',
-                    'winter': 'Winter',
-                    'kindheit': 'Kindheit',
-                    'jugend': 'Jugend',
-                    'erwachsenenalter': 'Erwachsenenalter',
-                    'reife': 'Reife',
-                    'weisheit': 'Weisheit'
-                  };
-                  return (
-                    <option key={phase} value={phase}>
-                      {germanPhases[phase] || phase}
-                    </option>
-                  );
-                })}
+                <option value="">Wähle ein Fokus-Stichwort (optional)</option>
+                {getPhaseOptions().map((keyword: string) => (
+                  <option key={keyword} value={keyword}>
+                    {keyword}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -260,20 +238,11 @@ const AffirmationsInterface: React.FC = () => {
               onChange={(e) => handleFilterChange(e.target.value)}
             >
               <option value="">Alle Perioden</option>
-              {periods && Object.keys(periods.period_types).map(key => {
-                const germanNames: {[key: string]: string} = {
-                  'tag': 'Tag',
-                  'woche': 'Woche',
-                  'monat': 'Monat',
-                  'jahr': 'Jahr',
-                  'leben': 'Leben'
-                };
-                return (
-                  <option key={key} value={key}>
-                    {germanNames[key] || key}
-                  </option>
-                );
-              })}
+              {periods && Object.keys(periods.period_types).map(key => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -288,54 +257,20 @@ const AffirmationsInterface: React.FC = () => {
             {affirmations.map((affirmation) => (
               <div key={affirmation.id} className="affirmation-card">
                 <div className="affirmation-content">
-                  <div className="affirmation-text">"{affirmation.text}"</div>
+                  <div className="affirmation-text">{affirmation.text}</div>
                   <div className="affirmation-meta">
                     <span 
                       className="theme-tag"
-                      style={{ backgroundColor: getThemeColor(affirmation.theme) }}
+                      style={{ backgroundColor: getThemeColor(affirmation) }}
                     >
                       {affirmation.theme}
                     </span>
                     <span className="focus-text">{affirmation.focus}</span>
                   </div>
                   <div className="period-info">
-                    <strong>Periode:</strong> {(() => {
-                      const germanNames: {[key: string]: string} = {
-                        'tag': 'Tag',
-                        'woche': 'Woche',
-                        'monat': 'Monat',
-                        'jahr': 'Jahr',
-                        'leben': 'Leben'
-                      };
-                      return germanNames[affirmation.period_type] || affirmation.period_type;
-                    })()}
+                    <strong>7 Cycles Periode:</strong> {affirmation.period_name || affirmation.period_type || affirmation.theme}
                     {affirmation.period_info?.phase && (
-                      <span> - {(() => {
-                        const germanPhases: {[key: string]: string} = {
-                          'morgen': 'Morgen',
-                          'nachmittag': 'Nachmittag',
-                          'abend': 'Abend',
-                          'nacht': 'Nacht',
-                          'planung': 'Planung',
-                          'aktion': 'Aktion',
-                          'vollendung': 'Vollendung',
-                          'reflexion': 'Reflexion',
-                          'neumond': 'Neumond',
-                          'zunehmend': 'Zunehmend',
-                          'vollmond': 'Vollmond',
-                          'abnehmend': 'Abnehmend',
-                          'fruehling': 'Frühling',
-                          'sommer': 'Sommer',
-                          'herbst': 'Herbst',
-                          'winter': 'Winter',
-                          'kindheit': 'Kindheit',
-                          'jugend': 'Jugend',
-                          'erwachsenenalter': 'Erwachsenenalter',
-                          'reife': 'Reife',
-                          'weisheit': 'Weisheit'
-                        };
-                        return germanPhases[affirmation.period_info.phase] || affirmation.period_info.phase;
-                      })()}</span>
+                      <span> - {affirmation.period_info.phase}</span>
                     )}
                   </div>
                   <div className="timestamp">
