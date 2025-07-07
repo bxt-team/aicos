@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './VideoGenerationInterface.css';
 
@@ -47,16 +47,7 @@ const VideoGenerationInterface: React.FC = () => {
   // Filter state
   const [filterVideoType, setFilterVideoType] = useState('');
 
-  useEffect(() => {
-    loadVideoTypes();
-    loadVideos();
-  }, []);
-
-  useEffect(() => {
-    loadVideos();
-  }, [filterVideoType]);
-
-  const loadVideoTypes = async () => {
+  const loadVideoTypes = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/video-types`);
       if (response.data.success) {
@@ -67,9 +58,9 @@ const VideoGenerationInterface: React.FC = () => {
       console.error('Error loading video types:', err);
       setError('Fehler beim Laden der Video-Typen');
     }
-  };
+  }, []);
 
-  const loadVideos = async () => {
+  const loadVideos = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (filterVideoType) params.append('video_type', filterVideoType);
@@ -81,7 +72,16 @@ const VideoGenerationInterface: React.FC = () => {
     } catch (err: any) {
       console.error('Error loading videos:', err);
     }
-  };
+  }, [filterVideoType]);
+
+  useEffect(() => {
+    loadVideoTypes();
+    loadVideos();
+  }, [loadVideoTypes, loadVideos]);
+
+  useEffect(() => {
+    loadVideos();
+  }, [filterVideoType, loadVideos]);
 
   const generateVideo = async () => {
     const validImagePaths = imagePaths.filter(path => path.trim() !== '');

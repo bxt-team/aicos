@@ -157,6 +157,13 @@ class PostCompositionRequest(BaseModel):
     custom_options: Optional[Dict[str, Any]] = None
     force_new: Optional[bool] = False
 
+class IntegratedPostCompositionRequest(BaseModel):
+    instagram_post_id: str
+    visual_post_id: str
+    template_name: Optional[str] = "default"
+    post_format: Optional[str] = "story"
+    custom_options: Optional[Dict[str, Any]] = None
+
 class VideoGenerationRequest(BaseModel):
     image_paths: List[str]
     video_type: Optional[str] = "slideshow"
@@ -553,21 +560,32 @@ async def create_visual_post(request: dict):
 async def get_visual_posts(period: str = None):
     """Get all visual posts, optionally filtered by period"""
     try:
-        if not post_composition_agent:
-            raise HTTPException(status_code=503, detail="Post composition agent not available")
+        # Read from visual_posts_storage.json (original Visual Posts Creator data)
+        visual_posts_storage_path = os.path.join(static_dir, "visual_posts_storage.json")
         
-        result = post_composition_agent.get_composed_posts(period=period)
-        
-        # Transform result to match expected format
-        if result["success"]:
+        if not os.path.exists(visual_posts_storage_path):
             return {
                 "success": True,
-                "posts": result["posts"],
-                "count": result["count"],
+                "posts": [],
+                "count": 0,
                 "period": period
             }
-        else:
-            return result
+        
+        with open(visual_posts_storage_path, 'r') as f:
+            visual_data = json.load(f)
+            
+        posts = visual_data.get("posts", [])
+        
+        # Filter by period if provided
+        if period:
+            posts = [post for post in posts if post.get("period") == period]
+        
+        return {
+            "success": True,
+            "posts": posts,
+            "count": len(posts),
+            "period": period
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting visual posts: {str(e)}")
@@ -1401,6 +1419,32 @@ async def get_composed_posts(period: Optional[str] = None, template: Optional[st
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting composed posts: {str(e)}")
 
+@app.get("/api/post-composition-storage")
+async def get_post_composition_storage():
+    """Get the post composition storage file contents"""
+    try:
+        post_composition_storage_path = os.path.join(static_dir, "post_composition_storage.json")
+        
+        if not os.path.exists(post_composition_storage_path):
+            return {
+                "success": True,
+                "posts": [],
+                "by_hash": {},
+                "message": "No post composition storage found"
+            }
+        
+        with open(post_composition_storage_path, 'r') as f:
+            data = json.load(f)
+            
+        return {
+            "success": True,
+            "data": data,
+            "file_path": post_composition_storage_path
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading post composition storage: {str(e)}")
+
 @app.get("/api/composition-templates")
 async def get_composition_templates():
     """Get available composition templates"""
@@ -1434,6 +1478,87 @@ async def delete_composed_post(post_id: str):
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting composed post: {str(e)}")
+
+@app.post("/api/compose-integrated-post")
+async def compose_integrated_post(request: IntegratedPostCompositionRequest):
+    """Compose a visual post by integrating Instagram and Visual Posts data"""
+    try:
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
+        
+        if not write_hashtag_agent:
+            raise HTTPException(status_code=503, detail="Instagram hashtag agent not available")
+        
+        # Load Instagram post data
+        instagram_storage_file = os.path.join(static_dir, "write_hashtag_storage.json")
+        instagram_post = None
+        if os.path.exists(instagram_storage_file):
+            with open(instagram_storage_file, 'r') as f:
+                instagram_data = json.load(f)
+                for post in instagram_data.get("posts", []):
+                    if post.get("id") == request.instagram_post_id:
+                        instagram_post = post
+                        break
+        
+        if not instagram_post:
+            raise HTTPException(status_code=404, detail="Instagram post not found")
+        
+        # Load Visual post data
+        visual_storage_file = os.path.join(static_dir, "visual_posts_storage.json")
+        visual_post = None
+        if os.path.exists(visual_storage_file):
+            with open(visual_storage_file, 'r') as f:
+                visual_data = json.load(f)
+                for post in visual_data.get("posts", []):
+                    if post.get("id") == request.visual_post_id:
+                        visual_post = post
+                        break
+        
+        if not visual_post:
+            raise HTTPException(status_code=404, detail="Visual post not found")
+        
+        # Combine the content
+        combined_text = f"{instagram_post.get('post_text', '')}\n\n{' '.join(instagram_post.get('hashtags', [])[:20])}"
+        # Visual Posts haben file_path (fertiges Bild), nicht background_path
+        background_path = visual_post.get("file_path", visual_post.get("background_path", ""))
+        period = instagram_post.get("period_name", visual_post.get("period", ""))
+        
+        # Create enhanced custom options
+        enhanced_options = {
+            **(request.custom_options or {}),
+            "source_instagram_id": request.instagram_post_id,
+            "source_visual_id": request.visual_post_id,
+            "call_to_action": instagram_post.get("call_to_action", ""),
+            "hashtags": instagram_post.get("hashtags", []),
+            "engagement_strategies": instagram_post.get("engagement_strategies", []),
+            "combined_content": True
+        }
+        
+        # Compose the integrated post
+        result = post_composition_agent.compose_post(
+            background_path=background_path,
+            text=combined_text,
+            period=period,
+            template_name=request.template_name,
+            post_format=request.post_format,
+            custom_options=enhanced_options,
+            force_new=True  # Always create new for integrated posts
+        )
+        
+        if result["success"]:
+            # Add integration metadata to the result
+            result["post"]["integration_data"] = {
+                "instagram_post_id": request.instagram_post_id,
+                "visual_post_id": request.visual_post_id,
+                "integrated": True,
+                "created_at": datetime.now().isoformat()
+            }
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error composing integrated post: {str(e)}")
 
 # Video Generation API endpoints
 

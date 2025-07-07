@@ -17,7 +17,7 @@ class PostCompositionAgent(BaseCrew):
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
         # Storage for composed posts
-        self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/composed_posts_storage.json")
+        self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/post_composition_storage.json")
         self.posts_storage = self._load_posts_storage()
         
         # Output directory for composed images
@@ -51,7 +51,14 @@ class PostCompositionAgent(BaseCrew):
         try:
             if os.path.exists(self.storage_file):
                 with open(self.storage_file, 'r') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    # If the data has the old visual_posts_storage.json format, convert it
+                    if "posts" in data and "by_period" in data:
+                        return {
+                            "posts": data["posts"],
+                            "by_hash": data.get("by_period", {})
+                        }
+                    return data
         except Exception as e:
             print(f"Error loading posts storage: {e}")
         return {"posts": [], "by_hash": {}}

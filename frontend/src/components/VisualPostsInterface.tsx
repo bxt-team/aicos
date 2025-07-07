@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './VisualPostsInterface.css';
 import ImageFeedback from './ImageFeedback';
@@ -65,6 +65,9 @@ const VisualPostsInterface: React.FC = () => {
   
   // Feedback states
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
+  
+  // Prevent duplicate popup
+  const [hasShownDataLoadedPopup, setHasShownDataLoadedPopup] = useState<boolean>(false);
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -85,13 +88,33 @@ const VisualPostsInterface: React.FC = () => {
     { value: 'story', label: 'Instagram Story (9:16 - 1080x1920)' }
   ];
 
-  useEffect(() => {
-    loadPosts();
-    loadAffirmations();
-    handleUrlParameters();
+  const loadPosts = useCallback(async (periodFilter?: string) => {
+    try {
+      const url = periodFilter 
+        ? `${API_BASE_URL}/visual-posts?period=${periodFilter}`
+        : `${API_BASE_URL}/visual-posts`;
+      
+      const response = await axios.get(url);
+      if (response.data.success) {
+        setPosts(response.data.posts);
+      }
+    } catch (error) {
+      console.error('Error loading visual posts:', error);
+    }
   }, []);
 
-  const handleUrlParameters = () => {
+  const loadAffirmations = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/affirmations`);
+      if (response.data.success) {
+        setAffirmations(response.data.affirmations);
+      }
+    } catch (error) {
+      console.error('Error loading affirmations:', error);
+    }
+  }, []);
+
+  const handleUrlParameters = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
     
     // Check if we have Instagram post data in URL parameters
@@ -125,41 +148,25 @@ const VisualPostsInterface: React.FC = () => {
       }
       
       // Show notification that data was loaded - only once
-      setTimeout(() => {
-        if (imageStyle === 'dalle') {
-          alert('✅ Instagram Post-Daten wurden erfolgreich geladen! DALL-E AI-Bild-Generation ist aktiviert mit vorausgefülltem Kontext. Du kannst nun auf "Generieren" klicken.');
-        } else {
-          alert('✅ Instagram Post-Daten wurden erfolgreich geladen! Du kannst nun auf "Generieren" klicken.');
-        }
-      }, 100);
-    }
-  };
-
-  const loadPosts = async (periodFilter?: string) => {
-    try {
-      const url = periodFilter 
-        ? `${API_BASE_URL}/visual-posts?period=${periodFilter}`
-        : `${API_BASE_URL}/visual-posts`;
-      
-      const response = await axios.get(url);
-      if (response.data.success) {
-        setPosts(response.data.posts);
+      if (!hasShownDataLoadedPopup) {
+        setTimeout(() => {
+          if (imageStyle === 'dalle') {
+            alert('✅ Instagram Post-Daten wurden erfolgreich geladen! DALL-E AI-Bild-Generation ist aktiviert mit vorausgefülltem Kontext. Du kannst nun auf "Generieren" klicken.');
+          } else {
+            alert('✅ Instagram Post-Daten wurden erfolgreich geladen! Du kannst nun auf "Generieren" klicken.');
+          }
+          setHasShownDataLoadedPopup(true);
+        }, 100);
       }
-    } catch (error) {
-      console.error('Error loading visual posts:', error);
     }
-  };
+  }, [hasShownDataLoadedPopup]);
 
-  const loadAffirmations = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/affirmations`);
-      if (response.data.success) {
-        setAffirmations(response.data.affirmations);
-      }
-    } catch (error) {
-      console.error('Error loading affirmations:', error);
-    }
-  };
+  useEffect(() => {
+    loadPosts();
+    loadAffirmations();
+    handleUrlParameters();
+  }, [loadPosts, loadAffirmations, handleUrlParameters]);
+
 
   const handleSearchImages = async () => {
     if (!searchTags.trim() || !searchPeriod) return;
@@ -204,6 +211,20 @@ const VisualPostsInterface: React.FC = () => {
         
         if (isInstagramSource) {
           // Create AI image from Instagram post data
+          console.log('Creating Instagram AI image with data:', {
+            text: customText,
+            period: selectedPeriod,
+            tags: tags.length > 0 ? tags : undefined,
+            image_style: imageStyle,
+            post_format: postFormat,
+            affirmation_id: urlParams.get('affirmation_id'),
+            source: urlParams.get('source'),
+            instagram_post_text: urlParams.get('instagram_post_text'),
+            instagram_hashtags: urlParams.get('instagram_hashtags'),
+            instagram_cta: urlParams.get('instagram_cta'),
+            instagram_style: urlParams.get('instagram_style')
+          });
+          
           response = await axios.post(`${API_BASE_URL}/create-instagram-ai-image`, {
             text: customText,
             period: selectedPeriod,
@@ -217,6 +238,8 @@ const VisualPostsInterface: React.FC = () => {
             instagram_cta: urlParams.get('instagram_cta'),
             instagram_style: urlParams.get('instagram_style')
           });
+          
+          console.log('Instagram AI image response:', response.data);
         } else {
           // Create AI image with manual context
           response = await axios.post(`${API_BASE_URL}/create-dalle-visual-post`, {
@@ -270,7 +293,18 @@ const VisualPostsInterface: React.FC = () => {
         setImageStyle('minimal');
         setPostFormat('post');
         
-        alert(response.data.message);
+        // Clear URL parameters after successful creation
+        if (window.location.search) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        
+        // Show success message with details
+        const successMessage = response.data.message || 'Visueller Post erfolgreich erstellt';
+        if (response.data.visual_post) {
+          alert(`✅ ${successMessage}\n\nNeuer visueller Post wurde erstellt und ist nun in der Liste sichtbar.`);
+        } else {
+          alert(`✅ ${successMessage}`);
+        }
       } else {
         alert(`Fehler: ${response.data.message}`);
       }

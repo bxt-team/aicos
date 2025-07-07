@@ -162,6 +162,11 @@ class ContentGenerationWrapper:
                 "post_format": visual_post_data.get('post_format', 'post'),
                 "file_path": ai_image_data.get('image_path'),
                 "file_url": f"/static/generated/{os.path.basename(ai_image_data.get('image_path', ''))}",
+                "background_image": {
+                    "id": "ai_generated",
+                    "photographer": "DALL-E AI",
+                    "pexels_url": "https://openai.com/dall-e-3"
+                },
                 "ai_generated": True,
                 "ai_image_data": ai_image_data,
                 "created_at": datetime.datetime.now().isoformat(),
