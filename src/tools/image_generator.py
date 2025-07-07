@@ -6,6 +6,7 @@ import os
 from typing import Dict, Any, Optional
 import json
 import datetime
+from .feedback_system import FeedbackCollector, FeedbackAnalyzer, PromptOptimizer
 
 class ImageGenerator:
     def __init__(self, api_key: str):
@@ -14,31 +15,52 @@ class ImageGenerator:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.output_dir = os.path.join(current_dir, "..", "..", "static", "generated")
         os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Initialize feedback system
+        self.feedback_collector = FeedbackCollector()
+        self.feedback_analyzer = FeedbackAnalyzer(self.feedback_collector)
+        self.prompt_optimizer = PromptOptimizer(self.feedback_analyzer)
     
-    def generate_image(self, prompt: str, style: str = "natural", size: str = "1024x1024") -> Dict[str, Any]:
-        """Generate an image using DALL-E 3"""
+    def generate_image(self, prompt: str, style: str = "natural", size: str = "1024x1024", 
+                      use_feedback_optimization: bool = True) -> Dict[str, Any]:
+        """Generate an image using DALL-E 3 with optional feedback optimization"""
         try:
-            enhanced_prompt = self._enhance_prompt(prompt, style)
+            # Get feedback-based recommendations
+            if use_feedback_optimization:
+                recommendations = self.prompt_optimizer.get_generation_recommendations()
+                if recommendations["recommended_style"] and not style:
+                    style = recommendations["recommended_style"]
+                elif recommendations["recommended_style"] and recommendations["style_confidence"] > 0.8:
+                    style = recommendations["recommended_style"]
+            
+            enhanced_prompt = self._enhance_prompt(prompt, style, use_feedback_optimization)
             
             response = self.client.images.generate(
                 model="dall-e-3",
                 prompt=enhanced_prompt,
                 size=size,
-                quality="standard",
+                quality="hd" if use_feedback_optimization else "standard",
                 n=1,
             )
             
             image_url = response.data[0].url
             image_path = self._download_and_save_image(image_url, prompt)
             
+            generation_params = {
+                "prompt": enhanced_prompt,
+                "original_prompt": prompt,
+                "style": style,
+                "size": size,
+                "quality": "hd" if use_feedback_optimization else "standard",
+                "feedback_optimized": use_feedback_optimization
+            }
+            
             return {
                 "success": True,
                 "image_url": image_url,
                 "image_path": image_path,
-                "prompt": enhanced_prompt,
-                "original_prompt": prompt,
-                "style": style,
-                "size": size
+                "generation_params": generation_params,
+                **generation_params
             }
         except Exception as e:
             return {
@@ -47,8 +69,8 @@ class ImageGenerator:
                 "prompt": prompt
             }
     
-    def _enhance_prompt(self, prompt: str, style: str) -> str:
-        """Enhance the prompt with style-specific instructions"""
+    def _enhance_prompt(self, prompt: str, style: str, use_feedback_optimization: bool = True) -> str:
+        """Enhance the prompt with style-specific instructions and feedback optimization"""
         style_enhancements = {
             "natural": "photorealistic, high quality, natural lighting, clean composition",
             "minimalist": "minimalist design, clean lines, simple composition, plenty of white space, modern aesthetic",
@@ -60,7 +82,12 @@ class ImageGenerator:
         
         enhancement = style_enhancements.get(style, style_enhancements["natural"])
         
-        enhanced_prompt = f"{prompt}, {enhancement}, instagram-worthy, high quality, engaging visual"
+        # Apply feedback optimization if enabled
+        if use_feedback_optimization:
+            optimized_prompt = self.prompt_optimizer.optimize_prompt(prompt, style)
+            enhanced_prompt = f"{optimized_prompt}, {enhancement}, instagram-worthy, high quality, engaging visual"
+        else:
+            enhanced_prompt = f"{prompt}, {enhancement}, instagram-worthy, high quality, engaging visual"
         
         return enhanced_prompt
     
@@ -160,3 +187,59 @@ class ImageGenerator:
             ]
         
         return prompts[:5]
+    
+    def add_feedback(self, image_path: str, rating: int, comments: str = "", 
+                    generation_params: Dict[str, Any] = None, user_id: str = None,
+                    tags: list = None) -> str:
+        """Add feedback for a generated image"""
+        return self.feedback_collector.add_feedback(
+            image_path, rating, comments, generation_params, user_id, tags
+        )
+    
+    def get_feedback_analytics(self) -> Dict[str, Any]:
+        """Get comprehensive feedback analytics"""
+        style_analysis = self.feedback_analyzer.analyze_style_preferences()
+        prompt_analysis = self.feedback_analyzer.analyze_prompt_performance()
+        recommendations = self.feedback_analyzer.get_optimization_recommendations()
+        recent_trends = self.feedback_analyzer.get_recent_feedback_trends()
+        
+        return {
+            "style_rankings": [
+                {
+                    "style": style,
+                    "averageRating": data["average_rating"],
+                    "count": data["count"],
+                    "ratingDistribution": data["rating_distribution"]
+                }
+                for style, data in style_analysis["style_rankings"]
+            ],
+            "bestPerformingStyle": style_analysis["best_performing_style"],
+            "promptRankings": [
+                {
+                    "prompt": data["prompt"],
+                    "averageRating": data["average_rating"],
+                    "count": data["count"],
+                    "ratingDistribution": data["rating_distribution"]
+                }
+                for _, data in prompt_analysis["prompt_rankings"]
+            ],
+            "bestPerformingPrompts": [
+                {
+                    "prompt": data["prompt"],
+                    "averageRating": data["average_rating"],
+                    "count": data["count"],
+                    "ratingDistribution": data["rating_distribution"]
+                }
+                for _, data in prompt_analysis["best_performing_prompts"]
+            ],
+            "overallMetrics": recommendations.get("overall_metrics", {}),
+            "recentTrends": recent_trends
+        }
+    
+    def get_optimization_recommendations(self) -> Dict[str, Any]:
+        """Get recommendations for optimizing image generation"""
+        return self.feedback_analyzer.get_optimization_recommendations()
+    
+    def get_feedback_for_image(self, image_path: str) -> Optional[Dict[str, Any]]:
+        """Get feedback for a specific image"""
+        return self.feedback_collector.get_feedback_for_image(image_path)

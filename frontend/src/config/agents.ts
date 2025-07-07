@@ -49,7 +49,7 @@ export const agentConfigs: AgentConfig[] = [
   },
   {
     id: 'instagram-posts',
-    name: 'Instagram Posts & Hashtags',
+    name: 'Instagram Post & Hashtag TextWriter',
     route: '/instagram-posts',
     icon: '📱',
     description: 'Generiert Instagram Posts mit Affirmationen, relevanten Hashtags und Call-to-Actions',
@@ -57,6 +57,30 @@ export const agentConfigs: AgentConfig[] = [
     enabled: true,
     apiHealthCheck: '/instagram-posts',
     features: ['Hashtag Research', 'Call-to-Actions', 'Engagement Strategien', 'Content Marketing'],
+    version: '1.0'
+  },
+  {
+    id: 'instagram-poster',
+    name: 'Instagram Poster Agent',
+    route: '/instagram-posting',
+    icon: '📤',
+    description: 'Postet Inhalte direkt auf Instagram mit optimaler Timing und Engagement-Strategien',
+    category: 'Social Media Marketing',
+    enabled: true,
+    apiHealthCheck: '/instagram-posting-status',
+    features: ['Direct Instagram Posting', 'Content Optimization', 'Rate Limiting', 'Posting History'],
+    version: '1.0'
+  },
+  {
+    id: 'instagram-analyzer',
+    name: 'Instagram Success Analyzer',
+    route: '/instagram-analyzer',
+    icon: '🔍',
+    description: 'Analysiert erfolgreiche Instagram-Accounts und generiert umsetzbare Posting-Strategien',
+    category: 'Social Media Marketing',
+    enabled: true,
+    apiHealthCheck: '/instagram-analyses',
+    features: ['Account Analysis', 'Success Factor Identification', 'Strategy Generation', 'Competitive Analysis'],
     version: '1.0'
   },
   {

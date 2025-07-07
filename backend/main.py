@@ -18,6 +18,9 @@ from src.tools.image_generator import ImageGenerator
 from src.agents.qa_agent import QAAgent
 from src.agents.affirmations_agent import AffirmationsAgent
 from src.agents.write_hashtag_research_agent import WriteHashtagResearchAgent
+from src.agents.instagram_ai_prompt_agent import InstagramAIPromptAgent
+from src.agents.instagram_poster_agent import InstagramPosterAgent
+from src.agents.instagram_analyzer_agent import InstagramAnalyzerAgent
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -44,6 +47,10 @@ image_generator = None
 qa_agent = None
 affirmations_agent = None
 write_hashtag_agent = None
+instagram_ai_prompt_agent = None
+instagram_poster_agent = None
+instagram_analyzer_agent = None
+content_wrapper = None
 
 class ContentRequest(BaseModel):
     knowledge_files: Optional[List[str]] = None
@@ -76,16 +83,86 @@ class InstagramPostRequest(BaseModel):
     period_name: str
     style: Optional[str] = "inspirational"
 
+class InstagramAIImageRequest(BaseModel):
+    text: str
+    period: str
+    tags: Optional[List[str]] = []
+    image_style: Optional[str] = "inspirational"
+    post_format: Optional[str] = "post"
+    affirmation_id: Optional[str] = None
+    source: Optional[str] = None
+    instagram_post_text: Optional[str] = None
+    instagram_hashtags: Optional[str] = None
+    instagram_cta: Optional[str] = None
+    instagram_style: Optional[str] = "inspirational"
+
+class InstagramPostingRequest(BaseModel):
+    instagram_post_id: str
+    visual_post_id: Optional[str] = None
+    post_type: Optional[str] = "feed_post"  # "feed_post" or "story"
+    schedule_time: Optional[str] = None  # ISO format datetime for scheduling
+
+class InstagramContentPrepareRequest(BaseModel):
+    instagram_post_id: str
+    visual_post_id: Optional[str] = None
+
+class DALLEVisualPostRequest(BaseModel):
+    text: str
+    period: str
+    tags: Optional[List[str]] = []
+    image_style: str = "dalle"
+    post_format: Optional[str] = "post"
+    ai_context: Optional[str] = None
+    force_new: Optional[bool] = True
+
+class InstagramAnalyzeRequest(BaseModel):
+    account_url_or_username: str
+    analysis_focus: Optional[str] = "comprehensive"
+
+class InstagramStrategyRequest(BaseModel):
+    analysis_id: str
+    target_niche: Optional[str] = "7cycles"
+    account_stage: Optional[str] = "starting"
+
+class InstagramMultipleAnalyzeRequest(BaseModel):
+    account_list: List[str]
+    analysis_focus: Optional[str] = "comprehensive"
+
+class ImageFeedbackRequest(BaseModel):
+    imagePath: str
+    rating: int
+    comments: Optional[str] = ""
+    generationParams: Optional[Dict[str, Any]] = None
+    userId: Optional[str] = None
+    tags: Optional[List[str]] = []
+
 @app.on_event("startup")
 async def startup_event():
-    global image_generator, qa_agent, affirmations_agent, write_hashtag_agent
+    global image_generator, qa_agent, affirmations_agent, write_hashtag_agent, instagram_ai_prompt_agent, instagram_poster_agent, instagram_analyzer_agent, content_wrapper
     openai_api_key = os.getenv("OPENAI_API_KEY")
+    instagram_access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+    instagram_business_account_id = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID")
+    
     if openai_api_key:
         image_generator = ImageGenerator(openai_api_key)
         qa_agent = QAAgent(openai_api_key)
         affirmations_agent = AffirmationsAgent(openai_api_key)
         write_hashtag_agent = WriteHashtagResearchAgent(openai_api_key)
+        instagram_ai_prompt_agent = InstagramAIPromptAgent(openai_api_key)
+        instagram_poster_agent = InstagramPosterAgent(openai_api_key, instagram_access_token, instagram_business_account_id)
+        instagram_analyzer_agent = InstagramAnalyzerAgent(openai_api_key)
+        content_wrapper = ContentGenerationWrapper()
         print("Successfully initialized all agents")
+        
+        # Validate Instagram credentials
+        if instagram_access_token and instagram_business_account_id:
+            validation = instagram_poster_agent.validate_instagram_credentials()
+            if validation["success"]:
+                print(f"Instagram API validated: {validation['account_info'].get('username', 'Unknown')}")
+            else:
+                print(f"Instagram API validation failed: {validation['error']}")
+        else:
+            print("Instagram API credentials not configured - posting features will be disabled")
     else:
         print("Warning: OPENAI_API_KEY not found. All AI features will be disabled.")
 
@@ -615,6 +692,431 @@ async def get_instagram_posts(period_name: Optional[str] = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting Instagram posts: {str(e)}")
 
+@app.post("/create-instagram-ai-image")
+async def create_instagram_ai_image(request: InstagramAIImageRequest):
+    """Create an AI-generated image based on complete Instagram post data"""
+    try:
+        if not instagram_ai_prompt_agent:
+            raise HTTPException(status_code=503, detail="Instagram AI Prompt agent not available")
+        
+        # Prepare Instagram post data
+        instagram_post_data = {
+            "text": request.text,
+            "period": request.period,
+            "tags": request.tags,
+            "image_style": request.image_style,
+            "post_format": request.post_format,
+            "affirmation_id": request.affirmation_id,
+            "source": request.source,
+            "instagram_post_text": request.instagram_post_text,
+            "instagram_hashtags": request.instagram_hashtags,
+            "instagram_cta": request.instagram_cta,
+            "instagram_style": request.instagram_style
+        }
+        
+        result = instagram_ai_prompt_agent.generate_ai_image_from_instagram_post(
+            instagram_post_data=instagram_post_data,
+            post_format=request.post_format,
+            image_style=request.image_style
+        )
+        
+        if result["success"]:
+            # Create visual post from the generated AI image
+            visual_post_data = {
+                "text": request.text,
+                "period": request.period,
+                "tags": request.tags,
+                "image_style": request.image_style,
+                "post_format": request.post_format,
+                "ai_image_data": result["image"]
+            }
+            
+            # Create visual post from AI image
+            visual_post_result = content_wrapper.create_visual_post_from_ai_image(visual_post_data)
+            
+            if visual_post_result["success"]:
+                return {
+                    "success": True,
+                    "message": "AI-generierter visueller Post erstellt",
+                    "ai_image": result["image"],
+                    "visual_post": visual_post_result["post"]
+                }
+            else:
+                return result  # Return just the AI image if visual post creation fails
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating Instagram AI image: {str(e)}")
+
+@app.post("/create-dalle-visual-post")
+async def create_dalle_visual_post(request: DALLEVisualPostRequest):
+    """Create a visual post using DALL-E AI image generation"""
+    try:
+        if not instagram_ai_prompt_agent:
+            raise HTTPException(status_code=503, detail="Instagram AI Prompt agent not available")
+        
+        # Prepare data for AI image generation
+        instagram_post_data = {
+            "text": request.text,
+            "period": request.period,
+            "tags": request.tags,
+            "image_style": request.image_style,
+            "post_format": request.post_format,
+            "source": "manual_dalle",
+            "instagram_post_text": request.ai_context or request.text,
+            "instagram_hashtags": "",
+            "instagram_cta": "",
+            "instagram_style": "inspirational"
+        }
+        
+        # Generate AI image
+        result = instagram_ai_prompt_agent.generate_ai_image_from_instagram_post(
+            instagram_post_data=instagram_post_data,
+            post_format=request.post_format,
+            image_style="inspirational"
+        )
+        
+        if result["success"]:
+            # Convert the AI image result to visual post format
+            ai_image = result["image"]
+            
+            # Create visual post entry
+            import hashlib
+            post_id = hashlib.md5(f"{request.text}_{request.period}_dalle".encode()).hexdigest()
+            
+            visual_post_data = {
+                "id": post_id,
+                "text": request.text,
+                "period": request.period,
+                "tags": request.tags or [],
+                "period_color": ai_image.get("period_color", "#667eea"),
+                "image_style": "dalle",
+                "post_format": request.post_format,
+                "file_path": ai_image.get("image_path", ""),
+                "file_url": f"/static/generated/{os.path.basename(ai_image.get('image_path', ''))}",
+                "background_image": {
+                    "id": "dalle_generated",
+                    "photographer": "DALL-E AI",
+                    "pexels_url": ""
+                },
+                "created_at": datetime.now().isoformat(),
+                "dimensions": {
+                    "width": 1024,
+                    "height": 1024
+                },
+                "ai_prompt": ai_image.get("dalle_prompt", ""),
+                "ai_generated": True
+            }
+            
+            # Save to visual posts storage
+            visual_posts_storage_path = os.path.join(os.path.dirname(__file__), "..", "static", "visual_posts_storage.json")
+            visual_storage = {"posts": [], "by_period": {}}
+            
+            if os.path.exists(visual_posts_storage_path):
+                with open(visual_posts_storage_path, 'r') as f:
+                    visual_storage = json.load(f)
+            
+            visual_storage["posts"].append(visual_post_data)
+            visual_storage["by_period"][post_id] = visual_post_data
+            
+            os.makedirs(os.path.dirname(visual_posts_storage_path), exist_ok=True)
+            with open(visual_posts_storage_path, 'w') as f:
+                json.dump(visual_storage, f, indent=2)
+            
+            return {
+                "success": True,
+                "post": visual_post_data,
+                "source": "dalle_generated",
+                "message": f"DALL-E visueller Post für {request.period} erfolgreich erstellt"
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating DALL-E visual post: {str(e)}")
+
+@app.post("/prepare-instagram-content")
+async def prepare_instagram_content(request: InstagramContentPrepareRequest):
+    """Prepare Instagram content for posting (optimize text, hashtags, etc.)"""
+    try:
+        if not instagram_poster_agent:
+            raise HTTPException(status_code=503, detail="Instagram Poster agent not available")
+        
+        # Load Instagram post data
+        if not write_hashtag_agent:
+            raise HTTPException(status_code=503, detail="Write and Hashtag Research agent not available")
+        
+        instagram_posts = write_hashtag_agent.get_generated_posts()
+        if not instagram_posts["success"]:
+            raise HTTPException(status_code=500, detail="Failed to load Instagram posts")
+        
+        # Find the specific Instagram post
+        instagram_post = None
+        for post in instagram_posts["posts"]:
+            if post["id"] == request.instagram_post_id:
+                instagram_post = post
+                break
+        
+        if not instagram_post:
+            raise HTTPException(status_code=404, detail="Instagram post not found")
+        
+        # Load visual post data if provided
+        visual_post = None
+        if request.visual_post_id:
+            # For now, we'll load from the visual posts storage
+            # This would be better implemented with a proper visual posts service
+            visual_posts_storage_path = os.path.join(os.path.dirname(__file__), "..", "static", "visual_posts_storage.json")
+            if os.path.exists(visual_posts_storage_path):
+                with open(visual_posts_storage_path, 'r') as f:
+                    visual_data = json.load(f)
+                    visual_posts = visual_data.get("posts", [])
+                    for vpost in visual_posts:
+                        if vpost.get("id") == request.visual_post_id:
+                            visual_post = vpost
+                            break
+        
+        # Prepare content for posting
+        result = instagram_poster_agent.prepare_post_content(instagram_post, visual_post)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error preparing Instagram content: {str(e)}")
+
+@app.post("/post-to-instagram")
+async def post_to_instagram(request: InstagramPostingRequest):
+    """Post complete content to Instagram (combining text and visual)"""
+    try:
+        if not instagram_poster_agent:
+            raise HTTPException(status_code=503, detail="Instagram Poster agent not available")
+        
+        result = instagram_poster_agent.post_complete_content(
+            instagram_post_id=request.instagram_post_id,
+            visual_post_id=request.visual_post_id,
+            post_type=request.post_type,
+            schedule_time=request.schedule_time
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error posting to Instagram: {str(e)}")
+
+@app.get("/instagram-posting-status")
+async def get_instagram_posting_status():
+    """Get Instagram posting status and rate limiting info"""
+    try:
+        if not instagram_poster_agent:
+            raise HTTPException(status_code=503, detail="Instagram Poster agent not available")
+        
+        result = instagram_poster_agent.get_posting_status()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting posting status: {str(e)}")
+
+@app.get("/instagram-posting-history")
+async def get_instagram_posting_history(limit: int = 50):
+    """Get Instagram posting history"""
+    try:
+        if not instagram_poster_agent:
+            raise HTTPException(status_code=503, detail="Instagram Poster agent not available")
+        
+        result = instagram_poster_agent.get_posting_history(limit)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting posting history: {str(e)}")
+
+# Instagram Analyzer Agent endpoints
+
+@app.post("/api/analyze-instagram-account")
+async def analyze_instagram_account(request: InstagramAnalyzeRequest):
+    """Analyze a successful Instagram account for strategy insights"""
+    try:
+        if not instagram_analyzer_agent:
+            raise HTTPException(status_code=503, detail="Instagram Analyzer agent not available")
+        
+        result = instagram_analyzer_agent.analyze_instagram_account(
+            account_url_or_username=request.account_url_or_username,
+            analysis_focus=request.analysis_focus
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing Instagram account: {str(e)}")
+
+@app.post("/api/generate-strategy-from-analysis")
+async def generate_strategy_from_analysis(request: InstagramStrategyRequest):
+    """Generate an actionable Instagram strategy based on analysis"""
+    try:
+        if not instagram_analyzer_agent:
+            raise HTTPException(status_code=503, detail="Instagram Analyzer agent not available")
+        
+        result = instagram_analyzer_agent.generate_strategy_from_analysis(
+            analysis_id=request.analysis_id,
+            target_niche=request.target_niche,
+            account_stage=request.account_stage
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating strategy: {str(e)}")
+
+@app.post("/api/analyze-multiple-accounts")
+async def analyze_multiple_accounts(request: InstagramMultipleAnalyzeRequest):
+    """Analyze multiple Instagram accounts and create comparative insights"""
+    try:
+        if not instagram_analyzer_agent:
+            raise HTTPException(status_code=503, detail="Instagram Analyzer agent not available")
+        
+        result = instagram_analyzer_agent.analyze_multiple_accounts(
+            account_list=request.account_list,
+            analysis_focus=request.analysis_focus
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing multiple accounts: {str(e)}")
+
+@app.get("/api/instagram-analyses")
+async def get_instagram_analyses(account_username: Optional[str] = None):
+    """Get stored Instagram analyses, optionally filtered by account"""
+    try:
+        if not instagram_analyzer_agent:
+            raise HTTPException(status_code=503, detail="Instagram Analyzer agent not available")
+        
+        result = instagram_analyzer_agent.get_stored_analyses(account_username)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting analyses: {str(e)}")
+
+@app.get("/instagram-strategy/{strategy_id}")
+async def get_instagram_strategy(strategy_id: str):
+    """Get a specific Instagram strategy by ID"""
+    try:
+        if not instagram_analyzer_agent:
+            raise HTTPException(status_code=503, detail="Instagram Analyzer agent not available")
+        
+        result = instagram_analyzer_agent.get_strategy_by_id(strategy_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=404, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting strategy: {str(e)}")
+
+# Image Feedback API endpoints
+
+@app.post("/api/submit-feedback")
+async def submit_image_feedback(request: ImageFeedbackRequest):
+    """Submit feedback for a generated image"""
+    try:
+        if not image_generator:
+            raise HTTPException(status_code=503, detail="Image generator not available")
+        
+        # Add feedback to the system
+        feedback_id = image_generator.add_feedback(
+            image_path=request.imagePath,
+            rating=request.rating,
+            comments=request.comments,
+            generation_params=request.generationParams,
+            user_id=request.userId,
+            tags=request.tags
+        )
+        
+        return {
+            "success": True,
+            "feedback_id": feedback_id,
+            "message": "Feedback submitted successfully"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
+
+@app.get("/api/feedback-analytics")
+async def get_feedback_analytics():
+    """Get comprehensive feedback analytics"""
+    try:
+        if not image_generator:
+            raise HTTPException(status_code=503, detail="Image generator not available")
+        
+        analytics = image_generator.get_feedback_analytics()
+        return analytics
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting feedback analytics: {str(e)}")
+
+@app.get("/api/feedback-recommendations")
+async def get_feedback_recommendations():
+    """Get optimization recommendations based on feedback"""
+    try:
+        if not image_generator:
+            raise HTTPException(status_code=503, detail="Image generator not available")
+        
+        recommendations = image_generator.get_optimization_recommendations()
+        return recommendations
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting recommendations: {str(e)}")
+
+@app.get("/api/image-feedback/{image_path:path}")
+async def get_image_feedback(image_path: str):
+    """Get feedback for a specific image"""
+    try:
+        if not image_generator:
+            raise HTTPException(status_code=503, detail="Image generator not available")
+        
+        feedback = image_generator.get_feedback_for_image(image_path)
+        
+        if feedback:
+            return {
+                "success": True,
+                "feedback": feedback
+            }
+        else:
+            return {
+                "success": False,
+                "message": "No feedback found for this image"
+            }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting image feedback: {str(e)}")
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -625,7 +1127,8 @@ async def health_check():
         "qa_agent_enabled": qa_agent is not None,
         "affirmations_agent_enabled": affirmations_agent is not None,
         "visual_posts_enabled": os.getenv('PEXELS_API_KEY') is not None,
-        "write_hashtag_agent_enabled": write_hashtag_agent is not None
+        "write_hashtag_agent_enabled": write_hashtag_agent is not None,
+        "instagram_analyzer_enabled": instagram_analyzer_agent is not None
     }
 
 if __name__ == "__main__":

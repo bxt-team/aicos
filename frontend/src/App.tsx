@@ -7,6 +7,8 @@ import QAInterface from './components/QAInterface';
 import AffirmationsInterface from './components/AffirmationsInterface';
 import VisualPostsInterface from './components/VisualPostsInterface';
 import InstagramPostsInterface from './components/InstagramPostsInterface';
+import InstagramPostingInterface from './components/InstagramPostingInterface';
+import InstagramAnalyzerInterface from './components/InstagramAnalyzerInterface';
 import AgentManagement from './components/AgentManagement';
 import Header from './components/Header';
 
@@ -22,6 +24,8 @@ function App() {
             <Route path="/qa" element={<QAInterface />} />
             <Route path="/affirmations" element={<AffirmationsInterface />} />
             <Route path="/instagram-posts" element={<InstagramPostsInterface />} />
+            <Route path="/instagram-posting" element={<InstagramPostingInterface />} />
+            <Route path="/instagram-analyzer" element={<InstagramAnalyzerInterface />} />
             <Route path="/visual-posts" element={<VisualPostsInterface />} />
             <Route path="/content-generator" element={<ContentGenerator />} />
             <Route path="/content/:contentId" element={<ContentViewer />} />

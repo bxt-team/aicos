@@ -467,6 +467,61 @@
   animation: spin 1s linear infinite;
 }
 
+.ai-image-button {
+  background: #f093fb;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+}
+
+.ai-image-button:hover {
+  background: #f093fb;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+}
+
+.ai-image-button:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
+  animation: spin 1s linear infinite;
+}
+
+.instagram-post-button {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #4facfe 100%);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+}
+
+.instagram-post-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+}
+
+.instagram-post-button:disabled {
+  background: #e2e8f0;
+  cursor: not-allowed;
+  animation: spin 1s linear infinite;
+}
+
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

@@ -56,6 +56,8 @@ const InstagramPostsInterface: React.FC = () => {
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [inputMode, setInputMode] = useState<'manual' | 'existing'>('existing');
   const [creatingVisual, setCreatingVisual] = useState<string | null>(null);
+  const [postingToInstagram, setPostingToInstagram] = useState<string | null>(null);
+  const [preparingContent, setPreparingContent] = useState<string | null>(null);
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -195,24 +197,81 @@ const InstagramPostsInterface: React.FC = () => {
     copyToClipboard(fullPost);
   };
 
-  const createVisualPost = async (post: InstagramPost) => {
+  const createVisualPost = (post: InstagramPost) => {
     setCreatingVisual(post.id);
     try {
-      const response = await axios.post(`${API_BASE_URL}/create-visual-from-instagram-post`, {
-        instagram_post_id: post.id,
-        instagram_post: post,
-        image_style: 'minimal'
-      });
+      // Extract only the core affirmation text (not the full post)
+      const coreAffirmation = post.affirmation || post.post_text.split('\n')[0] || post.post_text;
+      
+      // Prepare data for visual post creator
+      const visualPostData = {
+        text: coreAffirmation,
+        period: post.period_name,
+        tags: [post.period_name.toLowerCase(), 'affirmation', 'motivation', 'inspiration'],
+        image_style: 'minimal',
+        post_format: 'post', // Default to post format, not story
+        affirmation_id: post.id,
+        source: 'instagram_post'
+      };
 
-      if (response.data.success) {
-        alert('✅ Visueller Post erfolgreich erstellt!');
-        // Optional: Navigate to visual posts interface
-        window.open('/visual-posts', '_blank');
-      }
+      // Navigate to visual posts interface with pre-defined values
+      const params = new URLSearchParams({
+        text: visualPostData.text,
+        period: visualPostData.period,
+        tags: visualPostData.tags.join(','),
+        image_style: visualPostData.image_style,
+        post_format: visualPostData.post_format,
+        affirmation_id: visualPostData.affirmation_id,
+        source: visualPostData.source
+      }).toString();
+
+      window.open(`/visual-posts?${params}`, '_blank');
     } catch (error: any) {
-      console.error('Error creating visual post:', error);
-      const errorMessage = error.response?.data?.detail || 'Fehler beim Erstellen des visuellen Posts';
-      alert(`❌ ${errorMessage}`);
+      console.error('Error preparing visual post data:', error);
+      alert('❌ Fehler beim Vorbereiten der visuellen Post-Daten');
+    } finally {
+      setCreatingVisual(null);
+    }
+  };
+
+  const createAIImagePost = (post: InstagramPost) => {
+    setCreatingVisual(post.id);
+    try {
+      // Use the complete Instagram post data for AI prompt generation
+      const aiImageData = {
+        text: post.affirmation || post.post_text.split('\n')[0] || post.post_text, // Core affirmation for display
+        period: post.period_name,
+        tags: [post.period_name.toLowerCase(), 'affirmation', 'motivation', 'inspiration', 'ai-generated'],
+        image_style: 'dalle', // Use DALL-E option
+        post_format: 'post', // Default to post format, not story
+        affirmation_id: post.id,
+        source: 'instagram_post',
+        // Pass complete Instagram post data for AI prompt generation
+        instagram_post_text: post.post_text,
+        instagram_hashtags: post.hashtags.join(' '),
+        instagram_cta: post.call_to_action,
+        instagram_style: post.style
+      };
+
+      // Navigate to visual posts interface with AI image generation enabled
+      const params = new URLSearchParams({
+        text: aiImageData.text,
+        period: aiImageData.period,
+        tags: aiImageData.tags.join(','),
+        image_style: aiImageData.image_style,
+        post_format: aiImageData.post_format,
+        affirmation_id: aiImageData.affirmation_id,
+        source: aiImageData.source,
+        instagram_post_text: aiImageData.instagram_post_text,
+        instagram_hashtags: aiImageData.instagram_hashtags,
+        instagram_cta: aiImageData.instagram_cta,
+        instagram_style: aiImageData.instagram_style
+      }).toString();
+
+      window.open(`/visual-posts?${params}`, '_blank');
+    } catch (error: any) {
+      console.error('Error preparing AI image data:', error);
+      alert('❌ Fehler beim Vorbereiten der AI-Bild-Daten');
     } finally {
       setCreatingVisual(null);
     }
@@ -220,6 +279,108 @@ const InstagramPostsInterface: React.FC = () => {
 
   const toggleExpanded = (postId: string) => {
     setExpandedPost(expandedPost === postId ? null : postId);
+  };
+
+  const prepareForInstagram = async (post: InstagramPost, visualPostId?: string) => {
+    setPreparingContent(post.id);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/prepare-instagram-content`, {
+        instagram_post_id: post.id,
+        visual_post_id: visualPostId
+      });
+
+      if (response.data.success) {
+        const preparation = response.data.preparation;
+        const message = `✅ Content vorbereitet für Instagram!\n\n` +
+          `📝 Caption Länge: ${preparation.caption_length} Zeichen\n` +
+          `🏷️ Hashtags: ${preparation.hashtags_count}\n` +
+          `⏰ Empfohlene Zeit: ${preparation.recommended_posting_time}\n` +
+          `📊 Erwartetes Engagement: ${preparation.estimated_engagement}\n\n` +
+          `Bereit zum Posten: ${preparation.post_ready ? 'Ja ✅' : 'Nein ❌'}`;
+        
+        alert(message);
+        
+        if (preparation.post_ready && window.confirm('Möchten Sie jetzt auf Instagram posten?')) {
+          postToInstagram(post.id, visualPostId);
+        }
+      } else {
+        alert(`❌ Fehler bei der Vorbereitung: ${response.data.error}`);
+      }
+    } catch (error: any) {
+      console.error('Error preparing content for Instagram:', error);
+      const errorMessage = error.response?.data?.detail || 'Fehler bei der Content-Vorbereitung';
+      alert(`❌ ${errorMessage}`);
+    } finally {
+      setPreparingContent(null);
+    }
+  };
+
+  const postToInstagram = async (instagramPostId: string, visualPostId?: string, postType: string = 'feed_post') => {
+    setPostingToInstagram(instagramPostId);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/post-to-instagram`, {
+        instagram_post_id: instagramPostId,
+        visual_post_id: visualPostId,
+        post_type: postType
+      });
+
+      if (response.data.success) {
+        const result = response.data;
+        const instagramUrl = result.instagram_url || '#';
+        const message = `🎉 Erfolgreich auf Instagram gepostet!\n\n` +
+          `📱 Post ID: ${result.post_id || result.story_id}\n` +
+          `🔗 Instagram URL: ${instagramUrl}\n` +
+          `📊 Geschätztes Engagement: ${result.preparation?.estimated_engagement || 'Unbekannt'}`;
+        
+        alert(message);
+        
+        // Optional: Open Instagram post in new tab
+        if (instagramUrl && instagramUrl !== '#') {
+          window.open(instagramUrl, '_blank');
+        }
+      } else {
+        alert(`❌ Fehler beim Posten: ${response.data.error}`);
+      }
+    } catch (error: any) {
+      console.error('Error posting to Instagram:', error);
+      const errorMessage = error.response?.data?.detail || 'Fehler beim Instagram-Posting';
+      alert(`❌ ${errorMessage}`);
+    } finally {
+      setPostingToInstagram(null);
+    }
+  };
+
+  const openInstagramPostingDialog = (post: InstagramPost) => {
+    const hasVisualPost = false; // This would need to be determined based on available visual posts
+    
+    const options = [
+      'Nur Text (ohne Bild)',
+      'Mit vorhandenem visuellen Post',
+      'Neuen visuellen Post erstellen'
+    ];
+    
+    const choice = window.prompt(
+      `Instagram Posting für "${post.period_name}" Post:\n\n` +
+      `1: ${options[0]}\n` +
+      `2: ${options[1]}\n` +
+      `3: ${options[2]}\n\n` +
+      `Wählen Sie eine Option (1-3):`
+    );
+    
+    switch (choice) {
+      case '1':
+        prepareForInstagram(post);
+        break;
+      case '2':
+        // This would open a dialog to select from existing visual posts
+        alert('Feature wird bald verfügbar sein: Auswahl aus vorhandenen visuellen Posts');
+        break;
+      case '3':
+        createVisualPost(post);
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -413,10 +574,26 @@ const InstagramPostsInterface: React.FC = () => {
                     <button
                       className="visual-post-button"
                       onClick={() => createVisualPost(post)}
-                      title="Visuellen Post erstellen"
+                      title="Visuellen Post erstellen (Pexels Bilder)"
                       disabled={creatingVisual === post.id}
                     >
                       {creatingVisual === post.id ? '🔄' : '🎨'}
+                    </button>
+                    <button
+                      className="ai-image-button"
+                      onClick={() => createAIImagePost(post)}
+                      title="AI-Bild generieren (DALL-E)"
+                      disabled={creatingVisual === post.id}
+                    >
+                      {creatingVisual === post.id ? '🔄' : '🤖'}
+                    </button>
+                    <button
+                      className="instagram-post-button"
+                      onClick={() => openInstagramPostingDialog(post)}
+                      title="Auf Instagram posten"
+                      disabled={postingToInstagram === post.id || preparingContent === post.id}
+                    >
+                      {postingToInstagram === post.id || preparingContent === post.id ? '🔄' : '📤'}
                     </button>
                   </div>
                   <div className="post-time">

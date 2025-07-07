@@ -79,7 +79,7 @@ class WriteHashtagResearchAgent(BaseCrew):
     def _create_write_hashtag_agent(self) -> Agent:
         """Create the Write and Hashtag Research agent"""
         return Agent(
-            role="Instagram Content Writer & Hashtag Research Expert",
+            role="Instagram Post & Hashtag TextWriter",
             goal="Create engaging Instagram posts with affirmations for 7 Cycles periods, including relevant hashtags and call-to-actions to grow follower base",
             backstory="""
             You are a skilled Instagram content creator and hashtag research expert specializing in the 7 Cycles system. 

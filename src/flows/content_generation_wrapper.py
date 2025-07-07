@@ -136,3 +136,79 @@ class ContentGenerationWrapper:
                 "error": str(e),
                 "message": "Content generation failed"
             }
+    
+    def create_visual_post_from_ai_image(self, visual_post_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a visual post from AI-generated image data"""
+        try:
+            import json
+            import hashlib
+            import datetime
+            
+            # Generate unique ID for the visual post
+            unique_string = f"{visual_post_data['text']}_{visual_post_data['period']}_{visual_post_data['image_style']}_{datetime.datetime.now().isoformat()}"
+            post_id = hashlib.md5(unique_string.encode()).hexdigest()
+            
+            # Get AI image data
+            ai_image_data = visual_post_data['ai_image_data']
+            
+            # Create visual post entry
+            visual_post = {
+                "id": post_id,
+                "text": visual_post_data['text'],
+                "period": visual_post_data['period'],
+                "tags": visual_post_data.get('tags', []),
+                "period_color": self._get_period_color(visual_post_data['period']),
+                "image_style": visual_post_data['image_style'],
+                "post_format": visual_post_data.get('post_format', 'post'),
+                "file_path": ai_image_data.get('image_path'),
+                "file_url": f"/static/generated/{os.path.basename(ai_image_data.get('image_path', ''))}",
+                "ai_generated": True,
+                "ai_image_data": ai_image_data,
+                "created_at": datetime.datetime.now().isoformat(),
+                "dimensions": {
+                    "width": 1024,
+                    "height": 1024
+                }
+            }
+            
+            # Load existing visual posts storage
+            storage_file = os.path.join(os.path.dirname(__file__), "../../static/visual_posts_storage.json")
+            storage_data = {"posts": [], "by_period": {}}
+            
+            if os.path.exists(storage_file):
+                with open(storage_file, 'r') as f:
+                    storage_data = json.load(f)
+            
+            # Add new post to storage
+            storage_data["posts"].append(visual_post)
+            storage_data["by_period"][post_id] = visual_post
+            
+            # Save storage
+            os.makedirs(os.path.dirname(storage_file), exist_ok=True)
+            with open(storage_file, 'w') as f:
+                json.dump(storage_data, f, indent=2)
+            
+            return {
+                "success": True,
+                "post": visual_post,
+                "message": "Visual post created from AI image"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _get_period_color(self, period: str) -> str:
+        """Get color for period"""
+        period_colors = {
+            "Image": "#DAA520",
+            "Veränderung": "#2196F3",
+            "Energie": "#F44336",
+            "Kreativität": "#FFD700",
+            "Erfolg": "#4CAF50",
+            "Entspannung": "#9C27B0",
+            "Umsicht": "#FF9800"
+        }
+        return period_colors.get(period, "#000000")

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './VisualPostsInterface.css';
+import ImageFeedback from './ImageFeedback';
+import FeedbackAnalytics from './FeedbackAnalytics';
 
 interface VisualPost {
   id: string;
@@ -59,6 +61,10 @@ const VisualPostsInterface: React.FC = () => {
   // Search states
   const [searchTags, setSearchTags] = useState<string>('');
   const [searchPeriod, setSearchPeriod] = useState<string>('');
+  const [aiContext, setAiContext] = useState<string>('');
+  
+  // Feedback states
+  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -70,7 +76,8 @@ const VisualPostsInterface: React.FC = () => {
   const imageStyles = [
     { value: 'minimal', label: 'Minimal (leichtes Overlay)' },
     { value: 'dramatic', label: 'Dramatisch (starkes Overlay)' },
-    { value: 'gradient', label: 'Gradient (Verlauf)' }
+    { value: 'gradient', label: 'Gradient (Verlauf)' },
+    { value: 'dalle', label: 'DALL-E AI Generiert' }
   ];
 
   const postFormats = [
@@ -81,7 +88,52 @@ const VisualPostsInterface: React.FC = () => {
   useEffect(() => {
     loadPosts();
     loadAffirmations();
+    handleUrlParameters();
   }, []);
+
+  const handleUrlParameters = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Check if we have Instagram post data in URL parameters
+    const text = urlParams.get('text');
+    const period = urlParams.get('period');
+    const tags = urlParams.get('tags');
+    const imageStyle = urlParams.get('image_style');
+    const postFormat = urlParams.get('post_format');
+    const source = urlParams.get('source');
+    
+    if (text && period && source === 'instagram_post') {
+      // Pre-populate form with Instagram post data
+      setCustomText(text);
+      setSelectedPeriod(period);
+      setCustomTags(tags || '');
+      setImageStyle(imageStyle || 'minimal');
+      setPostFormat(postFormat || 'post');
+      
+      // For DALL-E, pre-populate AI context with Instagram data
+      if (imageStyle === 'dalle') {
+        const instagramPostText = urlParams.get('instagram_post_text');
+        const instagramHashtags = urlParams.get('instagram_hashtags');
+        const instagramCta = urlParams.get('instagram_cta');
+        
+        let contextText = '';
+        if (instagramPostText) contextText += `Post-Text: ${instagramPostText}\n`;
+        if (instagramHashtags) contextText += `Hashtags: ${instagramHashtags}\n`;
+        if (instagramCta) contextText += `Call-to-Action: ${instagramCta}`;
+        
+        setAiContext(contextText.trim());
+      }
+      
+      // Show notification that data was loaded - only once
+      setTimeout(() => {
+        if (imageStyle === 'dalle') {
+          alert('✅ Instagram Post-Daten wurden erfolgreich geladen! DALL-E AI-Bild-Generation ist aktiviert mit vorausgefülltem Kontext. Du kannst nun auf "Generieren" klicken.');
+        } else {
+          alert('✅ Instagram Post-Daten wurden erfolgreich geladen! Du kannst nun auf "Generieren" klicken.');
+        }
+      }, 100);
+    }
+  };
 
   const loadPosts = async (periodFilter?: string) => {
     try {
@@ -141,7 +193,43 @@ const VisualPostsInterface: React.FC = () => {
     try {
       let response;
       
-      if (useAffirmation && selectedAffirmation) {
+      // Check if this is DALL-E AI image generation from Instagram post
+      const urlParams = new URLSearchParams(window.location.search);
+      const isInstagramSource = urlParams.get('source') === 'instagram_post';
+      const isDALLEStyle = imageStyle === 'dalle';
+      
+      if (isDALLEStyle) {
+        // Create AI image using DALL-E
+        const tags = customTags ? customTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+        
+        if (isInstagramSource) {
+          // Create AI image from Instagram post data
+          response = await axios.post(`${API_BASE_URL}/create-instagram-ai-image`, {
+            text: customText,
+            period: selectedPeriod,
+            tags: tags.length > 0 ? tags : undefined,
+            image_style: imageStyle,
+            post_format: postFormat,
+            affirmation_id: urlParams.get('affirmation_id'),
+            source: urlParams.get('source'),
+            instagram_post_text: urlParams.get('instagram_post_text'),
+            instagram_hashtags: urlParams.get('instagram_hashtags'),
+            instagram_cta: urlParams.get('instagram_cta'),
+            instagram_style: urlParams.get('instagram_style')
+          });
+        } else {
+          // Create AI image with manual context
+          response = await axios.post(`${API_BASE_URL}/create-dalle-visual-post`, {
+            text: customText,
+            period: selectedPeriod,
+            tags: tags.length > 0 ? tags : undefined,
+            image_style: imageStyle,
+            post_format: postFormat,
+            ai_context: aiContext,
+            force_new: true
+          });
+        }
+      } else if (useAffirmation && selectedAffirmation) {
         // Create from existing affirmation
         const tags = customTags ? customTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
         
@@ -228,8 +316,20 @@ const VisualPostsInterface: React.FC = () => {
   return (
     <div className="visual-posts-interface">
       <div className="visual-posts-header">
-        <h2>7 Cycles Visuelle Posts Generator</h2>
-        <p>Erstelle visuell ansprechende Instagram Posts (4:5) und Stories (9:16) für deine Affirmationen</p>
+        <div className="header-content">
+          <div className="header-text">
+            <h2>7 Cycles Visuelle Posts Generator</h2>
+            <p>Erstelle visuell ansprechende Instagram Posts (4:5) und Stories (9:16) für deine Affirmationen</p>
+          </div>
+          <div className="header-actions">
+            <button 
+              onClick={() => setShowAnalytics(true)}
+              className="analytics-button"
+            >
+              📊 Feedback Analytics
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Image Search Section */}
@@ -407,6 +507,27 @@ const VisualPostsInterface: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* AI Context Field for DALL-E */}
+              {imageStyle === 'dalle' && (
+                <div className="ai-context-section">
+                  <div className="form-group">
+                    <label>🤖 AI Kontext für bessere Bildgenerierung (optional):</label>
+                    <textarea
+                      value={aiContext}
+                      onChange={(e) => setAiContext(e.target.value)}
+                      placeholder="Beschreiben Sie zusätzlichen Kontext für die AI-Bildgenerierung, z.B. 'Eine Person in Meditation am Strand bei Sonnenuntergang mit spiritueller Atmosphäre' oder fügen Sie Social Media Post-Inhalte hinzu..."
+                      disabled={loading}
+                      rows={4}
+                      className="ai-context-textarea"
+                    />
+                    <small className="context-help">
+                      💡 Tipp: Je detaillierter der Kontext, desto präziser wird das generierte Bild. 
+                      Sie können hier Social Media Post-Texte, Hashtags oder spezifische Bildwünsche einfügen.
+                    </small>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -437,8 +558,8 @@ const VisualPostsInterface: React.FC = () => {
           </div>
         ) : (
           <div className="posts-grid">
-            {posts.map((post) => (
-              <div key={post.id} className="visual-post-card">
+            {posts.map((post, index) => (
+              <div key={`${post.id}-${index}`} className="visual-post-card">
                 <div className="post-image">
                   <img 
                     src={`${API_BASE_URL}${post.file_url}`} 
@@ -455,16 +576,24 @@ const VisualPostsInterface: React.FC = () => {
                     >
                       {post.period}
                     </span>
-                    <span className="image-style">{post.image_style}</span>
+                    <span className={`image-style ${post.image_style === 'dalle' ? 'ai-generated' : ''}`}>
+                      {post.image_style === 'dalle' ? '🤖 DALL-E AI' : post.image_style}
+                    </span>
                   </div>
                   <div className="post-info">
                     <div className="tags">
                       Tags: {post.tags.join(', ')}
                     </div>
                     <div className="photographer">
-                      Foto: <a href={post.background_image.pexels_url} target="_blank" rel="noopener noreferrer">
-                        {post.background_image.photographer}
-                      </a>
+                      {post.image_style === 'dalle' ? (
+                        <span>🤖 KI-generiert mit DALL-E AI</span>
+                      ) : (
+                        <>
+                          Foto: <a href={post.background_image.pexels_url} target="_blank" rel="noopener noreferrer">
+                            {post.background_image.photographer}
+                          </a>
+                        </>
+                      )}
                     </div>
                     <div className="timestamp">
                       Erstellt: {formatTimestamp(post.created_at)}
@@ -473,6 +602,12 @@ const VisualPostsInterface: React.FC = () => {
                       {post.dimensions.width}x{post.dimensions.height}px
                       {post.post_format === 'post' ? ' (Instagram Post)' : ' (Instagram Story)'}
                     </div>
+                    {post.image_style === 'dalle' && (post as any).ai_prompt && (
+                      <div className="ai-prompt-info">
+                        <strong>🤖 AI Prompt:</strong>
+                        <p className="ai-prompt-text">{(post as any).ai_prompt}</p>
+                      </div>
+                    )}
                   </div>
                   <div className="post-actions">
                     <button
@@ -489,12 +624,39 @@ const VisualPostsInterface: React.FC = () => {
                       Herunterladen
                     </a>
                   </div>
+                  
+                  {/* Image Feedback Component */}
+                  <ImageFeedback
+                    imagePath={post.file_path}
+                    generationParams={{
+                      text: post.text,
+                      period: post.period,
+                      tags: post.tags,
+                      style: post.image_style,
+                      post_format: post.post_format,
+                      ai_generated: post.image_style === 'dalle',
+                      ...(post.image_style === 'dalle' && { ai_prompt: (post as any).ai_prompt })
+                    }}
+                    onFeedbackSubmit={(feedback) => {
+                      console.log('Feedback submitted for', post.id, feedback);
+                      // Optional: Show success message or update UI
+                    }}
+                  />
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+      
+      {/* Feedback Analytics Modal */}
+      {showAnalytics && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <FeedbackAnalytics onClose={() => setShowAnalytics(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
