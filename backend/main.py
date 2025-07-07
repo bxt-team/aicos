@@ -21,6 +21,9 @@ from src.agents.write_hashtag_research_agent import WriteHashtagResearchAgent
 from src.agents.instagram_ai_prompt_agent import InstagramAIPromptAgent
 from src.agents.instagram_poster_agent import InstagramPosterAgent
 from src.agents.instagram_analyzer_agent import InstagramAnalyzerAgent
+from src.agents.content_workflow_agent import ContentWorkflowAgent
+from src.agents.post_composition_agent import PostCompositionAgent
+from src.agents.video_generation_agent import VideoGenerationAgent
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -51,6 +54,9 @@ instagram_ai_prompt_agent = None
 instagram_poster_agent = None
 instagram_analyzer_agent = None
 content_wrapper = None
+workflow_agent = None
+post_composition_agent = None
+video_generation_agent = None
 
 class ContentRequest(BaseModel):
     knowledge_files: Optional[List[str]] = None
@@ -136,10 +142,34 @@ class ImageFeedbackRequest(BaseModel):
     userId: Optional[str] = None
     tags: Optional[List[str]] = []
 
+# New workflow-related request models
+class WorkflowCreateRequest(BaseModel):
+    period: str
+    workflow_type: Optional[str] = "full"
+    options: Optional[Dict[str, Any]] = None
+
+class PostCompositionRequest(BaseModel):
+    background_path: str
+    text: str
+    period: str
+    template_name: Optional[str] = "default"
+    post_format: Optional[str] = "story"
+    custom_options: Optional[Dict[str, Any]] = None
+    force_new: Optional[bool] = False
+
+class VideoGenerationRequest(BaseModel):
+    image_paths: List[str]
+    video_type: Optional[str] = "slideshow"
+    duration: Optional[int] = 15
+    fps: Optional[int] = 30
+    options: Optional[Dict[str, Any]] = None
+    force_new: Optional[bool] = False
+
 @app.on_event("startup")
 async def startup_event():
-    global image_generator, qa_agent, affirmations_agent, write_hashtag_agent, instagram_ai_prompt_agent, instagram_poster_agent, instagram_analyzer_agent, content_wrapper
+    global image_generator, qa_agent, affirmations_agent, write_hashtag_agent, instagram_ai_prompt_agent, instagram_poster_agent, instagram_analyzer_agent, content_wrapper, workflow_agent, post_composition_agent, video_generation_agent
     openai_api_key = os.getenv("OPENAI_API_KEY")
+    pexels_api_key = os.getenv("PEXELS_API_KEY")
     instagram_access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
     instagram_business_account_id = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID")
     
@@ -152,6 +182,12 @@ async def startup_event():
         instagram_poster_agent = InstagramPosterAgent(openai_api_key, instagram_access_token, instagram_business_account_id)
         instagram_analyzer_agent = InstagramAnalyzerAgent(openai_api_key)
         content_wrapper = ContentGenerationWrapper()
+        
+        # Initialize new agents
+        workflow_agent = ContentWorkflowAgent(openai_api_key, pexels_api_key, instagram_access_token)
+        post_composition_agent = PostCompositionAgent(openai_api_key)
+        video_generation_agent = VideoGenerationAgent(openai_api_key)
+        
         print("Successfully initialized all agents")
         
         # Validate Instagram credentials
@@ -483,8 +519,30 @@ async def create_visual_post(request: dict):
         if not pexels_key:
             raise HTTPException(status_code=503, detail="Pexels API key not configured")
         
+        # Since VisualPostCreatorAgent now only handles image finding, we need to use both agents
         visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
-        result = visual_agent.create_visual_post(text, period, tags, image_style, post_format, force_new)
+        
+        # First, find background images
+        image_result = visual_agent.find_background_image(tags, period, image_style, count=1)
+        
+        if not image_result["success"] or not image_result["images"]:
+            raise HTTPException(status_code=500, detail="Failed to find background images")
+        
+        # Get the first image
+        background_image = image_result["images"][0]
+        
+        # Now compose the post
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
+        
+        result = post_composition_agent.compose_post(
+            background_path=background_image["local_path"],
+            text=text,
+            period=period,
+            template_name=image_style,  # Use image_style as template name
+            post_format=post_format,
+            force_new=force_new
+        )
         
         return result
         
@@ -495,16 +553,21 @@ async def create_visual_post(request: dict):
 async def get_visual_posts(period: str = None):
     """Get all visual posts, optionally filtered by period"""
     try:
-        from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
-        pexels_key = os.getenv('PEXELS_API_KEY')
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
         
-        if not pexels_key:
-            raise HTTPException(status_code=503, detail="Pexels API key not configured")
+        result = post_composition_agent.get_composed_posts(period=period)
         
-        visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
-        result = visual_agent.get_posts_by_period(period)
-        
-        return result
+        # Transform result to match expected format
+        if result["success"]:
+            return {
+                "success": True,
+                "posts": result["posts"],
+                "count": result["count"],
+                "period": period
+            }
+        else:
+            return result
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting visual posts: {str(e)}")
@@ -513,14 +576,10 @@ async def get_visual_posts(period: str = None):
 async def delete_visual_post(post_id: str):
     """Delete a visual post"""
     try:
-        from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
-        pexels_key = os.getenv('PEXELS_API_KEY')
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
         
-        if not pexels_key:
-            raise HTTPException(status_code=503, detail="Pexels API key not configured")
-        
-        visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
-        result = visual_agent.delete_post(post_id)
+        result = post_composition_agent.delete_composed_post(post_id)
         
         return result
         
@@ -574,21 +633,33 @@ async def create_affirmation_post(request: dict):
             }
             tags = period_tags.get(affirmation["period_name"], ["inspiration", "motivation"])
         
-        # Create visual post
-        from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
+        # Create visual post using the new architecture
         pexels_key = os.getenv('PEXELS_API_KEY')
         
         if not pexels_key:
             raise HTTPException(status_code=503, detail="Pexels API key not configured")
         
+        # Find background image
         visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
-        result = visual_agent.create_visual_post(
-            affirmation["text"], 
-            affirmation["period_name"], 
-            tags, 
-            image_style, 
-            post_format,
-            force_new
+        image_result = visual_agent.find_background_image(tags, affirmation["period_name"], image_style, count=1)
+        
+        if not image_result["success"] or not image_result["images"]:
+            raise HTTPException(status_code=500, detail="Failed to find background images")
+        
+        # Get the first image
+        background_image = image_result["images"][0]
+        
+        # Compose the post
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
+        
+        result = post_composition_agent.compose_post(
+            background_path=background_image["local_path"],
+            text=affirmation["text"],
+            period=affirmation["period_name"],
+            template_name=image_style,
+            post_format=post_format,
+            force_new=force_new
         )
         
         return result
@@ -655,15 +726,34 @@ async def create_visual_from_instagram_post(request: dict):
             }
             tags = period_tags.get(period_name, ["inspiration", "motivation", "peaceful"])
         
-        # Initialize visual post creator agent
-        from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
+        # Create visual post using the new architecture
         pexels_key = os.getenv('PEXELS_API_KEY')
         
         if not pexels_key:
             raise HTTPException(status_code=503, detail="Pexels API key not configured")
         
+        # Find background image
         visual_agent = VisualPostCreatorAgent(os.getenv("OPENAI_API_KEY"), pexels_key)
-        result = visual_agent.create_visual_post(affirmation, period_name, tags, image_style, force_new)
+        image_result = visual_agent.find_background_image(tags, period_name, image_style, count=1)
+        
+        if not image_result["success"] or not image_result["images"]:
+            raise HTTPException(status_code=500, detail="Failed to find background images")
+        
+        # Get the first image
+        background_image = image_result["images"][0]
+        
+        # Compose the post
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
+        
+        result = post_composition_agent.compose_post(
+            background_path=background_image["local_path"],
+            text=affirmation,
+            period=period_name,
+            template_name=image_style,
+            post_format="post",  # Default to post format
+            force_new=force_new
+        )
         
         # Add reference to original Instagram post
         if result.get("success"):
@@ -1117,6 +1207,328 @@ async def get_image_feedback(image_path: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting image feedback: {str(e)}")
 
+# Workflow Management API endpoints
+
+@app.post("/api/workflows")
+async def create_workflow(request: WorkflowCreateRequest, background_tasks: BackgroundTasks):
+    """Create and execute a complete content workflow"""
+    try:
+        if not workflow_agent:
+            raise HTTPException(status_code=503, detail="Workflow agent not available")
+        
+        # Start workflow execution in background
+        workflow_id = f"workflow_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Store initial workflow state
+        content_storage[workflow_id] = {
+            "type": "workflow",
+            "status": "starting",
+            "period": request.period,
+            "workflow_type": request.workflow_type,
+            "options": request.options or {},
+            "created_at": datetime.now().isoformat()
+        }
+        
+        background_tasks.add_task(run_workflow_execution, workflow_id, request.period, request.workflow_type, request.options or {})
+        
+        return {
+            "workflow_id": workflow_id,
+            "status": "started",
+            "message": f"Workflow für {request.period} gestartet"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating workflow: {str(e)}")
+
+async def run_workflow_execution(workflow_id: str, period: str, workflow_type: str, options: Dict[str, Any]):
+    """Background task to run workflow execution"""
+    import asyncio
+    import concurrent.futures
+    
+    try:
+        content_storage[workflow_id]["status"] = "executing"
+        content_storage[workflow_id]["last_updated"] = datetime.now().isoformat()
+        
+        # Run the workflow in a thread pool
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(
+                workflow_agent.create_complete_content_workflow,
+                period, workflow_type, options
+            )
+            result = await asyncio.get_event_loop().run_in_executor(None, future.result)
+        
+        if result["success"]:
+            content_storage[workflow_id].update({
+                "status": "completed",
+                "workflow_result": result,
+                "completed_at": datetime.now().isoformat()
+            })
+        else:
+            content_storage[workflow_id].update({
+                "status": "failed",
+                "error": result.get("error", "Unknown error"),
+                "failed_at": datetime.now().isoformat()
+            })
+        
+    except Exception as e:
+        content_storage[workflow_id].update({
+            "status": "failed",
+            "error": str(e),
+            "failed_at": datetime.now().isoformat()
+        })
+
+@app.get("/api/workflows")
+async def list_workflows(period: Optional[str] = None, status: Optional[str] = None):
+    """List all workflows with optional filtering"""
+    try:
+        if not workflow_agent:
+            raise HTTPException(status_code=503, detail="Workflow agent not available")
+        
+        result = workflow_agent.get_workflows(period, status)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing workflows: {str(e)}")
+
+@app.get("/api/workflows/{workflow_id}")
+async def get_workflow(workflow_id: str):
+    """Get workflow details and status"""
+    try:
+        # Check if it's in content_storage (for running workflows)
+        if workflow_id in content_storage and content_storage[workflow_id].get("type") == "workflow":
+            return {
+                "workflow_id": workflow_id,
+                **content_storage[workflow_id]
+            }
+        
+        # Check completed workflows
+        if not workflow_agent:
+            raise HTTPException(status_code=503, detail="Workflow agent not available")
+        
+        result = workflow_agent.get_workflow_by_id(workflow_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting workflow: {str(e)}")
+
+@app.delete("/api/workflows/{workflow_id}")
+async def delete_workflow(workflow_id: str):
+    """Delete a workflow"""
+    try:
+        if not workflow_agent:
+            raise HTTPException(status_code=503, detail="Workflow agent not available")
+        
+        # Remove from content_storage if present
+        if workflow_id in content_storage:
+            del content_storage[workflow_id]
+        
+        result = workflow_agent.delete_workflow(workflow_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting workflow: {str(e)}")
+
+@app.get("/api/workflow-templates")
+async def get_workflow_templates():
+    """Get available workflow templates"""
+    try:
+        if not workflow_agent:
+            raise HTTPException(status_code=503, detail="Workflow agent not available")
+        
+        result = workflow_agent.get_workflow_templates()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting workflow templates: {str(e)}")
+
+# Post Composition API endpoints
+
+@app.post("/api/compose-post")
+async def compose_post(request: PostCompositionRequest):
+    """Compose a visual post using templates"""
+    try:
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
+        
+        result = post_composition_agent.compose_post(
+            background_path=request.background_path,
+            text=request.text,
+            period=request.period,
+            template_name=request.template_name,
+            post_format=request.post_format,
+            custom_options=request.custom_options or {},
+            force_new=request.force_new
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error composing post: {str(e)}")
+
+@app.get("/api/composed-posts")
+async def get_composed_posts(period: Optional[str] = None, template: Optional[str] = None):
+    """Get all composed posts with optional filtering"""
+    try:
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
+        
+        result = post_composition_agent.get_composed_posts(period, template)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting composed posts: {str(e)}")
+
+@app.get("/api/composition-templates")
+async def get_composition_templates():
+    """Get available composition templates"""
+    try:
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
+        
+        result = post_composition_agent.get_available_templates()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting composition templates: {str(e)}")
+
+@app.delete("/api/composed-posts/{post_id}")
+async def delete_composed_post(post_id: str):
+    """Delete a composed post"""
+    try:
+        if not post_composition_agent:
+            raise HTTPException(status_code=503, detail="Post composition agent not available")
+        
+        result = post_composition_agent.delete_composed_post(post_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting composed post: {str(e)}")
+
+# Video Generation API endpoints
+
+@app.post("/api/generate-video")
+async def generate_video(request: VideoGenerationRequest):
+    """Generate a video from images"""
+    try:
+        if not video_generation_agent:
+            raise HTTPException(status_code=503, detail="Video generation agent not available")
+        
+        result = video_generation_agent.create_video(
+            image_paths=request.image_paths,
+            video_type=request.video_type,
+            duration=request.duration,
+            fps=request.fps,
+            options=request.options or {},
+            force_new=request.force_new
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating video: {str(e)}")
+
+@app.get("/api/videos")
+async def get_videos(video_type: Optional[str] = None):
+    """Get all videos with optional filtering by type"""
+    try:
+        if not video_generation_agent:
+            raise HTTPException(status_code=503, detail="Video generation agent not available")
+        
+        result = video_generation_agent.get_videos(video_type)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting videos: {str(e)}")
+
+@app.get("/api/video-types")
+async def get_video_types():
+    """Get available video types and their options"""
+    try:
+        if not video_generation_agent:
+            raise HTTPException(status_code=503, detail="Video generation agent not available")
+        
+        result = video_generation_agent.get_available_video_types()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting video types: {str(e)}")
+
+@app.delete("/api/videos/{video_id}")
+async def delete_video(video_id: str):
+    """Delete a video"""
+    try:
+        if not video_generation_agent:
+            raise HTTPException(status_code=503, detail="Video generation agent not available")
+        
+        result = video_generation_agent.delete_video(video_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting video: {str(e)}")
+
+@app.post("/api/cleanup-temp-files")
+async def cleanup_temp_files():
+    """Clean up temporary files from video generation"""
+    try:
+        if not video_generation_agent:
+            raise HTTPException(status_code=503, detail="Video generation agent not available")
+        
+        result = video_generation_agent.cleanup_temp_files()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error cleaning up temp files: {str(e)}")
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -1128,7 +1540,11 @@ async def health_check():
         "affirmations_agent_enabled": affirmations_agent is not None,
         "visual_posts_enabled": os.getenv('PEXELS_API_KEY') is not None,
         "write_hashtag_agent_enabled": write_hashtag_agent is not None,
-        "instagram_analyzer_enabled": instagram_analyzer_agent is not None
+        "instagram_analyzer_enabled": instagram_analyzer_agent is not None,
+        "workflow_agent_enabled": workflow_agent is not None,
+        "post_composition_agent_enabled": post_composition_agent is not None,
+        "video_generation_agent_enabled": video_generation_agent is not None,
+        "ffmpeg_available": video_generation_agent.ffmpeg_available if video_generation_agent else False
     }
 
 if __name__ == "__main__":

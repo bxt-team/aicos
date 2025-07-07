@@ -102,7 +102,7 @@ const FeedbackAnalytics: React.FC<FeedbackAnalyticsProps> = ({ onClose }) => {
         <div className="metrics-grid">
           <div className="metric-card">
             <h3>Overall Rating</h3>
-            <div className="metric-value">{overallMetrics.averageRating.toFixed(1)}/5</div>
+            <div className="metric-value">{overallMetrics.averageRating?.toFixed(1) ?? 'N/A'}/5</div>
             <div className="metric-subtitle">Average across all images</div>
           </div>
           
@@ -114,7 +114,7 @@ const FeedbackAnalytics: React.FC<FeedbackAnalyticsProps> = ({ onClose }) => {
           
           <div className="metric-card">
             <h3>Recent Trend</h3>
-            <div className="metric-value">{recentTrends.averageRating.toFixed(1)}/5</div>
+            <div className="metric-value">{recentTrends.averageRating?.toFixed(1) ?? 'N/A'}/5</div>
             <div className="metric-subtitle">Last {recentTrends.periodDays} days</div>
           </div>
           
@@ -152,7 +152,7 @@ const FeedbackAnalytics: React.FC<FeedbackAnalyticsProps> = ({ onClose }) => {
               <div className="ranking-header">
                 <span className="ranking-position">#{index + 1}</span>
                 <span className="ranking-name">{style.style}</span>
-                <span className="ranking-rating">{style.averageRating.toFixed(1)}/5</span>
+                <span className="ranking-rating">{style.averageRating?.toFixed(1) ?? 'N/A'}/5</span>
                 <span className="ranking-count">({style.count} images)</span>
               </div>
               <div className="ranking-details">
@@ -176,7 +176,7 @@ const FeedbackAnalytics: React.FC<FeedbackAnalyticsProps> = ({ onClose }) => {
             <div key={index} className="ranking-item">
               <div className="ranking-header">
                 <span className="ranking-position">#{index + 1}</span>
-                <span className="ranking-rating">{prompt.averageRating.toFixed(1)}/5</span>
+                <span className="ranking-rating">{prompt.averageRating?.toFixed(1) ?? 'N/A'}/5</span>
                 <span className="ranking-count">({prompt.count} uses)</span>
               </div>
               <div className="prompt-text">{prompt.prompt}</div>
@@ -202,7 +202,7 @@ const FeedbackAnalytics: React.FC<FeedbackAnalyticsProps> = ({ onClose }) => {
           <div className="trend-summary">
             <p><strong>Period:</strong> Last {recentTrends.periodDays} days</p>
             <p><strong>Total Feedback:</strong> {recentTrends.totalFeedback} ratings</p>
-            <p><strong>Average Rating:</strong> {recentTrends.averageRating.toFixed(1)}/5</p>
+            <p><strong>Average Rating:</strong> {recentTrends.averageRating?.toFixed(1) ?? 'N/A'}/5</p>
           </div>
           
           <div className="trend-chart">

@@ -25,7 +25,9 @@
       "Bash(pip3 install:*)",
       "Bash(mv:*)",
       "Bash(find:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

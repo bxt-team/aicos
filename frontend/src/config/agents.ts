@@ -106,6 +106,42 @@ export const agentConfigs: AgentConfig[] = [
     apiHealthCheck: '/content',
     features: ['CrewAI Integration', 'Multi-Agent Workflows', 'Research & Writing', 'Bild-Generierung'],
     version: '1.0'
+  },
+  {
+    id: 'workflow-manager',
+    name: 'Workflow Manager',
+    route: '/workflows',
+    icon: '🔄',
+    description: 'Orchestriert komplette Content-Workflows von Affirmationen bis zu geplanten Posts und Reels',
+    category: 'System Management',
+    enabled: true,
+    apiHealthCheck: '/api/workflow-templates',
+    features: ['Multi-Agent Orchestration', 'Workflow Templates', 'Monitoring', 'Video Generation', 'Post Composition'],
+    version: '1.0'
+  },
+  {
+    id: 'post-composition',
+    name: 'Post Komposition',
+    route: '/post-composition',
+    icon: '🎨',
+    description: 'Komponiere professionelle visuelle Posts mit Templates und benutzerdefinierten Optionen',
+    category: 'Visual Content',
+    enabled: true,
+    apiHealthCheck: '/api/composition-templates',
+    features: ['Template System', 'Custom Options', 'Multi-Format Support', 'Professional Design'],
+    version: '1.0'
+  },
+  {
+    id: 'video-generation',
+    name: 'Video Generation',
+    route: '/video-generation',
+    icon: '🎬',
+    description: 'Erstelle ansprechende Instagram Reels aus Bildern mit verschiedenen Effekten und Animationen',
+    category: 'Visual Content',
+    enabled: true,
+    apiHealthCheck: '/api/video-types',
+    features: ['Multiple Video Types', 'FFmpeg Integration', 'Instagram Reels', 'Professional Effects'],
+    version: '1.0'
   }
 ];
 

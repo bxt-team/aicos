@@ -12,7 +12,7 @@ from crewai.llm import LLM
 from src.agents.image_search_agent import ImageSearchAgent
 
 class VisualPostCreatorAgent(BaseCrew):
-    """Agent for creating visual affirmation posts with background images and text overlays"""
+    """Agent for finding and generating background images for visual posts"""
     
     def __init__(self, openai_api_key: str, pexels_api_key: str = None):
         super().__init__()
@@ -77,95 +77,91 @@ class VisualPostCreatorAgent(BaseCrew):
         post_key = f"{text}_{period}_{','.join(sorted(tags))}"
         return hashlib.md5(post_key.encode()).hexdigest()
     
-    def create_visual_post(self, text: str, period: str, tags: List[str], 
-                          image_style: str = "minimal", post_format: str = "story", force_new: bool = False) -> Dict[str, Any]:
-        """Create a visual affirmation post"""
+    def find_background_image(self, tags: List[str], period: str, image_style: str = "minimal", 
+                             count: int = 3, force_new: bool = False) -> Dict[str, Any]:
+        """Find and prepare background images for visual posts"""
         try:
-            # Check if post already exists
-            post_hash = self._generate_post_hash(text, period, tags)
+            # Check if images already exist in cache
+            search_hash = self._generate_post_hash("", period, tags)
             
-            if not force_new and post_hash in self.posts_storage.get("by_period", {}):
-                existing_post = self.posts_storage["by_period"][post_hash]
-                if os.path.exists(existing_post["file_path"]):
-                    return {
-                        "success": True,
-                        "post": existing_post,
-                        "source": "existing",
-                        "message": "Bestehender visueller Post abgerufen"
-                    }
+            if not force_new and search_hash in self.posts_storage.get("by_period", {}):
+                existing_images = self.posts_storage["by_period"][search_hash]
+                return {
+                    "success": True,
+                    "images": existing_images,
+                    "source": "existing",
+                    "message": "Bestehende Hintergrundbilder abgerufen"
+                }
             
-            # Search for background image
-            image_search_result = self.image_search_agent.search_images(tags, period, count=3)
+            # Search for background images
+            image_search_result = self.image_search_agent.search_images(tags, period, count=count)
             
             if not image_search_result["success"] or not image_search_result["images"]:
                 return {
                     "success": False,
-                    "error": "No suitable background image found",
-                    "message": "Kein passendes Hintergrundbild gefunden"
+                    "error": "No suitable background images found",
+                    "message": "Keine passenden Hintergrundbilder gefunden"
                 }
             
-            # Select the best image (first result)
-            selected_image = image_search_result["images"][0]
+            # Process and prepare all images
+            processed_images = []
+            for i, image in enumerate(image_search_result["images"]):
+                image_hash = f"{search_hash}_{i}"
+                
+                # Download and prepare the image
+                background_result = self._download_and_process_image(image, image_hash)
+                
+                if background_result["success"]:
+                    processed_images.append({
+                        "id": image["id"],
+                        "local_path": background_result["image_path"],
+                        "original_url": image["url"],
+                        "thumbnail_url": image["thumbnail_url"],
+                        "photographer": image["photographer"],
+                        "pexels_url": image["pexels_url"],
+                        "dimensions": {
+                            "width": image["width"],
+                            "height": image["height"]
+                        },
+                        "avg_color": image.get("avg_color", "#CCCCCC"),
+                        "processed_at": datetime.now().isoformat()
+                    })
             
-            # Download and process the image
-            background_result = self._download_and_process_image(selected_image, post_hash)
+            if not processed_images:
+                return {
+                    "success": False,
+                    "error": "Failed to process any images",
+                    "message": "Fehler beim Verarbeiten der Bilder"
+                }
             
-            if not background_result["success"]:
-                return background_result
-            
-            # Create the visual post
-            post_result = self._create_post_image(
-                background_result["image_path"],
-                text,
-                period,
-                post_hash,
-                image_style,
-                post_format
-            )
-            
-            if not post_result["success"]:
-                return post_result
-            
-            # Store post information
-            post_info = {
-                "id": post_hash,
-                "text": text,
+            # Store image information
+            image_info = {
+                "search_hash": search_hash,
                 "period": period,
                 "tags": tags,
-                "period_color": self.period_colors.get(period, "#808080"),
                 "image_style": image_style,
-                "post_format": post_format,
-                "file_path": post_result["output_path"],
-                "file_url": post_result["output_url"],
-                "background_image": {
-                    "id": selected_image["id"],
-                    "photographer": selected_image["photographer"],
-                    "pexels_url": selected_image["pexels_url"]
-                },
+                "images": processed_images,
                 "created_at": datetime.now().isoformat(),
-                "dimensions": {
-                    "width": self.post_width if post_format == "post" else self.story_width,
-                    "height": self.post_height if post_format == "post" else self.story_height
-                }
+                "search_query": image_search_result.get("search_query", "")
             }
             
             # Save to storage
-            self.posts_storage["posts"].append(post_info)
-            self.posts_storage["by_period"][post_hash] = post_info
+            self.posts_storage["by_period"][search_hash] = image_info
             self._save_posts_storage()
             
             return {
                 "success": True,
-                "post": post_info,
+                "images": processed_images,
+                "search_info": image_info,
                 "source": "generated",
-                "message": f"Visueller Post für {period} erstellt"
+                "message": f"Hintergrundbilder für {period} gefunden"
             }
             
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Fehler beim Erstellen des visuellen Posts"
+                "message": "Fehler beim Finden der Hintergrundbilder"
             }
     
     def _download_and_process_image(self, image_info: Dict[str, Any], post_hash: str) -> Dict[str, Any]:
@@ -193,66 +189,47 @@ class VisualPostCreatorAgent(BaseCrew):
                 "message": "Fehler beim Herunterladen des Hintergrundbildes"
             }
     
-    def _create_post_image(self, background_path: str, text: str, period: str, 
-                          post_hash: str, image_style: str, post_format: str = "story") -> Dict[str, Any]:
-        """Create the final post image with text overlay"""
+    def prepare_background_for_format(self, background_path: str, post_format: str = "story") -> Dict[str, Any]:
+        """Prepare background image for specific Instagram format"""
         try:
             # Load background image
             background = Image.open(background_path)
             
             # Resize to appropriate Instagram format
             if post_format == "post":
-                background = self._resize_to_post_format(background)
-                canvas_width, canvas_height = self.post_width, self.post_height
+                processed_background = self._resize_to_post_format(background)
             else:
-                background = self._resize_to_story_format(background)
-                canvas_width, canvas_height = self.story_width, self.story_height
+                processed_background = self._resize_to_story_format(background)
             
-            # Create overlay
-            overlay = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-            
-            # Add color overlay
-            color_overlay = self._create_color_overlay(period, image_style, post_format)
-            overlay = Image.alpha_composite(overlay, color_overlay)
-            
-            # Add text
-            text_overlay = self._create_text_overlay(text, period, image_style, post_format)
-            overlay = Image.alpha_composite(overlay, text_overlay)
-            
-            # Combine background and overlay
-            if background.mode != 'RGBA':
-                background = background.convert('RGBA')
-            
-            final_image = Image.alpha_composite(background, overlay)
+            # Save processed image
+            base_name = os.path.splitext(os.path.basename(background_path))[0]
+            format_suffix = "post" if post_format == "post" else "story"
+            output_filename = f"{base_name}_{format_suffix}_processed.jpg"
+            output_path = os.path.join(self.output_dir, output_filename)
             
             # Convert to RGB for JPEG
-            final_image = final_image.convert('RGB')
-            
-            # Save final image
-            format_suffix = "post" if post_format == "post" else "story"
-            output_filename = f"{period.lower()}_{format_suffix}_{post_hash[:8]}.jpg"
-            output_path = os.path.join(self.output_dir, output_filename)
-            final_image.save(output_path, 'JPEG', quality=95)
+            processed_background = processed_background.convert('RGB')
+            processed_background.save(output_path, 'JPEG', quality=95)
             
             # Create URL for frontend access
             output_url = f"/static/visuals/{output_filename}"
-            
-            # Clean up temporary file
-            if os.path.exists(background_path):
-                os.remove(background_path)
             
             return {
                 "success": True,
                 "output_path": output_path,
                 "output_url": output_url,
-                "filename": output_filename
+                "filename": output_filename,
+                "dimensions": {
+                    "width": processed_background.width,
+                    "height": processed_background.height
+                }
             }
             
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Fehler beim Erstellen des finalen Bildes"
+                "message": "Fehler beim Verarbeiten des Hintergrundbildes"
             }
     
     def _resize_to_story_format(self, image: Image.Image) -> Image.Image:
@@ -309,177 +286,25 @@ class VisualPostCreatorAgent(BaseCrew):
         
         return image
     
-    def _create_color_overlay(self, period: str, image_style: str, post_format: str = "story") -> Image.Image:
-        """Create color overlay based on period and style"""
-        canvas_width = self.post_width if post_format == "post" else self.story_width
-        canvas_height = self.post_height if post_format == "post" else self.story_height
-        
-        overlay = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-        
-        # Get period color
-        period_color = self.period_colors.get(period, "#808080")
-        
-        # Convert hex to RGB
-        color_rgb = tuple(int(period_color[i:i+2], 16) for i in (1, 3, 5))
-        
-        # Define overlay styles
-        if image_style == "minimal":
-            # Light overlay for minimal style
-            overlay_color = color_rgb + (76,)  # 30% opacity
-        elif image_style == "dramatic":
-            # Stronger overlay for dramatic style
-            overlay_color = color_rgb + (127,)  # 50% opacity
-        elif image_style == "gradient":
-            # Gradient overlay
-            return self._create_gradient_overlay(color_rgb, post_format)
-        else:
-            # Default overlay
-            overlay_color = color_rgb + (102,)  # 40% opacity
-        
-        # Create solid color overlay
-        color_layer = Image.new('RGBA', (canvas_width, canvas_height), overlay_color)
-        return color_layer
+    def get_period_color(self, period: str) -> str:
+        """Get period-specific color"""
+        return self.period_colors.get(period, "#808080")
     
-    def _create_gradient_overlay(self, color_rgb: Tuple[int, int, int], post_format: str = "story") -> Image.Image:
-        """Create gradient overlay"""
-        canvas_width = self.post_width if post_format == "post" else self.story_width
-        canvas_height = self.post_height if post_format == "post" else self.story_height
-        
-        overlay = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(overlay)
-        
-        # Create vertical gradient
-        for y in range(canvas_height):
-            # Stronger at top and bottom, lighter in middle
-            if y < canvas_height // 3:
-                alpha = int(127 * (1 - y / (canvas_height // 3)))
-            elif y > 2 * canvas_height // 3:
-                alpha = int(127 * (y - 2 * canvas_height // 3) / (canvas_height // 3))
-            else:
-                alpha = 51  # Light overlay in middle
-            
-            color = color_rgb + (alpha,)
-            draw.line([(0, y), (canvas_width, y)], fill=color)
-        
-        return overlay
-    
-    def _create_text_overlay(self, text: str, period: str, image_style: str, post_format: str = "story") -> Image.Image:
-        """Create text overlay"""
-        canvas_width = self.post_width if post_format == "post" else self.story_width
-        canvas_height = self.post_height if post_format == "post" else self.story_height
-        
-        overlay = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(overlay)
-        
-        # Try to load custom font, fallback to default
-        try:
-            # Adjust font sizes based on format and text length
-            if post_format == "post":
-                # Smaller fonts for Instagram posts (4:5 format)
-                if len(text) < 50:
-                    font_size = 64
-                elif len(text) < 100:
-                    font_size = 52
-                else:
-                    font_size = 42
-            else:
-                # Original font sizes for Instagram stories
-                if len(text) < 50:
-                    font_size = 72
-                elif len(text) < 100:
-                    font_size = 60
-                else:
-                    font_size = 48
-            
-            # Try to load a nice font (you may need to install fonts)
-            font_paths = [
-                "/System/Library/Fonts/Helvetica.ttc",  # macOS
-                "/Windows/Fonts/arial.ttf",  # Windows
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
-            ]
-            
-            font = None
-            for font_path in font_paths:
-                if os.path.exists(font_path):
-                    font = ImageFont.truetype(font_path, font_size)
-                    break
-            
-            if font is None:
-                font = ImageFont.load_default()
-                
-        except Exception:
-            font = ImageFont.load_default()
-        
-        # Calculate text positioning
-        margin = 150 if post_format == "post" else 200  # Adjust margin for different formats
-        text_lines = self._wrap_text(text, font, canvas_width - margin)  # margin on each side
-        
-        # Calculate total text height
-        total_height = len(text_lines) * (font_size + 10)
-        
-        # Center vertically
-        start_y = (canvas_height - total_height) // 2
-        
-        # Draw text with shadow for better readability
-        for i, line in enumerate(text_lines):
-            # Get text bounding box
-            bbox = draw.textbbox((0, 0), line, font=font)
-            text_width = bbox[2] - bbox[0]
-            
-            # Center horizontally
-            x = (canvas_width - text_width) // 2
-            y = start_y + i * (font_size + 10)
-            
-            # Draw shadow
-            shadow_offset = 3
-            draw.text((x + shadow_offset, y + shadow_offset), line, font=font, fill=(0, 0, 0, 128))
-            
-            # Draw main text
-            draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
-        
-        return overlay
-    
-    def _wrap_text(self, text: str, font: ImageFont.ImageFont, max_width: int) -> List[str]:
-        """Wrap text to fit within max width"""
-        words = text.split(' ')
-        lines = []
-        current_line = []
-        
-        for word in words:
-            test_line = ' '.join(current_line + [word])
-            bbox = font.getbbox(test_line)
-            test_width = bbox[2] - bbox[0]
-            
-            if test_width <= max_width:
-                current_line.append(word)
-            else:
-                if current_line:
-                    lines.append(' '.join(current_line))
-                    current_line = [word]
-                else:
-                    # Single word is too long, add it anyway
-                    lines.append(word)
-        
-        if current_line:
-            lines.append(' '.join(current_line))
-        
-        return lines
-    
-    def get_posts_by_period(self, period: str = None) -> Dict[str, Any]:
-        """Get all visual posts, optionally filtered by period"""
+    def get_images_by_period(self, period: str = None) -> Dict[str, Any]:
+        """Get all background images, optionally filtered by period"""
         try:
             if period:
-                filtered_posts = [
-                    post for post in self.posts_storage.get("posts", [])
-                    if post.get("period") == period
-                ]
+                filtered_images = {
+                    k: v for k, v in self.posts_storage.get("by_period", {}).items()
+                    if v.get("period") == period
+                }
             else:
-                filtered_posts = self.posts_storage.get("posts", [])
+                filtered_images = self.posts_storage.get("by_period", {})
             
             return {
                 "success": True,
-                "posts": filtered_posts,
-                "count": len(filtered_posts),
+                "images": filtered_images,
+                "count": len(filtered_images),
                 "period": period
             }
             
@@ -487,47 +312,41 @@ class VisualPostCreatorAgent(BaseCrew):
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Fehler beim Abrufen der visuellen Posts"
+                "message": "Fehler beim Abrufen der Hintergrundbilder"
             }
     
-    def delete_post(self, post_id: str) -> Dict[str, Any]:
-        """Delete a visual post"""
+    def delete_image_set(self, search_hash: str) -> Dict[str, Any]:
+        """Delete a set of background images"""
         try:
             # Find and remove from storage
-            posts = self.posts_storage.get("posts", [])
-            post_to_delete = None
-            
-            for i, post in enumerate(posts):
-                if post["id"] == post_id:
-                    post_to_delete = posts.pop(i)
-                    break
-            
-            if not post_to_delete:
+            if search_hash not in self.posts_storage.get("by_period", {}):
                 return {
                     "success": False,
-                    "error": "Post not found",
-                    "message": "Post nicht gefunden"
+                    "error": "Image set not found",
+                    "message": "Bildset nicht gefunden"
                 }
             
-            # Remove from by_period index
-            if post_id in self.posts_storage.get("by_period", {}):
-                del self.posts_storage["by_period"][post_id]
+            image_set = self.posts_storage["by_period"][search_hash]
             
-            # Delete file
-            if os.path.exists(post_to_delete["file_path"]):
-                os.remove(post_to_delete["file_path"])
+            # Delete all image files
+            for image in image_set.get("images", []):
+                if os.path.exists(image["local_path"]):
+                    os.remove(image["local_path"])
+            
+            # Remove from storage
+            del self.posts_storage["by_period"][search_hash]
             
             # Save updated storage
             self._save_posts_storage()
             
             return {
                 "success": True,
-                "message": "Post erfolgreich gelöscht"
+                "message": "Bildset erfolgreich gelöscht"
             }
             
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Fehler beim Löschen des Posts"
+                "message": "Fehler beim Löschen des Bildsets"
             }
