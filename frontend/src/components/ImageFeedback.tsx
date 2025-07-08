@@ -5,6 +5,16 @@ interface ImageFeedbackProps {
   imagePath: string;
   generationParams?: Record<string, any>;
   onFeedbackSubmit?: (feedback: FeedbackData) => void;
+  onRegenerateRequest?: (feedback: RegenerationRequest) => void;
+}
+
+interface RegenerationRequest {
+  originalImagePath: string;
+  feedback: string;
+  rating: number;
+  originalPrompt?: string;
+  generationParams?: Record<string, any>;
+  keepOriginalStyle?: boolean;
 }
 
 interface FeedbackData {
@@ -16,7 +26,8 @@ interface FeedbackData {
 const ImageFeedback: React.FC<ImageFeedbackProps> = ({ 
   imagePath, 
   generationParams = {},
-  onFeedbackSubmit 
+  onFeedbackSubmit,
+  onRegenerateRequest 
 }) => {
   const [rating, setRating] = useState<number>(0);
   const [comments, setComments] = useState<string>('');
@@ -24,6 +35,8 @@ const ImageFeedback: React.FC<ImageFeedbackProps> = ({
   const [customTag, setCustomTag] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState<boolean>(false);
+  const [isRegenerating, setIsRegenerating] = useState<boolean>(false);
+  const [keepOriginalStyle, setKeepOriginalStyle] = useState<boolean>(true);
   
   const predefinedTags = [
     'inspiring', 'calming', 'energetic', 'spiritual', 'creative',
@@ -104,6 +117,65 @@ const ImageFeedback: React.FC<ImageFeedbackProps> = ({
       alert('Error submitting feedback. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRegenerateWithFeedback = async () => {
+    if (rating === 0) {
+      alert('Please provide a rating before regenerating');
+      return;
+    }
+
+    if (!comments.trim()) {
+      alert('Please provide feedback comments explaining what you want changed');
+      return;
+    }
+
+    setIsRegenerating(true);
+    
+    try {
+      const regenerationRequest: RegenerationRequest = {
+        originalImagePath: imagePath,
+        feedback: comments,
+        rating,
+        originalPrompt: generationParams?.ai_prompt || generationParams?.dalle_prompt,
+        generationParams,
+        keepOriginalStyle
+      };
+
+      // Call the regeneration API
+      const response = await fetch('/api/regenerate-with-feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(regenerationRequest)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Call parent callback if provided
+        if (onRegenerateRequest) {
+          onRegenerateRequest(regenerationRequest);
+        }
+        
+        // Reset form
+        setRating(0);
+        setComments('');
+        setTags([]);
+        setShowFeedbackForm(false);
+        
+        alert(`Image regenerated successfully! \n\nOriginal prompt: ${result.original_prompt}\n\nOptimized prompt: ${result.optimized_prompt}`);
+      } else {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to regenerate image');
+      }
+    } catch (error) {
+      console.error('Error regenerating image:', error);
+      alert(`Error regenerating image: ${error instanceof Error ? error.message : 'Please try again.'}`);
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -189,6 +261,23 @@ const ImageFeedback: React.FC<ImageFeedbackProps> = ({
             )}
           </div>
           
+          {/* Regeneration options for AI-generated images */}
+          {generationParams?.ai_generated && (
+            <div className="form-group regeneration-options">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={keepOriginalStyle}
+                  onChange={(e) => setKeepOriginalStyle(e.target.checked)}
+                />
+                Keep original style
+              </label>
+              <p className="help-text">
+                When enabled, the regenerated image will maintain the same visual style as the original.
+              </p>
+            </div>
+          )}
+          
           <div className="form-actions">
             <button 
               type="submit" 
@@ -197,6 +286,19 @@ const ImageFeedback: React.FC<ImageFeedbackProps> = ({
             >
               {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
             </button>
+            
+            {/* Regenerate button for AI-generated images */}
+            {generationParams?.ai_generated && onRegenerateRequest && (
+              <button 
+                type="button" 
+                disabled={isRegenerating || rating === 0 || !comments.trim()}
+                className="regenerate-button"
+                onClick={handleRegenerateWithFeedback}
+              >
+                {isRegenerating ? 'Regenerating...' : 'Regenerate with Feedback'}
+              </button>
+            )}
+            
             <button 
               type="button" 
               onClick={() => setShowFeedbackForm(false)}

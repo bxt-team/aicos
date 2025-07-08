@@ -10,6 +10,7 @@ import asyncio
 from datetime import datetime
 import sys
 import traceback
+import logging
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -25,9 +26,17 @@ from src.agents.content_workflow_agent import ContentWorkflowAgent
 from src.agents.post_composition_agent import PostCompositionAgent
 from src.agents.video_generation_agent import VideoGenerationAgent
 from src.agents.instagram_reel_agent import InstagramReelAgent
+from src.agents.android_testing_agent import AndroidTestingAgent
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="7 Cycles of Life AI Assistant API", version="1.0.0")
 
@@ -38,6 +47,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add request logging middleware
+@app.middleware("http")
+async def log_requests(request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url.path}")
+    if request.url.path.startswith("/android-test"):
+        logger.info(f"Android-test route detected: {request.method} {request.url.path}")
+    response = await call_next(request)
+    return response
 
 # Create static directory if it doesn't exist
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
@@ -59,6 +77,7 @@ workflow_agent = None
 post_composition_agent = None
 video_generation_agent = None
 instagram_reel_agent = None
+android_testing_agent = None
 
 class ContentRequest(BaseModel):
     knowledge_files: Optional[List[str]] = None
@@ -144,6 +163,14 @@ class ImageFeedbackRequest(BaseModel):
     userId: Optional[str] = None
     tags: Optional[List[str]] = []
 
+class RegenerateWithFeedbackRequest(BaseModel):
+    originalImagePath: str
+    feedback: str
+    rating: int
+    originalPrompt: Optional[str] = None
+    generationParams: Optional[Dict[str, Any]] = None
+    keepOriginalStyle: Optional[bool] = True
+
 # New workflow-related request models
 class WorkflowCreateRequest(BaseModel):
     period: str
@@ -184,9 +211,18 @@ class VideoGenerationRequest(BaseModel):
     options: Optional[Dict[str, Any]] = None
     force_new: Optional[bool] = False
 
+class AndroidTestRequest(BaseModel):
+    apk_path: str
+    test_actions: Optional[List[str]] = None
+    target_api_level: Optional[int] = None
+    avd_name: Optional[str] = None
+
+class AndroidTestResultRequest(BaseModel):
+    test_id: str
+
 @app.on_event("startup")
 async def startup_event():
-    global image_generator, qa_agent, affirmations_agent, write_hashtag_agent, instagram_ai_prompt_agent, instagram_poster_agent, instagram_analyzer_agent, content_wrapper, workflow_agent, post_composition_agent, video_generation_agent
+    global image_generator, qa_agent, affirmations_agent, write_hashtag_agent, instagram_ai_prompt_agent, instagram_poster_agent, instagram_analyzer_agent, content_wrapper, workflow_agent, post_composition_agent, video_generation_agent, instagram_reel_agent, android_testing_agent
     openai_api_key = os.getenv("OPENAI_API_KEY")
     pexels_api_key = os.getenv("PEXELS_API_KEY")
     instagram_access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
@@ -207,6 +243,20 @@ async def startup_event():
         post_composition_agent = PostCompositionAgent(openai_api_key)
         video_generation_agent = VideoGenerationAgent(openai_api_key)
         instagram_reel_agent = InstagramReelAgent(openai_api_key, os.getenv('RUNWAY_API_KEY'))
+        
+        # Initialize Android testing agent
+        adb_path = os.getenv('ADB_PATH', 'adb')  # Allow custom ADB path
+        logger.info(f"Initializing AndroidTestingAgent with adb_path: {adb_path}")
+        try:
+            android_testing_agent = AndroidTestingAgent(openai_api_key, adb_path)
+            logger.info(f"AndroidTestingAgent initialized successfully: {android_testing_agent is not None}")
+        except Exception as e:
+            logger.error(f"Failed to initialize AndroidTestingAgent: {str(e)}")
+            logger.error(f"AndroidTestingAgent initialization traceback: {traceback.format_exc()}")
+            android_testing_agent = None
+        
+        print(f"InstagramReelAgent initialized: {instagram_reel_agent is not None}")
+        print(f"AndroidTestingAgent initialized: {android_testing_agent is not None}")
         
         print("Successfully initialized all agents")
         
@@ -586,8 +636,14 @@ async def get_visual_posts(period: str = None):
         
         with open(visual_posts_storage_path, 'r') as f:
             visual_data = json.load(f)
-            
-        posts = visual_data.get("posts", [])
+        
+        # Handle both old format (array) and new format (object with posts key)
+        if isinstance(visual_data, dict):
+            posts = visual_data.get("posts", [])
+        elif isinstance(visual_data, list):
+            posts = visual_data
+        else:
+            posts = []
         
         # Filter by period if provided
         if period:
@@ -938,6 +994,12 @@ async def create_dalle_visual_post(request: DALLEVisualPostRequest):
                 with open(visual_posts_storage_path, 'r') as f:
                     visual_storage = json.load(f)
             
+            # Ensure the required keys exist
+            if "posts" not in visual_storage:
+                visual_storage["posts"] = []
+            if "by_period" not in visual_storage:
+                visual_storage["by_period"] = {}
+            
             visual_storage["posts"].append(visual_post_data)
             visual_storage["by_period"][post_id] = visual_post_data
             
@@ -1237,6 +1299,173 @@ async def get_image_feedback(image_path: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting image feedback: {str(e)}")
+
+@app.post("/api/regenerate-with-feedback")
+async def regenerate_image_with_feedback(request: RegenerateWithFeedbackRequest):
+    """Regenerate an image based on user feedback with optimized prompt"""
+    try:
+        if not image_generator:
+            raise HTTPException(status_code=503, detail="Image generator not available")
+        
+        # First, submit the feedback to improve the system
+        feedback_id = image_generator.add_feedback(
+            image_path=request.originalImagePath,
+            rating=request.rating,
+            comments=request.feedback,
+            generation_params=request.generationParams
+        )
+        
+        # Get the original visual post data to understand context
+        visual_posts_file = os.path.join(static_dir, "visual_posts_storage.json")
+        original_post_data = None
+        
+        # First try to find in visual posts storage
+        if os.path.exists(visual_posts_file):
+            with open(visual_posts_file, 'r', encoding='utf-8') as f:
+                visual_posts = json.load(f)
+                # Find the original post by image path
+                for post in visual_posts:
+                    if isinstance(post, dict):
+                        post_file_path = post.get('file_path', '')
+                        if post_file_path == request.originalImagePath or request.originalImagePath in post_file_path:
+                            original_post_data = post
+                            break
+        
+        # If not found in visual posts, try to reconstruct from feedback data
+        if not original_post_data:
+            # Try to find feedback with flexible path matching
+            feedback_entries = None
+            all_feedback = image_generator.feedback_collector.get_all_feedback()
+            
+            # Extract filename from the requested path
+            requested_filename = os.path.basename(request.originalImagePath)
+            
+            for entry in all_feedback:
+                entry_path = entry.get('image_path', '')
+                entry_filename = os.path.basename(entry_path)
+                
+                # Match by exact path or filename
+                if (entry_path == request.originalImagePath or 
+                    entry_filename == requested_filename or
+                    requested_filename in entry_path):
+                    feedback_entries = entry
+                    break
+            
+            if feedback_entries:
+                # Use the generation params from the feedback
+                generation_params = feedback_entries.get('generation_params', {})
+                if generation_params:
+                    original_post_data = {
+                        'file_path': request.originalImagePath,
+                        'text': generation_params.get('text', ''),
+                        'period': generation_params.get('period', ''),
+                        'tags': generation_params.get('tags', []),
+                        'period_color': '',
+                        'image_style': generation_params.get('style', 'dalle'),
+                        'post_format': generation_params.get('post_format', 'post'),
+                        'dalle_prompt': generation_params.get('ai_prompt', ''),
+                        'ai_prompt': generation_params.get('ai_prompt', ''),
+                        'ai_generated': generation_params.get('ai_generated', True)
+                    }
+        
+        if not original_post_data:
+            # Debug information for troubleshooting
+            debug_info = {
+                "requested_path": request.originalImagePath,
+                "visual_posts_file_exists": os.path.exists(visual_posts_file),
+                "feedback_entries_count": len(image_generator.feedback_collector.get_all_feedback()),
+                "available_feedback_paths": [entry.get('image_path', '') for entry in image_generator.feedback_collector.get_all_feedback()]
+            }
+            raise HTTPException(status_code=404, detail=f"Original image data not found. Debug info: {debug_info}")
+        
+        # Create optimized prompt based on feedback and original data
+        original_prompt = request.originalPrompt or original_post_data.get('dalle_prompt', '') or original_post_data.get('ai_prompt', '')
+        
+        # Use the image generator's prompt optimizer with feedback
+        optimized_prompt = image_generator.optimize_prompt_with_feedback(
+            original_prompt=original_prompt,
+            feedback=request.feedback,
+            rating=request.rating,
+            style=original_post_data.get('image_style', 'dalle'),
+            period=original_post_data.get('period', ''),
+            existing_generation_params=request.generationParams
+        )
+        
+        # Generate new image with optimized prompt
+        generation_result = image_generator.generate_image(
+            prompt=optimized_prompt,
+            style=original_post_data.get('image_style', 'natural') if request.keepOriginalStyle else 'natural',
+            use_feedback_optimization=True
+        )
+        
+        if not generation_result.get('success', False):
+            raise HTTPException(status_code=500, detail=generation_result.get('error', 'Failed to generate image'))
+        
+        # Create new visual post entry
+        new_post = {
+            "id": f"regenerated_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "text": original_post_data.get('text', ''),
+            "period": original_post_data.get('period', ''),
+            "tags": original_post_data.get('tags', []),
+            "period_color": original_post_data.get('period_color', ''),
+            "image_style": original_post_data.get('image_style', 'dalle'),
+            "post_format": original_post_data.get('post_format', 'post'),
+            "file_path": generation_result['image_path'],
+            "file_url": generation_result['image_url'],
+            "dalle_prompt": optimized_prompt,
+            "ai_prompt": optimized_prompt,  # Also add ai_prompt for consistency
+            "original_image_path": request.originalImagePath,
+            "feedback_used": request.feedback,
+            "optimization_applied": True,
+            "ai_generated": True,
+            "created_at": datetime.now().isoformat(),
+            "dimensions": {"width": 1024, "height": 1024}
+        }
+        
+        # Save the new post to storage
+        if os.path.exists(visual_posts_file):
+            try:
+                with open(visual_posts_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    # Handle both old format (array) and new format (object with posts key)
+                    if isinstance(data, dict) and "posts" in data:
+                        visual_posts = data["posts"]
+                    elif isinstance(data, list):
+                        visual_posts = data
+                    else:
+                        visual_posts = []
+            except (json.JSONDecodeError, FileNotFoundError):
+                visual_posts = []
+        else:
+            visual_posts = []
+        
+        visual_posts.append(new_post)
+        
+        # Save in the correct format expected by the get_visual_posts endpoint
+        visual_posts_data = {
+            "posts": visual_posts,
+            "last_updated": datetime.now().isoformat()
+        }
+        
+        with open(visual_posts_file, 'w', encoding='utf-8') as f:
+            json.dump(visual_posts_data, f, ensure_ascii=False, indent=2)
+        
+        return {
+            "success": True,
+            "message": "Image regenerated successfully with feedback optimization",
+            "visual_post": new_post,
+            "feedback_id": feedback_id,
+            "original_prompt": original_prompt,
+            "optimized_prompt": optimized_prompt,
+            "optimization_details": {
+                "feedback_applied": request.feedback,
+                "rating_considered": request.rating,
+                "style_preserved": request.keepOriginalStyle
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error regenerating image with feedback: {str(e)}")
 
 # Workflow Management API endpoints
 
@@ -1811,6 +2040,199 @@ async def get_loop_styles():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting loop styles: {str(e)}")
 
+@app.post("/android-test")
+async def test_android_app(request: AndroidTestRequest, background_tasks: BackgroundTasks):
+    """Start automated Android app testing"""
+    logger.info("========== ANDROID TEST POST ENDPOINT CALLED ==========")
+    logger.info(f"Request method: POST")
+    logger.info(f"Request data: {request}")
+    logger.info(f"APK path: {request.apk_path}")
+    logger.info(f"Test actions: {request.test_actions}")
+    logger.info(f"Target API level: {request.target_api_level}")
+    logger.info(f"AVD name: {request.avd_name}")
+    try:
+        if not android_testing_agent:
+            logger.error("Android testing agent not available")
+            raise HTTPException(status_code=503, detail="Android testing agent not available")
+        
+        logger.info(f"Validating APK path: {request.apk_path}")
+        # Validate APK path
+        if not os.path.exists(request.apk_path):
+            logger.error(f"APK file not found: {request.apk_path}")
+            raise HTTPException(status_code=400, detail=f"APK file not found: {request.apk_path}")
+        
+        # Generate test ID
+        test_id = android_testing_agent._generate_test_id(request.apk_path)
+        logger.info(f"Generated test ID: {test_id}")
+        
+        # Start testing in background
+        logger.info(f"Adding background task for test {test_id}")
+        background_tasks.add_task(
+            run_android_test,
+            test_id,
+            request.apk_path,
+            request.test_actions,
+            request.target_api_level,
+            request.avd_name
+        )
+        
+        response = {
+            "success": True,
+            "test_id": test_id,
+            "message": "Android app testing started",
+            "status_url": f"/android-test/{test_id}"
+        }
+        logger.info(f"Android test started successfully: {response}")
+        return response
+        
+    except HTTPException as he:
+        logger.error(f"HTTP exception in Android test endpoint: {he.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in Android test endpoint: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error starting Android test: {str(e)}")
+
+async def run_android_test(test_id: str, apk_path: str, test_actions: Optional[List[str]], 
+                          target_api_level: Optional[int], avd_name: Optional[str]):
+    """Background task to run Android testing"""
+    logger.info(f"Starting background Android test with ID: {test_id}")
+    logger.info(f"Test parameters - APK: {apk_path}, Actions: {test_actions}, API Level: {target_api_level}, AVD: {avd_name}")
+    
+    try:
+        # Run the test with asyncio execution
+        logger.info(f"Calling android_testing_agent.test_android_app for test {test_id}")
+        
+        # Wrap the async call in proper error handling
+        try:
+            result = await android_testing_agent.test_android_app(
+                apk_path=apk_path,
+                test_actions=test_actions,
+                target_api_level=target_api_level,
+                avd_name=avd_name
+            )
+            logger.info(f"Android test {test_id} completed successfully: {result}")
+        except Exception as inner_e:
+            logger.error(f"Error during test_android_app execution for test {test_id}: {str(inner_e)}")
+            logger.error(f"Inner exception traceback: {traceback.format_exc()}")
+            raise
+        
+        # Results are automatically saved by the agent
+        logger.info(f"Background test {test_id} completed, results saved by agent")
+        
+    except Exception as e:
+        logger.error(f"Exception in run_android_test for test {test_id}: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        
+        # Save error to storage
+        error_data = {
+            "success": False,
+            "test_id": test_id,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "timestamp": datetime.now().isoformat()
+        }
+        logger.info(f"Saving error data to storage for test {test_id}: {error_data}")
+        
+        android_testing_agent.storage[test_id] = error_data
+        android_testing_agent._save_storage()
+        logger.info(f"Error data saved for test {test_id}")
+
+@app.get("/android-test/{test_id}")
+async def get_android_test_results(test_id: str):
+    """Get Android test results by ID"""
+    logger.info(f"Android test GET endpoint called for test_id: {test_id}")
+    try:
+        if not android_testing_agent:
+            logger.error("Android testing agent not available for GET request")
+            raise HTTPException(status_code=503, detail="Android testing agent not available")
+        
+        logger.info(f"Retrieving test results for test_id: {test_id}")
+        result = android_testing_agent.get_test_results(test_id)
+        logger.info(f"Retrieved result for test {test_id}: {result}")
+        
+        if result["success"]:
+            return result["data"]
+        else:
+            logger.warning(f"Test {test_id} not found or failed: {result['error']}")
+            raise HTTPException(status_code=404, detail=result["error"])
+            
+    except HTTPException as he:
+        logger.error(f"HTTP exception in GET /android-test/{test_id}: {he.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in GET /android-test/{test_id}: {str(e)}")
+        logger.error(f"GET endpoint traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving test results: {str(e)}")
+
+@app.get("/android-tests")
+async def list_android_tests(limit: int = 10):
+    """List recent Android test results"""
+    try:
+        if not android_testing_agent:
+            raise HTTPException(status_code=503, detail="Android testing agent not available")
+        
+        result = android_testing_agent.list_recent_tests(limit)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing test results: {str(e)}")
+
+@app.get("/android-test/{test_id}/screenshots")
+async def get_test_screenshots(test_id: str):
+    """Get list of screenshots for a test"""
+    try:
+        if not android_testing_agent:
+            raise HTTPException(status_code=503, detail="Android testing agent not available")
+        
+        # Get test results
+        result = android_testing_agent.get_test_results(test_id)
+        
+        if not result["success"]:
+            raise HTTPException(status_code=404, detail="Test not found")
+        
+        # Extract screenshot paths
+        test_data = result["data"]
+        screenshots = []
+        
+        # Initial screenshot
+        if "screenshots" in test_data and "initial" in test_data["screenshots"]:
+            screenshots.append({
+                "name": "initial",
+                "path": test_data["screenshots"]["initial"],
+                "url": f"/static/android_screenshots/{os.path.basename(test_data['screenshots']['initial'])}"
+            })
+        
+        # Action screenshots
+        if "navigation" in test_data:
+            for i in range(test_data["navigation"].get("action_count", 0)):
+                screenshot_name = f"action_{i}"
+                # Check if file exists in screenshot directory
+                screenshot_pattern = f"{test_id}_{screenshot_name}_*.png"
+                screenshot_dir = android_testing_agent.screenshot_dir
+                
+                import glob
+                matches = glob.glob(os.path.join(screenshot_dir, screenshot_pattern))
+                for match in matches:
+                    screenshots.append({
+                        "name": screenshot_name,
+                        "path": match,
+                        "url": f"/static/android_screenshots/{os.path.basename(match)}"
+                    })
+        
+        return {
+            "success": True,
+            "test_id": test_id,
+            "screenshots": screenshots
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving screenshots: {str(e)}")
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -1827,8 +2249,10 @@ async def health_check():
         "post_composition_agent_enabled": post_composition_agent is not None,
         "video_generation_agent_enabled": video_generation_agent is not None,
         "instagram_reel_agent_enabled": instagram_reel_agent is not None,
+        "android_testing_agent_enabled": android_testing_agent is not None,
         "ffmpeg_available": video_generation_agent.ffmpeg_available if video_generation_agent else False,
-        "runway_api_configured": os.getenv('RUNWAY_API_KEY') is not None
+        "runway_api_configured": os.getenv('RUNWAY_API_KEY') is not None,
+        "adb_configured": os.getenv('ADB_PATH') is not None
     }
 
 if __name__ == "__main__":

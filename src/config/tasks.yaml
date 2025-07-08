@@ -213,3 +213,145 @@ generate_instagram_post_task:
     }}
   expected_output: "JSON formatierter Instagram Post mit Text, Hashtags, Call-to-Action und Engagement-Strategien"
   agent: write_hashtag_research_agent
+
+android_app_test_task:
+  description: |
+    Führe einen automatisierten Test für die Android-App durch:
+    
+    APK-Datei: {apk_path}
+    Ziel-API-Level: {target_api_level}
+    Test-Aktionen: {test_actions}
+    AVD-Name: {avd_name}
+    
+    Führe folgende Tests durch:
+    
+    1. APP-START UND STABILITÄT:
+       - Installiere die App im Emulator
+       - Überprüfe erfolgreichen Start
+       - Messe Startzeit in Millisekunden
+       - Dokumentiere Startup-Exceptions
+    
+    2. NAVIGATIONS-TEST:
+       - Klicke systematisch durch alle erreichbaren Screens
+       - Teste Zurück-Navigation
+       - Überprüfe Screen-Übergänge
+       - Dokumentiere nicht erreichbare Bereiche
+    
+    3. FEHLER-ERKENNUNG:
+       - Überwache Logcat auf Crashes und Exceptions
+       - Erkenne ANRs (Application Not Responding)
+       - Identifiziere leere Views oder fehlende Inhalte
+       - Dokumentiere lange Ladezeiten (>3 Sekunden)
+    
+    4. PERFORMANCE-METRIKEN:
+       - CPU-Auslastung (Durchschnitt und Spitzen)
+       - Memory-Verbrauch (Heap und Native)
+       - Frame-Rate und UI-Jank
+       - Battery-Drain-Schätzung
+       - Netzwerk-Traffic (falls relevant)
+    
+    5. UX-OPTIMIERUNGSPOTENTIALE:
+       - Unklare oder zu kleine Buttons (<48dp)
+       - Zu lange User-Flows (>3 Klicks für Hauptfunktionen)
+       - Inkonsistente UI-Elemente
+       - Fehlende oder verwirrende Labels
+    
+    6. BARRIEREFREIHEIT:
+       - Content-Descriptions für Screen-Reader
+       - Touch-Target-Größen
+       - Farb-Kontraste
+       - Keyboard-Navigation (falls unterstützt)
+    
+    Erstelle einen strukturierten Bericht mit:
+    - Zusammenfassung (bestanden/fehlgeschlagen)
+    - Kritische Fehler mit Priorität
+    - Performance-Bewertung mit Metriken
+    - UX-Empfehlungen sortiert nach Impact
+    - Accessibility-Score und Verbesserungen
+    - Screenshots von Problemen
+  expected_output: "Strukturierter Testbericht mit Fehlern, Performance-Analyse, UX-Empfehlungen und Accessibility-Bewertung"
+  agent: android_testing_agent
+
+android_performance_analysis_task:
+  description: |
+    Analysiere die Performance-Daten der Android-App im Detail:
+    
+    Package-Name: {package_name}
+    Test-ID: {test_id}
+    
+    Führe eine tiefgreifende Analyse durch:
+    
+    1. PERFORMANCE-PROFILING:
+       - Detaillierte CPU-Nutzung pro Thread
+       - Memory-Leaks und Garbage Collection
+       - GPU-Rendering-Performance
+       - Disk I/O und Database-Operationen
+    
+    2. STARTUP-OPTIMIERUNG:
+       - Cold-Start vs. Warm-Start Zeiten
+       - Main-Thread-Blockierungen
+       - Lazy-Loading-Möglichkeiten
+       - Splash-Screen-Optimierung
+    
+    3. UI-PERFORMANCE:
+       - Frame-Drops und Jank-Ursachen
+       - Overdraw-Analyse
+       - Layout-Performance
+       - Animation-Smoothness
+    
+    4. BATTERY-OPTIMIERUNG:
+       - Wake-Lock-Nutzung
+       - Background-Services
+       - Location-Updates
+       - Network-Requests
+    
+    Erstelle konkrete Optimierungsvorschläge mit:
+    - Priorisierung nach Impact
+    - Geschätzter Aufwand
+    - Erwartete Verbesserung
+    - Code-Beispiele wo möglich
+  expected_output: "Detaillierte Performance-Analyse mit konkreten Optimierungsvorschlägen"
+  agent: android_testing_agent
+
+android_accessibility_audit_task:
+  description: |
+    Führe ein umfassendes Accessibility-Audit der Android-App durch:
+    
+    Package-Name: {package_name}
+    UI-Dump: {ui_dump}
+    Screenshots: {screenshots}
+    
+    Prüfe folgende Accessibility-Aspekte:
+    
+    1. SCREEN-READER-UNTERSTÜTZUNG:
+       - Content-Descriptions für alle interaktiven Elemente
+       - Sinnvolle Label für Buttons und Controls
+       - Gruppierung zusammengehöriger Elemente
+       - Fokus-Reihenfolge
+    
+    2. VISUELLE BARRIEREFREIHEIT:
+       - Farb-Kontraste (WCAG AA/AAA Standards)
+       - Text-Größen (min. 12sp)
+       - Touch-Target-Größen (min. 48x48dp)
+       - Keine Farbe als einziger Informationsträger
+    
+    3. MOTOR-BARRIEREFREIHEIT:
+       - Ausreichend große Touch-Targets
+       - Keine präzisen Gesten erforderlich
+       - Alternative Eingabemethoden
+       - Timeout-Anpassungen
+    
+    4. KOGNITIVE BARRIEREFREIHEIT:
+       - Klare, konsistente Navigation
+       - Verständliche Fehlermeldungen
+       - Einfache Sprache
+       - Hilfe-Funktionen
+    
+    Erstelle einen Bericht mit:
+    - Accessibility-Score (0-100)
+    - Kritische Barrieren
+    - WCAG-Konformität
+    - Konkrete Verbesserungsvorschläge
+    - Best-Practice-Beispiele
+  expected_output: "Umfassender Accessibility-Bericht mit Score, Barrieren und Verbesserungsvorschlägen"
+  agent: android_testing_agent

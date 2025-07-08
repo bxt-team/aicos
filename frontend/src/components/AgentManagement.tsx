@@ -60,7 +60,9 @@ const AgentManagement: React.FC = () => {
       'E-Mail Marketing': '#f56565',
       'Video Content': '#ec4899',
       'Bildung': '#3182ce',
-      'Analytics': '#319795'
+      'Analytics': '#319795',
+      'Quality Assurance': '#059669',
+      'System Management': '#4b5563'
     };
     return colors[category] || '#718096';
   };

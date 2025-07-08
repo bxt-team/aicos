@@ -86,6 +86,10 @@ interface InstagramPost {
   period: string;
   hashtags: string[];
   created_at: string;
+  affirmation?: string;
+  post_text?: string;
+  period_name?: string;
+  period_color?: string;
 }
 
 interface ComposedPost {
@@ -108,6 +112,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
   const [selectedPost, setSelectedPost] = useState<string>('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [availableImages, setAvailableImages] = useState<{value: string, label: string, period: string, thumbnail?: string}[]>([]);
   const [additionalInput, setAdditionalInput] = useState('');
   const [customText, setCustomText] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<string>('sora');
@@ -115,6 +120,9 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
   const [selectedReel, setSelectedReel] = useState<ReelData | null>(null);
   const [showScript, setShowScript] = useState(false);
   const [activeTab, setActiveTab] = useState('generate');
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [visualPosts, setVisualPosts] = useState<any[]>([]);
 
   const periods = [
     'Image', 'Veränderung', 'Energie', 'Kreativität', 
@@ -135,7 +143,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
 
   const loadInstagramPosts = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/instagram-posts`);
+      const response = await fetch(`${apiBaseUrl}/instagram-posts`);
       const data = await response.json();
       if (data.success) {
         setInstagramPosts(data.posts);
@@ -154,6 +162,18 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
       }
     } catch (err) {
       console.error('Error loading composed posts:', err);
+    }
+  };
+
+  const loadVisualPosts = async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/visual-posts`);
+      const data = await response.json();
+      if (data.success) {
+        setVisualPosts(data.posts);
+      }
+    } catch (err) {
+      console.error('Error loading visual posts:', err);
     }
   };
 
@@ -197,6 +217,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     loadReels();
     loadInstagramPosts();
     loadComposedPosts();
+    loadVisualPosts();
     loadPeriodThemes();
     loadVideoProviders();
     loadLoopStyles();
@@ -283,13 +304,35 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
   };
 
   const getImageOptions = () => {
-    return composedPosts
+    return visualPosts
       .filter(post => !selectedPeriod || post.period === selectedPeriod)
       .map(post => ({
         value: post.file_url,
-        label: `${post.period} - ${post.text.substring(0, 50)}...`,
-        period: post.period
+        label: `${post.period} - ${post.text ? post.text.substring(0, 50) : 'Kein Text'}...`,
+        period: post.period,
+        thumbnail: post.file_url
       }));
+  };
+
+  useEffect(() => {
+    setAvailableImages(getImageOptions());
+  }, [visualPosts, selectedPeriod]);
+
+  const handlePostSelection = (postId: string) => {
+    const post = instagramPosts.find(p => p.id === postId);
+    if (post) {
+      setSelectedPost(postId);
+      setSelectedPeriod(post.period || post.period_name || '');
+      setShowPostModal(false);
+    }
+  };
+
+  const handleImageSelection = (imageUrl: string) => {
+    if (selectedImages.includes(imageUrl)) {
+      setSelectedImages(selectedImages.filter(i => i !== imageUrl));
+    } else {
+      setSelectedImages([...selectedImages, imageUrl]);
+    }
   };
 
   const filteredReels = selectedPeriod 
@@ -393,22 +436,32 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
 
                 <div className="form-grid">
                   <div className="form-group">
-                    <label htmlFor="post">Instagram Post auswählen (optional)</label>
-                    <select 
-                      id="post"
-                      value={selectedPost} 
-                      onChange={(e) => setSelectedPost(e.target.value)}
-                      className="select"
+                    <label>Instagram Post auswählen (optional)</label>
+                    <button 
+                      type="button"
+                      onClick={() => setShowPostModal(true)}
+                      className="btn-outline full-width"
                     >
-                      <option value="">Post auswählen</option>
-                      {instagramPosts
-                        .filter(post => !selectedPeriod || post.period === selectedPeriod)
-                        .map(post => (
-                          <option key={post.id} value={post.id}>
-                            {post.text.substring(0, 50)}...
-                          </option>
-                        ))}
-                    </select>
+                      {selectedPost ? (
+                        <>📄 {(() => {
+                          const post = instagramPosts.find(p => p.id === selectedPost);
+                          const displayText = post?.affirmation || post?.text || post?.post_text || 'Kein Text';
+                          return displayText.substring(0, 50) + (displayText.length > 50 ? '...' : '');
+                        })()}</>
+                      ) : (
+                        '📄 Instagram Post auswählen'
+                      )}
+                    </button>
+                    {selectedPost && (
+                      <button 
+                        type="button"
+                        onClick={() => {setSelectedPost(''); setSelectedPeriod('');}}
+                        className="btn-ghost full-width"
+                        style={{marginTop: '8px'}}
+                      >
+                        🗑️ Auswahl entfernen
+                      </button>
+                    )}
                   </div>
 
                   {selectedProvider === 'sora' && (
@@ -457,39 +510,26 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
 
                 <div className="form-group">
                   <label>Bilder auswählen (optional)</label>
-                  <select 
-                    value="" 
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                      const value = e.target.value;
-                      if (value && !selectedImages.includes(value)) {
-                        setSelectedImages([...selectedImages, value]);
-                      }
-                    }}
-                    className="select"
+                  <button 
+                    type="button"
+                    onClick={() => setShowImageModal(true)}
+                    className="btn-outline full-width"
                   >
-                    <option value="">Bild hinzufügen</option>
-                    {getImageOptions().map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  
+                    {selectedImages.length > 0 ? (
+                      <>🖼️ {selectedImages.length} Bild(er) ausgewählt</>
+                    ) : (
+                      '🖼️ Bilder auswählen'
+                    )}
+                  </button>
                   {selectedImages.length > 0 && (
-                    <div className="selected-images">
-                      {selectedImages.map(img => (
-                        <div key={img} className="selected-image">
-                          <span>{img}</span>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedImages(selectedImages.filter(i => i !== img))}
-                            className="remove-btn"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setSelectedImages([])}
+                      className="btn-ghost full-width"
+                      style={{marginTop: '8px'}}
+                    >
+                      🗑️ Alle entfernen
+                    </button>
                   )}
                 </div>
 
@@ -718,6 +758,127 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
           </div>
         )}
       </div>
+
+      {/* Instagram Post Selection Modal */}
+      {showPostModal && (
+        <div className="modal-overlay" onClick={() => setShowPostModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Instagram Post auswählen</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowPostModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="post-selection-grid">
+                {instagramPosts.map(post => (
+                  <div 
+                    key={post.id} 
+                    className={`post-option ${selectedPost === post.id ? 'selected' : ''}`}
+                    onClick={() => handlePostSelection(post.id)}
+                  >
+                    <div className="post-preview">
+                      <div className="post-header">
+                        <span className="period-badge" style={{backgroundColor: post.period_color || '#3b82f6'}}>
+                          {post.period || post.period_name}
+                        </span>
+                        <span className="post-date">
+                          {new Date(post.created_at).toLocaleDateString('de-DE')}
+                        </span>
+                      </div>
+                      <p className="post-text">{post.text || post.post_text}</p>
+                      {post.affirmation && (
+                        <div className="affirmation-preview">
+                          <span className="affirmation-label">Affirmation:</span>
+                          <p className="affirmation-text">"{post.affirmation}"</p>
+                        </div>
+                      )}
+                      {post.hashtags && post.hashtags.length > 0 && (
+                        <div className="post-hashtags">
+                          {post.hashtags.slice(0, 3).map(tag => (
+                            <span key={tag} className="hashtag">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {selectedPost === post.id && (
+                      <div className="selected-indicator">✓</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {instagramPosts.length === 0 && (
+                <div className="empty-state-small">
+                  <p>Keine Instagram Posts verfügbar.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Selection Modal */}
+      {showImageModal && (
+        <div className="modal-overlay" onClick={() => setShowImageModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Bilder auswählen</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowImageModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-actions">
+                <button 
+                  className="btn-outline"
+                  onClick={() => setShowImageModal(false)}
+                >
+                  Fertig ({selectedImages.length} ausgewählt)
+                </button>
+              </div>
+              <div className="image-selection-grid">
+                {availableImages.map(option => (
+                  <div 
+                    key={option.value} 
+                    className={`image-option ${selectedImages.includes(option.value) ? 'selected' : ''}`}
+                    onClick={() => handleImageSelection(option.value)}
+                  >
+                    <div className="image-preview">
+                      <img 
+                        src={option.thumbnail} 
+                        alt={option.label}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement!.innerHTML = '<div class="image-placeholder">📷</div>';
+                        }}
+                      />
+                    </div>
+                    <div className="image-info">
+                      <span className="period-tag">{option.period}</span>
+                      <p className="image-label">{option.label}</p>
+                    </div>
+                    {selectedImages.includes(option.value) && (
+                      <div className="selected-indicator">✓</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {availableImages.length === 0 && (
+                <div className="empty-state-small">
+                  <p>Keine Bilder verfügbar{selectedPeriod ? ` für ${selectedPeriod}` : ''}.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

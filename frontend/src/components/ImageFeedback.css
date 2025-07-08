@@ -268,7 +268,83 @@
     gap: 8px;
   }
   
-  .submit-button, .cancel-button {
+  .submit-button, .cancel-button, .regenerate-button {
     width: 100%;
   }
+}
+
+/* Regeneration-specific styles */
+.regeneration-options {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 16px 0;
+}
+
+.regeneration-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: #856404;
+  margin-bottom: 4px;
+}
+
+.regeneration-options input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #f39c12;
+}
+
+.help-text {
+  font-size: 12px;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.regenerate-button {
+  background-color: #f39c12;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.regenerate-button:hover:not(:disabled) {
+  background-color: #e67e22;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.regenerate-button:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.regenerate-button:focus {
+  outline: 2px solid #f39c12;
+  outline-offset: 2px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form-actions button {
+  flex: 1;
+  min-width: 120px;
 }

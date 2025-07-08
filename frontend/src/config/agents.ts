@@ -154,6 +154,18 @@ export const agentConfigs: AgentConfig[] = [
     apiHealthCheck: '/api/reel-themes',
     features: ['Video Script Generation', 'Runway AI Integration', 'ChatGPT Sora Loops', '7 Cycles Optimized', '5s Loop Videos'],
     version: '2.0'
+  },
+  {
+    id: 'android-test',
+    name: 'Android App Testing Agent',
+    route: '/android-test',
+    icon: '📱',
+    description: 'Automatisierte QA- und Performance-Tests für Android Apps mit detaillierter Fehleranalyse und UX-Empfehlungen',
+    category: 'Quality Assurance',
+    enabled: true,
+    apiHealthCheck: '/health',
+    features: ['Automatisierte UI-Tests', 'Performance-Analyse', 'Crash-Erkennung', 'Accessibility-Prüfung', 'UX-Optimierung'],
+    version: '1.0'
   }
 ];
 

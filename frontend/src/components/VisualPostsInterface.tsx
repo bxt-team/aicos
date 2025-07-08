@@ -34,6 +34,19 @@ interface Affirmation {
   created_at: string;
 }
 
+interface InstagramPost {
+  id: string;
+  post_text: string;
+  hashtags: string[];
+  call_to_action: string;
+  period_name: string;
+  period_color: string;
+  affirmation: string;
+  style: string;
+  created_at: string;
+  source: string;
+}
+
 interface ImageSearchResult {
   id: string;
   url: string;
@@ -45,18 +58,21 @@ interface ImageSearchResult {
 const VisualPostsInterface: React.FC = () => {
   const [posts, setPosts] = useState<VisualPost[]>([]);
   const [affirmations, setAffirmations] = useState<Affirmation[]>([]);
+  const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>([]);
   const [searchResults, setSearchResults] = useState<ImageSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   
   // Form states
   const [selectedAffirmation, setSelectedAffirmation] = useState<string>('');
+  const [selectedInstagramPost, setSelectedInstagramPost] = useState<string>('');
   const [customText, setCustomText] = useState<string>('');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
   const [customTags, setCustomTags] = useState<string>('');
   const [imageStyle, setImageStyle] = useState<string>('minimal');
   const [postFormat, setPostFormat] = useState<string>('post');
   const [filterPeriod, setFilterPeriod] = useState<string>('');
+  const [showInstagramPostModal, setShowInstagramPostModal] = useState<boolean>(false);
   
   // Search states
   const [searchTags, setSearchTags] = useState<string>('');
@@ -114,6 +130,17 @@ const VisualPostsInterface: React.FC = () => {
     }
   }, []);
 
+  const loadInstagramPosts = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/instagram-posts`);
+      if (response.data.success) {
+        setInstagramPosts(response.data.posts);
+      }
+    } catch (error) {
+      console.error('Error loading Instagram posts:', error);
+    }
+  }, []);
+
   const handleUrlParameters = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
     
@@ -164,8 +191,9 @@ const VisualPostsInterface: React.FC = () => {
   useEffect(() => {
     loadPosts();
     loadAffirmations();
+    loadInstagramPosts();
     handleUrlParameters();
-  }, [loadPosts, loadAffirmations, handleUrlParameters]);
+  }, [loadPosts, loadAffirmations, loadInstagramPosts, handleUrlParameters]);
 
 
   const handleSearchImages = async () => {
@@ -263,6 +291,26 @@ const VisualPostsInterface: React.FC = () => {
           tags: tags.length > 0 ? tags : undefined,
           force_new: true
         });
+      } else if (selectedInstagramPost) {
+        // Create from selected Instagram post
+        const selectedPost = instagramPosts.find(p => p.id === selectedInstagramPost);
+        if (selectedPost) {
+          const tags = customTags ? customTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+          
+          response = await axios.post(`${API_BASE_URL}/create-instagram-ai-image`, {
+            text: selectedPost.affirmation,
+            period: selectedPost.period_name,
+            tags: tags.length > 0 ? tags : undefined,
+            image_style: imageStyle,
+            post_format: postFormat,
+            source: 'existing_instagram_post',
+            instagram_post_text: selectedPost.post_text,
+            instagram_hashtags: selectedPost.hashtags.join(', '),
+            instagram_cta: selectedPost.call_to_action,
+            instagram_style: selectedPost.style,
+            force_new: true
+          });
+        }
       } else {
         // Create custom post
         if (!customText.trim() || !selectedPeriod) {
@@ -282,11 +330,12 @@ const VisualPostsInterface: React.FC = () => {
         });
       }
 
-      if (response.data.success) {
+      if (response && response.data.success) {
         await loadPosts(filterPeriod || undefined);
         
         // Reset form
         setSelectedAffirmation('');
+        setSelectedInstagramPost('');
         setCustomText('');
         setSelectedPeriod('');
         setCustomTags('');
@@ -305,7 +354,7 @@ const VisualPostsInterface: React.FC = () => {
         } else {
           alert(`✅ ${successMessage}`);
         }
-      } else {
+      } else if (response) {
         alert(`Fehler: ${response.data.message}`);
       }
     } catch (error: any) {
@@ -345,6 +394,78 @@ const VisualPostsInterface: React.FC = () => {
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();
+  };
+
+  const handleSelectInstagramPost = (post: InstagramPost) => {
+    setSelectedInstagramPost(post.id);
+    setCustomText(post.affirmation);
+    setSelectedPeriod(post.period_name);
+    setCustomTags(''); // Don't auto-populate hashtags into additional tags field
+    setImageStyle('dalle'); // Default to DALL-E for Instagram posts
+    setAiContext(`Post-Text: ${post.post_text}\nHashtags: ${post.hashtags.join(', ')}\nCall-to-Action: ${post.call_to_action}`);
+    setShowInstagramPostModal(false);
+  };
+
+  const renderInstagramPostModal = () => {
+    if (!showInstagramPostModal) return null;
+    
+    return (
+      <div className="modal-overlay">
+        <div className="modal-content instagram-posts-modal">
+          <div className="modal-header">
+            <h3>Instagram Post auswählen</h3>
+            <button 
+              onClick={() => setShowInstagramPostModal(false)}
+              className="close-button"
+            >
+              ×
+            </button>
+          </div>
+          <div className="modal-body">
+            <div className="instagram-posts-grid">
+              {instagramPosts.map((post) => (
+                <div 
+                  key={post.id} 
+                  className="instagram-post-card"
+                  onClick={() => handleSelectInstagramPost(post)}
+                >
+                  <div className="post-header">
+                    <span 
+                      className="period-badge"
+                      style={{ backgroundColor: post.period_color }}
+                    >
+                      {post.period_name}
+                    </span>
+                    <span className="post-date">
+                      {new Date(post.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="post-content">
+                    <div className="post-text">
+                      {post.post_text.length > 100 
+                        ? `${post.post_text.substring(0, 100)}...` 
+                        : post.post_text
+                      }
+                    </div>
+                    <div className="post-affirmation">
+                      <strong>Affirmation:</strong> {post.affirmation}
+                    </div>
+                    <div className="post-hashtags">
+                      {post.hashtags.slice(0, 3).map((tag, index) => (
+                        <span key={index} className="hashtag">{tag}</span>
+                      ))}
+                      {post.hashtags.length > 3 && (
+                        <span className="hashtag-more">+{post.hashtags.length - 3} more</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -432,6 +553,48 @@ const VisualPostsInterface: React.FC = () => {
           <div className="tab-content">
             <div className="creation-options">
               
+              {/* From Instagram Post */}
+              <div className="creation-option">
+                <h4>🎯 Aus bestehendem Instagram Post</h4>
+                <div className="form-group">
+                  <label>Instagram Post auswählen:</label>
+                  <div className="instagram-post-selector">
+                    <button
+                      type="button"
+                      onClick={() => setShowInstagramPostModal(true)}
+                      className="select-instagram-post-button"
+                      disabled={loading}
+                    >
+                      {selectedInstagramPost 
+                        ? `Ausgewählt: ${instagramPosts.find(p => p.id === selectedInstagramPost)?.post_text?.substring(0, 50)}...`
+                        : 'Instagram Post auswählen'}
+                    </button>
+                    {selectedInstagramPost && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedInstagramPost('');
+                          setCustomText('');
+                          setSelectedPeriod('');
+                          setCustomTags('');
+                          setAiContext('');
+                        }}
+                        className="clear-selection-button"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleCreatePost(false)}
+                  disabled={loading || !selectedInstagramPost}
+                  className="create-button primary"
+                >
+                  {loading ? 'Erstelle...' : '🎨 AI-Bild aus Instagram Post erstellen'}
+                </button>
+              </div>
+
               {/* From Affirmation */}
               <div className="creation-option">
                 <h4>Aus bestehender Affirmation</h4>
@@ -669,11 +832,19 @@ const VisualPostsInterface: React.FC = () => {
                       style: post.image_style,
                       post_format: post.post_format,
                       ai_generated: post.image_style === 'dalle',
-                      ...(post.image_style === 'dalle' && { ai_prompt: (post as any).ai_prompt })
+                      ...(post.image_style === 'dalle' && { 
+                        ai_prompt: (post as any).ai_prompt,
+                        dalle_prompt: (post as any).dalle_prompt 
+                      })
                     }}
                     onFeedbackSubmit={(feedback) => {
                       console.log('Feedback submitted for', post.id, feedback);
                       // Optional: Show success message or update UI
+                    }}
+                    onRegenerateRequest={async (request) => {
+                      console.log('Regeneration requested for', post.id, request);
+                      // Refresh the posts to show the new regenerated image
+                      await loadPosts(filterPeriod || undefined);
                     }}
                   />
                 </div>
@@ -691,6 +862,9 @@ const VisualPostsInterface: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {/* Instagram Post Selection Modal */}
+      {renderInstagramPostModal()}
     </div>
   );
 };
