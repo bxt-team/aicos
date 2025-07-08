@@ -142,6 +142,18 @@ export const agentConfigs: AgentConfig[] = [
     apiHealthCheck: '/api/video-types',
     features: ['Multiple Video Types', 'FFmpeg Integration', 'Instagram Reels', 'Professional Effects'],
     version: '1.0'
+  },
+  {
+    id: 'instagram-reel',
+    name: 'Instagram Reel Generator',
+    route: '/instagram-reel',
+    icon: '🎥',
+    description: 'Erstelle professionelle Instagram Reels mit KI-Scripts, Runway-Videos und ChatGPT Sora 5-Sekunden-Loops',
+    category: 'Visual Content',
+    enabled: true,
+    apiHealthCheck: '/api/reel-themes',
+    features: ['Video Script Generation', 'Runway AI Integration', 'ChatGPT Sora Loops', '7 Cycles Optimized', '5s Loop Videos'],
+    version: '2.0'
   }
 ];
 

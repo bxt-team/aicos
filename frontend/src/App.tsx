@@ -12,6 +12,7 @@ import InstagramAnalyzerInterface from './components/InstagramAnalyzerInterface'
 import WorkflowManagement from './components/WorkflowManagement';
 import PostCompositionInterface from './components/PostCompositionInterface';
 import VideoGenerationInterface from './components/VideoGenerationInterface';
+import InstagramReelInterface from './components/InstagramReelInterface';
 import AgentManagement from './components/AgentManagement';
 import Header from './components/Header';
 
@@ -33,6 +34,7 @@ function App() {
             <Route path="/workflows" element={<WorkflowManagement />} />
             <Route path="/post-composition" element={<PostCompositionInterface />} />
             <Route path="/video-generation" element={<VideoGenerationInterface />} />
+            <Route path="/instagram-reel" element={<InstagramReelInterface apiBaseUrl="http://localhost:8000" />} />
             <Route path="/content-generator" element={<ContentGenerator />} />
             <Route path="/content/:contentId" element={<ContentViewer />} />
           </Routes>

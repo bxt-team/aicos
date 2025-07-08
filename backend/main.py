@@ -24,6 +24,7 @@ from src.agents.instagram_analyzer_agent import InstagramAnalyzerAgent
 from src.agents.content_workflow_agent import ContentWorkflowAgent
 from src.agents.post_composition_agent import PostCompositionAgent
 from src.agents.video_generation_agent import VideoGenerationAgent
+from src.agents.instagram_reel_agent import InstagramReelAgent
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -57,6 +58,7 @@ content_wrapper = None
 workflow_agent = None
 post_composition_agent = None
 video_generation_agent = None
+instagram_reel_agent = None
 
 class ContentRequest(BaseModel):
     knowledge_files: Optional[List[str]] = None
@@ -148,6 +150,16 @@ class WorkflowCreateRequest(BaseModel):
     workflow_type: Optional[str] = "full"
     options: Optional[Dict[str, Any]] = None
 
+class InstagramReelRequest(BaseModel):
+    instagram_text: str
+    period: str
+    additional_input: Optional[str] = ""
+    image_paths: Optional[List[str]] = None
+    image_descriptions: Optional[List[str]] = None
+    force_new: Optional[bool] = False
+    provider: Optional[str] = "runway"  # "runway" or "sora"
+    loop_style: Optional[str] = "seamless"  # For Sora videos
+
 class PostCompositionRequest(BaseModel):
     background_path: str
     text: str
@@ -194,6 +206,7 @@ async def startup_event():
         workflow_agent = ContentWorkflowAgent(openai_api_key, pexels_api_key, instagram_access_token)
         post_composition_agent = PostCompositionAgent(openai_api_key)
         video_generation_agent = VideoGenerationAgent(openai_api_key)
+        instagram_reel_agent = InstagramReelAgent(openai_api_key, os.getenv('RUNWAY_API_KEY'))
         
         print("Successfully initialized all agents")
         
@@ -1654,6 +1667,150 @@ async def cleanup_temp_files():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error cleaning up temp files: {str(e)}")
 
+# Instagram Reel endpoints
+@app.post("/api/generate-reel")
+async def generate_reel(request: InstagramReelRequest):
+    """Generate Instagram Reel with script and video using selected provider"""
+    try:
+        if not instagram_reel_agent:
+            raise HTTPException(status_code=503, detail="Instagram Reel agent not available")
+        
+        # Choose generation method based on provider
+        if request.provider == "sora":
+            result = instagram_reel_agent.generate_reel_with_sora(
+                instagram_text=request.instagram_text,
+                period=request.period,
+                additional_input=request.additional_input,
+                image_paths=request.image_paths,
+                image_descriptions=request.image_descriptions,
+                loop_style=request.loop_style,
+                force_new=request.force_new
+            )
+        else:
+            result = instagram_reel_agent.generate_reel_with_runway(
+                instagram_text=request.instagram_text,
+                period=request.period,
+                additional_input=request.additional_input,
+                image_paths=request.image_paths,
+                image_descriptions=request.image_descriptions,
+                force_new=request.force_new
+            )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating reel: {str(e)}")
+
+@app.post("/api/generate-video-script")
+async def generate_video_script(request: InstagramReelRequest):
+    """Generate video script for Instagram Reel"""
+    try:
+        if not instagram_reel_agent:
+            raise HTTPException(status_code=503, detail="Instagram Reel agent not available")
+        
+        result = instagram_reel_agent.generate_video_script(
+            instagram_text=request.instagram_text,
+            period=request.period,
+            additional_input=request.additional_input,
+            image_descriptions=request.image_descriptions
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating video script: {str(e)}")
+
+@app.get("/api/instagram-reels")
+async def get_instagram_reels(period: Optional[str] = None):
+    """Get all Instagram reels with optional filtering by period"""
+    try:
+        if not instagram_reel_agent:
+            raise HTTPException(status_code=503, detail="Instagram Reel agent not available")
+        
+        result = instagram_reel_agent.get_generated_reels(period)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting reels: {str(e)}")
+
+@app.delete("/api/instagram-reels/{reel_id}")
+async def delete_reel(reel_id: str):
+    """Delete an Instagram reel"""
+    try:
+        if not instagram_reel_agent:
+            raise HTTPException(status_code=503, detail="Instagram Reel agent not available")
+        
+        result = instagram_reel_agent.delete_reel(reel_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting reel: {str(e)}")
+
+@app.get("/api/reel-themes")
+async def get_reel_themes():
+    """Get period themes for reel generation"""
+    try:
+        if not instagram_reel_agent:
+            raise HTTPException(status_code=503, detail="Instagram Reel agent not available")
+        
+        result = instagram_reel_agent.get_period_themes()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting reel themes: {str(e)}")
+
+@app.get("/api/video-providers")
+async def get_video_providers():
+    """Get available video generation providers"""
+    try:
+        if not instagram_reel_agent:
+            raise HTTPException(status_code=503, detail="Instagram Reel agent not available")
+        
+        result = instagram_reel_agent.get_video_providers()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting video providers: {str(e)}")
+
+@app.get("/api/loop-styles")
+async def get_loop_styles():
+    """Get available loop styles for Sora videos"""
+    try:
+        if not instagram_reel_agent:
+            raise HTTPException(status_code=503, detail="Instagram Reel agent not available")
+        
+        result = instagram_reel_agent.get_loop_styles()
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting loop styles: {str(e)}")
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -1669,7 +1826,9 @@ async def health_check():
         "workflow_agent_enabled": workflow_agent is not None,
         "post_composition_agent_enabled": post_composition_agent is not None,
         "video_generation_agent_enabled": video_generation_agent is not None,
-        "ffmpeg_available": video_generation_agent.ffmpeg_available if video_generation_agent else False
+        "instagram_reel_agent_enabled": instagram_reel_agent is not None,
+        "ffmpeg_available": video_generation_agent.ffmpeg_available if video_generation_agent else False,
+        "runway_api_configured": os.getenv('RUNWAY_API_KEY') is not None
     }
 
 if __name__ == "__main__":
