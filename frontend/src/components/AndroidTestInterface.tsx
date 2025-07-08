@@ -85,7 +85,7 @@ const AndroidTestInterface: React.FC = () => {
     if (testId && polling) {
       const interval = setInterval(async () => {
         try {
-          const response = await axios.get(`${API_BASE}/android-test/${testId}`);
+          const response = await axios.get(`${API_BASE}/api/android-test/${testId}`);
           setTestResult(response.data);
           setPolling(false);
           loadScreenshots(testId);
@@ -102,7 +102,7 @@ const AndroidTestInterface: React.FC = () => {
 
   const loadRecentTests = async () => {
     try {
-      const response = await axios.get(`${API_BASE}/android-tests`);
+      const response = await axios.get(`${API_BASE}/api/android-tests`);
       if (response.data.success) {
         setRecentTests(response.data.data);
       }
@@ -113,7 +113,7 @@ const AndroidTestInterface: React.FC = () => {
 
   const loadScreenshots = async (testId: string) => {
     try {
-      const response = await axios.get(`${API_BASE}/android-test/${testId}/screenshots`);
+      const response = await axios.get(`${API_BASE}/api/android-test/${testId}/screenshots`);
       if (response.data.success) {
         setScreenshots(response.data.screenshots);
       }
@@ -134,7 +134,7 @@ const AndroidTestInterface: React.FC = () => {
     setScreenshots([]);
 
     try {
-      const response = await axios.post(`${API_BASE}/android-test`, {
+      const response = await axios.post(`${API_BASE}/api/android-test`, {
         apk_path: apkPath,
         test_actions: testActions.length > 0 ? testActions : null,
         target_api_level: targetApiLevel,
@@ -157,7 +157,7 @@ const AndroidTestInterface: React.FC = () => {
     setError(null);
 
     try {
-      const response = await axios.get(`${API_BASE}/android-test/${testId}`);
+      const response = await axios.get(`${API_BASE}/api/android-test/${testId}`);
       setTestResult(response.data);
       setTestId(testId);
       loadScreenshots(testId);

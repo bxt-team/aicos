@@ -52,7 +52,7 @@ app.add_middleware(
 @app.middleware("http")
 async def log_requests(request, call_next):
     logger.info(f"Incoming request: {request.method} {request.url.path}")
-    if request.url.path.startswith("/android-test"):
+    if request.url.path.startswith("/api/android-test"):
         logger.info(f"Android-test route detected: {request.method} {request.url.path}")
     response = await call_next(request)
     return response
@@ -61,6 +61,7 @@ async def log_requests(request, call_next):
 static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 os.makedirs(static_dir, exist_ok=True)
 os.makedirs(os.path.join(static_dir, "generated"), exist_ok=True)
+os.makedirs(os.path.join(static_dir, "android_screenshots"), exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
@@ -971,7 +972,7 @@ async def create_dalle_visual_post(request: DALLEVisualPostRequest):
                 "image_style": "dalle",
                 "post_format": request.post_format,
                 "file_path": ai_image.get("image_path", ""),
-                "file_url": f"/static/generated/{os.path.basename(ai_image.get('image_path', ''))}",
+                "file_url": f"/static/generated/{os.path.basename(ai_image.get('image_path', ''))}" if ai_image.get("image_path") else "",
                 "background_image": {
                     "id": "dalle_generated",
                     "photographer": "DALL-E AI",
@@ -2040,7 +2041,7 @@ async def get_loop_styles():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting loop styles: {str(e)}")
 
-@app.post("/android-test")
+@app.post("/api/android-test")
 async def test_android_app(request: AndroidTestRequest, background_tasks: BackgroundTasks):
     """Start automated Android app testing"""
     logger.info("========== ANDROID TEST POST ENDPOINT CALLED ==========")
@@ -2080,7 +2081,7 @@ async def test_android_app(request: AndroidTestRequest, background_tasks: Backgr
             "success": True,
             "test_id": test_id,
             "message": "Android app testing started",
-            "status_url": f"/android-test/{test_id}"
+            "status_url": f"/api/android-test/{test_id}"
         }
         logger.info(f"Android test started successfully: {response}")
         return response
@@ -2138,7 +2139,7 @@ async def run_android_test(test_id: str, apk_path: str, test_actions: Optional[L
         android_testing_agent._save_storage()
         logger.info(f"Error data saved for test {test_id}")
 
-@app.get("/android-test/{test_id}")
+@app.get("/api/android-test/{test_id}")
 async def get_android_test_results(test_id: str):
     """Get Android test results by ID"""
     logger.info(f"Android test GET endpoint called for test_id: {test_id}")
@@ -2158,14 +2159,14 @@ async def get_android_test_results(test_id: str):
             raise HTTPException(status_code=404, detail=result["error"])
             
     except HTTPException as he:
-        logger.error(f"HTTP exception in GET /android-test/{test_id}: {he.detail}")
+        logger.error(f"HTTP exception in GET /api/android-test/{test_id}: {he.detail}")
         raise
     except Exception as e:
-        logger.error(f"Unexpected error in GET /android-test/{test_id}: {str(e)}")
+        logger.error(f"Unexpected error in GET /api/android-test/{test_id}: {str(e)}")
         logger.error(f"GET endpoint traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error retrieving test results: {str(e)}")
 
-@app.get("/android-tests")
+@app.get("/api/android-tests")
 async def list_android_tests(limit: int = 10):
     """List recent Android test results"""
     try:
@@ -2182,7 +2183,7 @@ async def list_android_tests(limit: int = 10):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing test results: {str(e)}")
 
-@app.get("/android-test/{test_id}/screenshots")
+@app.get("/api/android-test/{test_id}/screenshots")
 async def get_test_screenshots(test_id: str):
     """Get list of screenshots for a test"""
     try:

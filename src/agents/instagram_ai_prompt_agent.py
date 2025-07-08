@@ -301,7 +301,7 @@ class InstagramAIPromptAgent(BaseCrew):
             try:
                 prompt_data = json.loads(str(result))
             except json.JSONDecodeError:
-                # Fallback if JSON parsing fails
+                # Fallback if JSON parsing fails - using German prompt
                 prompt_data = {
                     "dalle_prompt": self._create_fallback_prompt(period_name, affirmation, period_info),
                     "visual_themes": period_info.get('themes', [])[:3],

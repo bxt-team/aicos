@@ -44,7 +44,12 @@ class ImageGenerator:
             )
             
             image_url = response.data[0].url
+            # Download immediately to avoid URL expiration
             image_path = self._download_and_save_image(image_url, prompt)
+            
+            # Create a local URL for serving
+            filename = os.path.basename(image_path)
+            local_url = f"/static/generated/{filename}"
             
             generation_params = {
                 "prompt": enhanced_prompt,
@@ -57,7 +62,8 @@ class ImageGenerator:
             
             return {
                 "success": True,
-                "image_url": image_url,
+                "image_url": local_url,  # Use local URL instead of DALL-E URL
+                "dalle_url": image_url,  # Keep original URL for reference
                 "image_path": image_path,
                 "generation_params": generation_params,
                 **generation_params
@@ -95,7 +101,8 @@ class ImageGenerator:
     def _download_and_save_image(self, image_url: str, prompt: str) -> str:
         """Download and save the generated image"""
         try:
-            response = requests.get(image_url)
+            print(f"Downloading image from: {image_url[:100]}...")  # Print first 100 chars
+            response = requests.get(image_url, timeout=30)
             response.raise_for_status()
             
             image = Image.open(BytesIO(response.content))
@@ -104,10 +111,20 @@ class ImageGenerator:
             filename = f"generated_image_{timestamp}.png"
             filepath = os.path.join(self.output_dir, filename)
             
+            # Ensure directory exists
+            os.makedirs(self.output_dir, exist_ok=True)
+            
+            print(f"Saving image to: {filepath}")
             image.save(filepath, "PNG")
             
+            # Verify file was saved
+            if not os.path.exists(filepath):
+                raise Exception(f"Image file was not saved to {filepath}")
+            
+            print(f"Image successfully saved to: {filepath}")
             return filepath
         except Exception as e:
+            print(f"ERROR in _download_and_save_image: {str(e)}")
             raise Exception(f"Failed to download and save image: {str(e)}")
     
     def generate_multiple_images(self, prompts: list, style: str = "natural") -> Dict[str, Any]:

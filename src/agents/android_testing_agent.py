@@ -217,8 +217,23 @@ class AndroidTestingAgent(BaseCrew):
         
         try:
             # Use aapt to get package info
+            # Try to find aapt in common locations
+            aapt_path = "aapt"
+            android_home = os.environ.get("ANDROID_HOME")
+            if android_home:
+                # Check build-tools directories
+                build_tools_dir = os.path.join(android_home, "build-tools")
+                if os.path.exists(build_tools_dir):
+                    # Get the latest build-tools version
+                    versions = sorted([d for d in os.listdir(build_tools_dir) if os.path.isdir(os.path.join(build_tools_dir, d))], reverse=True)
+                    for version in versions:
+                        possible_aapt = os.path.join(build_tools_dir, version, "aapt")
+                        if os.path.exists(possible_aapt):
+                            aapt_path = possible_aapt
+                            break
+            
             result = subprocess.run(
-                ["aapt", "dump", "badging", apk_path],
+                [aapt_path, "dump", "badging", apk_path],
                 capture_output=True,
                 text=True
             )

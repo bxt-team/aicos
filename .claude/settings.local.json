@@ -27,7 +27,8 @@
       "Bash(find:*)",
       "Bash(rg:*)",
       "Bash(ls:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(export PATH=\"$ANDROID_HOME/build-tools/35.0.0:$PATH\")"
     ],
     "deny": []
   }
