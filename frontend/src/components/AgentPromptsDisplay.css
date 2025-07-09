@@ -1,0 +1,312 @@
+.agent-prompts-display {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.agent-prompts-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.agent-prompts-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.agent-prompts-header p {
+  color: #64748b;
+  font-size: 1.125rem;
+}
+
+.inline-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: #3b82f6;
+}
+
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.agent-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-top: 4px solid #3b82f6;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.agent-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.agent-card.expanded {
+  grid-column: span 2;
+}
+
+@media (max-width: 900px) {
+  .agent-card.expanded {
+    grid-column: span 1;
+  }
+}
+
+.agent-header {
+  padding: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  transition: background 0.2s ease;
+}
+
+.agent-header:hover {
+  background: #f1f5f9;
+}
+
+.agent-title h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+
+.agent-role {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.expand-button {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.expand-button:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.expand-button svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.agent-content {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.agent-goal {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.agent-goal h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.agent-goal p {
+  color: #1e293b;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.section-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #64748b;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.agent-backstory {
+  margin-bottom: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.agent-backstory h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 1rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.backstory-content {
+  color: #334155;
+  line-height: 1.7;
+  font-size: 0.9375rem;
+}
+
+.backstory-content p {
+  margin: 0 0 0.75rem 0;
+}
+
+.backstory-content p:last-child {
+  margin-bottom: 0;
+}
+
+.backstory-content li {
+  margin: 0.5rem 0 0.5rem 1.5rem;
+  list-style-type: disc;
+}
+
+.backstory-content br {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+.agent-settings {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.agent-settings h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 0.75rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.setting-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.setting-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.setting-value.true {
+  color: #10b981;
+}
+
+.setting-value.false {
+  color: #ef4444;
+}
+
+/* Loading State */
+.agent-prompts-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 3rem;
+  height: 3rem;
+  border: 3px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.agent-prompts-loading p {
+  color: #64748b;
+  font-size: 1.125rem;
+}
+
+/* Error State */
+.agent-prompts-error {
+  text-align: center;
+  padding: 3rem;
+  background: #fee2e2;
+  border-radius: 12px;
+  margin: 2rem auto;
+  max-width: 600px;
+}
+
+.agent-prompts-error p {
+  color: #dc2626;
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+}
+
+.agent-prompts-error button {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.agent-prompts-error button:hover {
+  background: #b91c1c;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .agent-prompts-display {
+    padding: 1rem;
+  }
+
+  .agent-prompts-header h1 {
+    font-size: 2rem;
+  }
+
+  .agents-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}

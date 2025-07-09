@@ -16,8 +16,8 @@ class PostCompositionAgent(BaseCrew):
         self.openai_api_key = openai_api_key
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Storage for composed posts
-        self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/visual_posts_storage.json")
+        # Storage for composed posts - using separate file to avoid conflicts
+        self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/composed_posts_storage.json")
         self.posts_storage = self._load_posts_storage()
         
         # Output directory for composed images

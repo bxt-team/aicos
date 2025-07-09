@@ -684,38 +684,57 @@ async def create_visual_post(request: dict):
 
 @app.get("/visual-posts")
 async def get_visual_posts(period: str = None):
-    """Get all visual posts, optionally filtered by period"""
+    """Get all visual posts from both storage files, optionally filtered by period"""
     try:
-        # Read from visual_posts_storage.json (original Visual Posts Creator data)
+        all_posts = []
+        
+        # 1. Read from visual_posts_storage.json (Visual Posts Creator data - generated images)
         visual_posts_storage_path = os.path.join(static_dir, "visual_posts_storage.json")
+        if os.path.exists(visual_posts_storage_path):
+            with open(visual_posts_storage_path, 'r') as f:
+                visual_data = json.load(f)
+            
+            # Handle both old format (array) and new format (object with posts key)
+            if isinstance(visual_data, dict):
+                posts = visual_data.get("posts", [])
+            elif isinstance(visual_data, list):
+                posts = visual_data
+            else:
+                posts = []
+            
+            # Ensure all posts from visual_posts_storage have correct file URLs pointing to generated folder
+            for post in posts:
+                if post.get("file_path") and not post.get("file_url"):
+                    filename = os.path.basename(post["file_path"])
+                    post["file_url"] = f"/static/generated/{filename}"
+                elif post.get("file_url") and "/composed/" in post["file_url"]:
+                    # Fix any posts that might have wrong URL
+                    filename = os.path.basename(post["file_url"])
+                    post["file_url"] = f"/static/generated/{filename}"
+            
+            all_posts.extend(posts)
         
-        if not os.path.exists(visual_posts_storage_path):
-            return {
-                "success": True,
-                "posts": [],
-                "count": 0,
-                "period": period
-            }
-        
-        with open(visual_posts_storage_path, 'r') as f:
-            visual_data = json.load(f)
-        
-        # Handle both old format (array) and new format (object with posts key)
-        if isinstance(visual_data, dict):
-            posts = visual_data.get("posts", [])
-        elif isinstance(visual_data, list):
-            posts = visual_data
-        else:
-            posts = []
+        # 2. Read from composed_posts_storage.json (Post Composition Agent data - composed images)
+        composed_posts_storage_path = os.path.join(static_dir, "composed_posts_storage.json")
+        if os.path.exists(composed_posts_storage_path):
+            with open(composed_posts_storage_path, 'r') as f:
+                composed_data = json.load(f)
+            
+            if isinstance(composed_data, dict):
+                composed_posts = composed_data.get("posts", [])
+                all_posts.extend(composed_posts)
         
         # Filter by period if provided
         if period:
-            posts = [post for post in posts if post.get("period") == period]
+            all_posts = [post for post in all_posts if post.get("period") == period]
+        
+        # Sort by creation date (newest first)
+        all_posts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         
         return {
             "success": True,
-            "posts": posts,
-            "count": len(posts),
+            "posts": all_posts,
+            "count": len(all_posts),
             "period": period
         }
         
@@ -2616,6 +2635,42 @@ async def health_check():
         "runway_api_configured": os.getenv('RUNWAY_API_KEY') is not None,
         "adb_configured": os.getenv('ADB_PATH') is not None
     }
+
+@app.get("/api/agent-prompts")
+async def get_agent_prompts():
+    """Get all agent prompts/configurations for display in frontend"""
+    try:
+        # Load agent configurations from YAML
+        import yaml
+        config_path = os.path.join(os.path.dirname(__file__), '../src/config/agents.yaml')
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            agents_config = yaml.safe_load(f)
+        
+        # Transform the data for frontend display
+        agent_prompts = {}
+        for agent_name, config in agents_config.items():
+            agent_prompts[agent_name] = {
+                "name": agent_name.replace('_', ' ').title(),
+                "role": config.get("role", ""),
+                "goal": config.get("goal", ""),
+                "backstory": config.get("backstory", ""),
+                "settings": {
+                    "verbose": config.get("verbose", True),
+                    "allow_delegation": config.get("allow_delegation", False),
+                    "max_iter": config.get("max_iter", 3),
+                    "max_execution_time": config.get("max_execution_time", 300)
+                }
+            }
+        
+        return {
+            "success": True,
+            "agents": agent_prompts,
+            "total_agents": len(agent_prompts)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading agent prompts: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

@@ -69,7 +69,7 @@ interface TestSummary {
 const AndroidTestInterface: React.FC = () => {
   const [apkPath, setApkPath] = useState('');
   const [apkFile, setApkFile] = useState<File | null>(null);
-  const [testActions, setTestActions] = useState<string[]>(['tap_all_buttons', 'scroll_all_views']);
+  const [testActions, setTestActions] = useState<string[]>(['tap_all_buttons', 'scroll_all_views', 'input_text_fields']);
   const [targetApiLevel, setTargetApiLevel] = useState<number | null>(null);
   const [avdName, setAvdName] = useState('');
   const [availableAvds, setAvailableAvds] = useState<string[]>([]);

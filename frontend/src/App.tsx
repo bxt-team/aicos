@@ -16,6 +16,7 @@ import InstagramReelInterface from './components/InstagramReelInterface';
 import AndroidTestInterface from './components/AndroidTestInterface';
 import VoiceOverInterface from './components/VoiceOverInterface';
 import AgentManagement from './components/AgentManagement';
+import AgentPromptsDisplay from './components/AgentPromptsDisplay';
 import Header from './components/Header';
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
             <Route path="/instagram-reel" element={<InstagramReelInterface apiBaseUrl="http://localhost:8000" />} />
             <Route path="/android-test" element={<AndroidTestInterface />} />
             <Route path="/voice-over" element={<VoiceOverInterface apiBaseUrl="http://localhost:8000" />} />
+            <Route path="/agent-prompts" element={<AgentPromptsDisplay />} />
             <Route path="/content-generator" element={<ContentGenerator />} />
             <Route path="/content/:contentId" element={<ContentViewer />} />
           </Routes>

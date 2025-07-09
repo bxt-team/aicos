@@ -72,13 +72,18 @@ const AgentManagement: React.FC = () => {
       <div className="management-header">
         <h2>🤖 Agent Management Dashboard</h2>
         <p>Übersicht und Status aller verfügbaren AI-Agenten</p>
-        <button 
-          className="refresh-button"
-          onClick={checkAgentHealth}
-          disabled={loading}
-        >
-          {loading ? '🔄 Überprüfung...' : '🔄 Status aktualisieren'}
-        </button>
+        <div className="header-actions">
+          <button 
+            className="refresh-button"
+            onClick={checkAgentHealth}
+            disabled={loading}
+          >
+            {loading ? '🔄 Überprüfung...' : '🔄 Status aktualisieren'}
+          </button>
+          <a href="/agent-prompts" className="view-prompts-button">
+            📋 Agent-Prompts anzeigen
+          </a>
+        </div>
       </div>
 
       <div className="agents-overview">
