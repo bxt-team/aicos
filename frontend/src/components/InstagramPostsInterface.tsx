@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './InstagramPostsInterface.css';
 
@@ -71,12 +71,7 @@ const InstagramPostsInterface: React.FC = () => {
     { value: 'spiritual', label: 'Spiritual' }
   ];
 
-  useEffect(() => {
-    loadPosts();
-    loadAffirmations();
-  }, []);
-
-  const loadPosts = async (periodFilter?: string) => {
+  const loadPosts = useCallback(async (periodFilter?: string) => {
     try {
       const url = periodFilter 
         ? `${API_BASE_URL}/instagram-posts?period_name=${periodFilter}`
@@ -89,9 +84,9 @@ const InstagramPostsInterface: React.FC = () => {
     } catch (error) {
       console.error('Error loading Instagram posts:', error);
     }
-  };
+  }, [API_BASE_URL]);
 
-  const loadAffirmations = async () => {
+  const loadAffirmations = useCallback(async () => {
     setLoadingAffirmations(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/affirmations`);
@@ -103,7 +98,12 @@ const InstagramPostsInterface: React.FC = () => {
     } finally {
       setLoadingAffirmations(false);
     }
-  };
+  }, [API_BASE_URL]);
+
+  useEffect(() => {
+    loadPosts();
+    loadAffirmations();
+  }, [loadPosts, loadAffirmations]);
 
   const handleAffirmationSelect = (affirmationId: string) => {
     const selected = affirmations.find(aff => aff.id === affirmationId);
@@ -351,7 +351,7 @@ const InstagramPostsInterface: React.FC = () => {
   };
 
   const openInstagramPostingDialog = (post: InstagramPost) => {
-    const hasVisualPost = false; // This would need to be determined based on available visual posts
+    // This would need to be determined based on available visual posts
     
     const options = [
       'Nur Text (ohne Bild)',

@@ -199,8 +199,18 @@ class AndroidTestingAgent(BaseCrew):
         self.logger.error(f"Emulator failed to start within {max_wait} seconds")
         return False
     
-    async def _install_apk(self, apk_path: str) -> bool:
+    async def _install_apk(self, app_path: str) -> bool:
         """Install APK on emulator."""
+        file_ext = os.path.splitext(app_path)[1].lower()
+        
+        if file_ext == '.apk':
+            return await self._install_apk_file(app_path)
+        else:
+            self.logger.error(f"Unsupported file type for installation: {file_ext}. Only .apk files are supported.")
+            return False
+    
+    async def _install_apk_file(self, apk_path: str) -> bool:
+        """Install APK file on emulator."""
         self.logger.info(f"Installing APK: {apk_path}")
         stdout, stderr = await self._run_adb_command(["install", "-r", apk_path])
         
@@ -211,8 +221,23 @@ class AndroidTestingAgent(BaseCrew):
             self.logger.error(f"APK installation failed. Output: {stdout[:200]}")
             return False
     
-    async def _get_package_name(self, apk_path: str) -> Optional[str]:
-        """Extract package name from APK."""
+    
+    
+    async def _get_package_name(self, app_path: str) -> Optional[str]:
+        """Extract package name from APK file."""
+        self.logger.info(f"Extracting package name from: {app_path}")
+        
+        # Determine file type
+        file_ext = os.path.splitext(app_path)[1].lower()
+        
+        if file_ext == '.apk':
+            return await self._get_package_name_from_apk(app_path)
+        else:
+            self.logger.error(f"Unsupported file type: {file_ext}. Only .apk files are supported.")
+            return None
+    
+    async def _get_package_name_from_apk(self, apk_path: str) -> Optional[str]:
+        """Extract package name from APK using aapt."""
         self.logger.info(f"Extracting package name from APK: {apk_path}")
         
         try:
@@ -255,6 +280,8 @@ class AndroidTestingAgent(BaseCrew):
             self.logger.error(f"Error extracting package name: {e}")
         
         return None
+    
+    
     
     async def _launch_app(self, package_name: str) -> bool:
         """Launch the app by package name."""
@@ -500,7 +527,7 @@ class AndroidTestingAgent(BaseCrew):
         Main method to test an Android app.
         
         Args:
-            apk_path: Path to the APK file
+            apk_path: Path to the APK file (only .apk files are supported)
             test_actions: List of test actions to perform
             target_api_level: Target API level for emulator
             avd_name: Specific AVD to use
@@ -522,6 +549,15 @@ class AndroidTestingAgent(BaseCrew):
                 return {
                     "success": False,
                     "error": f"APK file not found: {apk_path}"
+                }
+            
+            # Validate file extension
+            file_ext = os.path.splitext(apk_path)[1].lower()
+            if file_ext != '.apk':
+                self.logger.error(f"Invalid file type: {file_ext}. Only .apk files are supported.")
+                return {
+                    "success": False,
+                    "error": f"Invalid file type: {file_ext}. Only .apk files are supported."
                 }
             
             # Generate test ID
@@ -548,8 +584,8 @@ class AndroidTestingAgent(BaseCrew):
                     "error": "Failed to extract package name from APK"
                 }
             
-            # Install APK
-            self.logger.info("\nStep 4: Installing APK on emulator...")
+            # Install app
+            self.logger.info("\nStep 4: Installing app on emulator...")
             if not await self._install_apk(apk_path):
                 self.logger.error("Failed to install APK on emulator")
                 return {

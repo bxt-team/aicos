@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { agentConfigs, futureAgents, AgentConfig } from '../config/agents';
 import './AgentManagement.css';
 
@@ -10,11 +10,7 @@ const AgentManagement: React.FC = () => {
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-  useEffect(() => {
-    checkAgentHealth();
-  }, []);
-
-  const checkAgentHealth = async () => {
+  const checkAgentHealth = useCallback(async () => {
     setLoading(true);
     const status: { [key: string]: boolean } = {};
 
@@ -33,7 +29,11 @@ const AgentManagement: React.FC = () => {
 
     setHealthStatus(status);
     setLoading(false);
-  };
+  }, [agents, API_BASE_URL]);
+
+  useEffect(() => {
+    checkAgentHealth();
+  }, [checkAgentHealth]);
 
   const formatTimestamp = (timestamp?: string) => {
     if (!timestamp) return 'Unbekannt';

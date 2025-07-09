@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './InstagramReelInterface.css';
 
 interface InstagramReelInterfaceProps {
@@ -103,7 +103,7 @@ interface ComposedPost {
 const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBaseUrl }) => {
   const [reels, setReels] = useState<ReelData[]>([]);
   const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>([]);
-  const [composedPosts, setComposedPosts] = useState<ComposedPost[]>([]);
+  // const [composedPosts, setComposedPosts] = useState<ComposedPost[]>([]);
   const [, setPeriodThemes] = useState<Record<string, PeriodTheme>>({});
   const [videoProviders, setVideoProviders] = useState<Record<string, VideoProvider>>({});
   const [loopStyles, setLoopStyles] = useState<Record<string, LoopStyle>>({});
@@ -129,7 +129,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     'Erfolg', 'Entspannung', 'Umsicht'
   ];
 
-  const loadReels = async () => {
+  const loadReels = useCallback(async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/api/instagram-reels`);
       const data = await response.json();
@@ -139,9 +139,9 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     } catch (err) {
       console.error('Error loading reels:', err);
     }
-  };
+  }, [apiBaseUrl]);
 
-  const loadInstagramPosts = async () => {
+  const loadInstagramPosts = useCallback(async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/instagram-posts`);
       const data = await response.json();
@@ -151,21 +151,21 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     } catch (err) {
       console.error('Error loading Instagram posts:', err);
     }
-  };
+  }, [apiBaseUrl]);
 
-  const loadComposedPosts = async () => {
+  const loadComposedPosts = useCallback(async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/api/composed-posts`);
       const data = await response.json();
       if (data.success) {
-        setComposedPosts(data.posts);
+        // setComposedPosts(data.posts);
       }
     } catch (err) {
       console.error('Error loading composed posts:', err);
     }
-  };
+  }, [apiBaseUrl]);
 
-  const loadVisualPosts = async () => {
+  const loadVisualPosts = useCallback(async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/visual-posts`);
       const data = await response.json();
@@ -175,9 +175,9 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     } catch (err) {
       console.error('Error loading visual posts:', err);
     }
-  };
+  }, [apiBaseUrl]);
 
-  const loadPeriodThemes = async () => {
+  const loadPeriodThemes = useCallback(async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/api/reel-themes`);
       const data = await response.json();
@@ -187,9 +187,9 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     } catch (err) {
       console.error('Error loading period themes:', err);
     }
-  };
+  }, [apiBaseUrl]);
 
-  const loadVideoProviders = async () => {
+  const loadVideoProviders = useCallback(async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/api/video-providers`);
       const data = await response.json();
@@ -199,9 +199,9 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     } catch (err) {
       console.error('Error loading video providers:', err);
     }
-  };
+  }, [apiBaseUrl]);
 
-  const loadLoopStyles = async () => {
+  const loadLoopStyles = useCallback(async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/api/loop-styles`);
       const data = await response.json();
@@ -211,7 +211,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     } catch (err) {
       console.error('Error loading loop styles:', err);
     }
-  };
+  }, [apiBaseUrl]);
 
   useEffect(() => {
     loadReels();
@@ -221,7 +221,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     loadPeriodThemes();
     loadVideoProviders();
     loadLoopStyles();
-  }, [apiBaseUrl]);
+  }, [loadReels, loadInstagramPosts, loadComposedPosts, loadVisualPosts, loadPeriodThemes, loadVideoProviders, loadLoopStyles]);
 
   const generateReel = async () => {
     if (!selectedPeriod || (!selectedPost && !customText)) {
@@ -303,7 +303,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     setActiveTab('details');
   };
 
-  const getImageOptions = () => {
+  const getImageOptions = useCallback(() => {
     return visualPosts
       .filter(post => !selectedPeriod || post.period === selectedPeriod)
       .map(post => ({
@@ -312,11 +312,11 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
         period: post.period,
         thumbnail: post.file_url
       }));
-  };
+  }, [visualPosts, selectedPeriod]);
 
   useEffect(() => {
     setAvailableImages(getImageOptions());
-  }, [visualPosts, selectedPeriod]);
+  }, [getImageOptions]);
 
   const handlePostSelection = (postId: string) => {
     const post = instagramPosts.find(p => p.id === postId);

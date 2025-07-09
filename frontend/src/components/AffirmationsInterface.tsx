@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './AffirmationsInterface.css';
 
@@ -37,21 +37,16 @@ const AffirmationsInterface: React.FC = () => {
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-  useEffect(() => {
-    loadPeriods();
-    loadAffirmations();
-  }, []);
-
-  const loadPeriods = async () => {
+  const loadPeriods = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/periods`);
       setPeriods(response.data);
     } catch (error) {
       console.error('Error loading periods:', error);
     }
-  };
+  }, [API_BASE_URL]);
 
-  const loadAffirmations = async (periodFilter?: string) => {
+  const loadAffirmations = useCallback(async (periodFilter?: string) => {
     try {
       const url = periodFilter 
         ? `${API_BASE_URL}/affirmations?period_name=${periodFilter}`
@@ -64,7 +59,12 @@ const AffirmationsInterface: React.FC = () => {
     } catch (error) {
       console.error('Error loading affirmations:', error);
     }
-  };
+  }, [API_BASE_URL]);
+
+  useEffect(() => {
+    loadPeriods();
+    loadAffirmations();
+  }, [loadPeriods, loadAffirmations]);
 
   const handleGenerateAffirmations = async () => {
     if (!selectedPeriod) return;

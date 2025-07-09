@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './QAInterface.css';
 
@@ -20,11 +20,7 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-  useEffect(() => {
-    loadOverview();
-  }, []);
-
-  const loadOverview = async () => {
+  const loadOverview = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/knowledge-overview`);
       if (response.data.success) {
@@ -33,7 +29,11 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
     } catch (error) {
       console.error('Error loading knowledge overview:', error);
     }
-  };
+  }, [API_BASE_URL]);
+
+  useEffect(() => {
+    loadOverview();
+  }, [loadOverview]);
 
   const handleSubmitQuestion = async (e: React.FormEvent) => {
     e.preventDefault();

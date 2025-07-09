@@ -87,6 +87,50 @@ const InstagramPostingInterface: React.FC = () => {
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
+  const loadInstagramPosts = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/instagram-posts`);
+      if (response.data.success) {
+        setInstagramPosts(response.data.posts);
+      }
+    } catch (error) {
+      console.error('Error loading Instagram posts:', error);
+    }
+  }, [API_BASE_URL]);
+
+  const loadVisualPosts = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/visual-posts`);
+      if (response.data.success) {
+        setVisualPosts(response.data.posts);
+      }
+    } catch (error) {
+      console.error('Error loading visual posts:', error);
+    }
+  }, [API_BASE_URL]);
+
+  const loadPostingStatus = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/instagram-posting-status`);
+      if (response.data.success) {
+        setPostingStatus(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading posting status:', error);
+    }
+  }, [API_BASE_URL]);
+
+  const loadPostingHistory = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/instagram-posting-history?limit=20`);
+      if (response.data.success) {
+        setPostingHistory(response.data.posts);
+      }
+    } catch (error) {
+      console.error('Error loading posting history:', error);
+    }
+  }, [API_BASE_URL]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -101,55 +145,11 @@ const InstagramPostingInterface: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadInstagramPosts, loadVisualPosts, loadPostingStatus, loadPostingHistory]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const loadInstagramPosts = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/instagram-posts`);
-      if (response.data.success) {
-        setInstagramPosts(response.data.posts);
-      }
-    } catch (error) {
-      console.error('Error loading Instagram posts:', error);
-    }
-  };
-
-  const loadVisualPosts = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/visual-posts`);
-      if (response.data.success) {
-        setVisualPosts(response.data.posts);
-      }
-    } catch (error) {
-      console.error('Error loading visual posts:', error);
-    }
-  };
-
-  const loadPostingStatus = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/instagram-posting-status`);
-      if (response.data.success) {
-        setPostingStatus(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading posting status:', error);
-    }
-  };
-
-  const loadPostingHistory = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/instagram-posting-history?limit=20`);
-      if (response.data.success) {
-        setPostingHistory(response.data.posts);
-      }
-    } catch (error) {
-      console.error('Error loading posting history:', error);
-    }
-  };
 
   const prepareContent = async () => {
     if (!selectedInstagramPost) {

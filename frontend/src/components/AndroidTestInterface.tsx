@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Upload, Play, FileSearch, AlertTriangle, CheckCircle, XCircle, Download, Smartphone, Activity, Eye, Zap } from 'lucide-react';
+import { Upload, Play, FileSearch, AlertTriangle, CheckCircle, XCircle, Smartphone, Activity, Eye, Zap } from 'lucide-react';
 import './AndroidTestInterface.css';
 
 interface TestResult {

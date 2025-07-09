@@ -117,7 +117,7 @@ const VisualPostsInterface: React.FC = () => {
     } catch (error) {
       console.error('Error loading visual posts:', error);
     }
-  }, []);
+  }, [API_BASE_URL]);
 
   const loadAffirmations = useCallback(async () => {
     try {
@@ -128,7 +128,7 @@ const VisualPostsInterface: React.FC = () => {
     } catch (error) {
       console.error('Error loading affirmations:', error);
     }
-  }, []);
+  }, [API_BASE_URL]);
 
   const loadInstagramPosts = useCallback(async () => {
     try {
@@ -139,7 +139,7 @@ const VisualPostsInterface: React.FC = () => {
     } catch (error) {
       console.error('Error loading Instagram posts:', error);
     }
-  }, []);
+  }, [API_BASE_URL]);
 
   const handleUrlParameters = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
