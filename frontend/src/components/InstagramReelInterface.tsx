@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './InstagramReelInterface.css';
+import VoiceOverInterface from './VoiceOverInterface';
 
 interface InstagramReelInterfaceProps {
   apiBaseUrl: string;
@@ -123,6 +124,8 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
   const [showPostModal, setShowPostModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [visualPosts, setVisualPosts] = useState<any[]>([]);
+  const [showVoiceOverModal, setShowVoiceOverModal] = useState(false);
+  const [selectedReelForVoiceOver, setSelectedReelForVoiceOver] = useState<ReelData | null>(null);
 
   const periods = [
     'Image', 'Veränderung', 'Energie', 'Kreativität', 
@@ -301,6 +304,18 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     setSelectedReel(reel);
     setShowScript(false);
     setActiveTab('details');
+  };
+
+  const handleAddVoiceOver = (reel: ReelData) => {
+    setSelectedReelForVoiceOver(reel);
+    setShowVoiceOverModal(true);
+  };
+
+  const handleVoiceOverComplete = (result: any) => {
+    setShowVoiceOverModal(false);
+    setSelectedReelForVoiceOver(null);
+    // Refresh reels or show success message
+    loadReels();
   };
 
   const getImageOptions = useCallback(() => {
@@ -607,6 +622,12 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                       👁️ Details
                     </button>
                     <button 
+                      onClick={() => handleAddVoiceOver(reel)}
+                      className="btn-outline"
+                    >
+                      🎤 Voice Over
+                    </button>
+                    <button 
                       onClick={() => deleteReel(reel.id)}
                       className="btn-ghost"
                     >
@@ -692,6 +713,12 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                         className="btn-outline"
                       >
                         📄 {showScript ? 'Script verbergen' : 'Script anzeigen'}
+                      </button>
+                      <button 
+                        onClick={() => handleAddVoiceOver(selectedReel)}
+                        className="btn-outline"
+                      >
+                        🎤 Voice Over hinzufügen
                       </button>
                       {selectedReel.file_url && (
                         <a 
@@ -875,6 +902,38 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                   <p>Keine Bilder verfügbar{selectedPeriod ? ` für ${selectedPeriod}` : ''}.</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Voice Over Modal */}
+      {showVoiceOverModal && selectedReelForVoiceOver && (
+        <div className="modal-overlay" onClick={() => setShowVoiceOverModal(false)}>
+          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Voice Over für Reel hinzufügen</h3>
+              <button 
+                className="modal-close-btn"
+                onClick={() => setShowVoiceOverModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="reel-info-summary">
+                <h4>{selectedReelForVoiceOver.script.title}</h4>
+                <p>Periode: <span className="period-badge" style={{backgroundColor: selectedReelForVoiceOver.period_color}}>
+                  {selectedReelForVoiceOver.period}
+                </span></p>
+                <p>Dauer: {selectedReelForVoiceOver.duration}s</p>
+              </div>
+              
+              <VoiceOverInterface
+                apiBaseUrl={apiBaseUrl}
+                videoPath={selectedReelForVoiceOver.file_path}
+                onVoiceOverComplete={handleVoiceOverComplete}
+              />
             </div>
           </div>
         </div>

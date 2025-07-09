@@ -761,6 +761,11 @@
   flex-direction: column;
 }
 
+.modal-content.large-modal {
+  max-width: 1200px;
+  width: 90%;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -886,4 +891,32 @@
     width: 100%;
     min-width: auto;
   }
+}
+
+/* Voice Over Modal */
+.reel-info-summary {
+  background: #f3f4f6;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.reel-info-summary h4 {
+  margin: 0 0 8px 0;
+  color: #1a1a1a;
+}
+
+.reel-info-summary p {
+  margin: 4px 0;
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.reel-info-summary .period-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 500;
 }

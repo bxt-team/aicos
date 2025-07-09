@@ -166,6 +166,18 @@ export const agentConfigs: AgentConfig[] = [
     apiHealthCheck: '/health',
     features: ['Automatisierte UI-Tests', 'Performance-Analyse', 'Crash-Erkennung', 'Accessibility-Prüfung', 'UX-Optimierung'],
     version: '1.0'
+  },
+  {
+    id: 'voice-over-captions',
+    name: 'Voice Over & Captions',
+    route: '/voice-over',
+    icon: '🎙️',
+    description: 'Erstelle professionelle Voice-Overs und Untertitel für Videos mit KI-Sprachsynthese und automatischer Transkription',
+    category: 'Video Content',
+    enabled: true,
+    apiHealthCheck: '/api/available-voices',
+    features: ['Voice-Over Generation', 'ElevenLabs Integration', 'Auto-Untertitelung', 'Multi-Language Support', 'Video Processing'],
+    version: '1.0'
   }
 ];
 

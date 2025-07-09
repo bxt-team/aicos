@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -7,6 +8,9 @@ from typing import Dict, Any, Optional, List
 import os
 import json
 import asyncio
+import subprocess
+import tempfile
+import shutil
 from datetime import datetime
 import sys
 import traceback
@@ -27,6 +31,7 @@ from src.agents.post_composition_agent import PostCompositionAgent
 from src.agents.video_generation_agent import VideoGenerationAgent
 from src.agents.instagram_reel_agent import InstagramReelAgent
 from src.agents.android_testing_agent import AndroidTestingAgent
+from src.agents.voice_over_agent import VoiceOverAgent
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -38,7 +43,90 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="7 Cycles of Life AI Assistant API", version="1.0.0")
+# Global variables for agents
+content_storage = {}
+image_generator = None
+qa_agent = None
+affirmations_agent = None
+write_hashtag_agent = None
+instagram_ai_prompt_agent = None
+instagram_poster_agent = None
+instagram_analyzer_agent = None
+content_wrapper = None
+workflow_agent = None
+post_composition_agent = None
+video_generation_agent = None
+instagram_reel_agent = None
+android_testing_agent = None
+voice_over_agent = None
+
+# Lifespan context manager for startup and shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    global image_generator, qa_agent, affirmations_agent, write_hashtag_agent, instagram_ai_prompt_agent, instagram_poster_agent, instagram_analyzer_agent, content_wrapper, workflow_agent, post_composition_agent, video_generation_agent, instagram_reel_agent, android_testing_agent, voice_over_agent
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    pexels_api_key = os.getenv("PEXELS_API_KEY")
+    instagram_access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
+    instagram_business_account_id = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID")
+    
+    if openai_api_key:
+        image_generator = ImageGenerator(openai_api_key)
+        qa_agent = QAAgent(openai_api_key)
+        affirmations_agent = AffirmationsAgent(openai_api_key)
+        write_hashtag_agent = WriteHashtagResearchAgent(openai_api_key)
+        instagram_ai_prompt_agent = InstagramAIPromptAgent(openai_api_key)
+        instagram_poster_agent = InstagramPosterAgent(openai_api_key, instagram_access_token, instagram_business_account_id)
+        instagram_analyzer_agent = InstagramAnalyzerAgent(openai_api_key)
+        content_wrapper = ContentGenerationWrapper()
+        
+        # Initialize new agents
+        workflow_agent = ContentWorkflowAgent(openai_api_key, pexels_api_key, instagram_access_token)
+        post_composition_agent = PostCompositionAgent(openai_api_key)
+        video_generation_agent = VideoGenerationAgent(openai_api_key)
+        instagram_reel_agent = InstagramReelAgent(openai_api_key, os.getenv('RUNWAY_API_KEY'))
+        
+        # Initialize Voice Over agent
+        elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
+        voice_over_agent = VoiceOverAgent(openai_api_key, elevenlabs_api_key)
+        
+        # Initialize Android testing agent
+        adb_path = os.getenv('ADB_PATH', 'adb')  # Allow custom ADB path
+        logger.info(f"Initializing AndroidTestingAgent with adb_path: {adb_path}")
+        try:
+            android_testing_agent = AndroidTestingAgent(openai_api_key, adb_path)
+            logger.info(f"AndroidTestingAgent initialized successfully: {android_testing_agent is not None}")
+        except Exception as e:
+            logger.error(f"Failed to initialize AndroidTestingAgent: {str(e)}")
+            logger.error(f"AndroidTestingAgent initialization traceback: {traceback.format_exc()}")
+            android_testing_agent = None
+        
+        print(f"InstagramReelAgent initialized: {instagram_reel_agent is not None}")
+        print(f"AndroidTestingAgent initialized: {android_testing_agent is not None}")
+        
+        print("Successfully initialized all agents")
+        
+        # Validate Instagram credentials
+        if instagram_access_token and instagram_business_account_id:
+            validation = instagram_poster_agent.validate_instagram_credentials()
+            if validation["success"]:
+                print(f"Instagram API validated: {validation['account_info'].get('username', 'Unknown')}")
+            else:
+                print(f"Instagram API validation failed: {validation['error']}")
+        else:
+            print("Instagram API credentials not configured - posting features will be disabled")
+    else:
+        print("Warning: OPENAI_API_KEY not found. All AI features will be disabled.")
+    
+    # Yield control to the application
+    yield
+    
+    # Cleanup code (executed on shutdown)
+    print("Shutting down 7 Cycles of Life AI Assistant API...")
+    # Add any cleanup code here if needed
+
+# Initialize FastAPI app with lifespan
+app = FastAPI(title="7 Cycles of Life AI Assistant API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -64,21 +152,6 @@ os.makedirs(os.path.join(static_dir, "generated"), exist_ok=True)
 os.makedirs(os.path.join(static_dir, "android_screenshots"), exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-content_storage = {}
-image_generator = None
-qa_agent = None
-affirmations_agent = None
-write_hashtag_agent = None
-instagram_ai_prompt_agent = None
-instagram_poster_agent = None
-instagram_analyzer_agent = None
-content_wrapper = None
-workflow_agent = None
-post_composition_agent = None
-video_generation_agent = None
-instagram_reel_agent = None
-android_testing_agent = None
 
 class ContentRequest(BaseModel):
     knowledge_files: Optional[List[str]] = None
@@ -188,6 +261,46 @@ class InstagramReelRequest(BaseModel):
     provider: Optional[str] = "runway"  # "runway" or "sora"
     loop_style: Optional[str] = "seamless"  # For Sora videos
 
+class VoiceOverRequest(BaseModel):
+    text: str
+    voice: Optional[str] = "bella"
+    language: Optional[str] = "en"
+    model: Optional[str] = "eleven_multilingual_v2"
+    output_format: Optional[str] = "mp3_44100_128"
+
+class VoiceScriptRequest(BaseModel):
+    video_content: str
+    target_duration: Optional[int] = 30
+    style: Optional[str] = "conversational"
+    period: Optional[str] = None
+
+class CaptionRequest(BaseModel):
+    audio_path: str
+    language: Optional[str] = "en"
+    style: Optional[str] = "minimal"
+    max_chars_per_line: Optional[int] = 40
+
+class AddVoiceToVideoRequest(BaseModel):
+    video_path: str
+    audio_path: str
+    volume: Optional[float] = 1.0
+    fade_in: Optional[float] = 0.5
+    fade_out: Optional[float] = 0.5
+
+class AddCaptionsToVideoRequest(BaseModel):
+    video_path: str
+    subtitle_path: str
+    burn_in: Optional[bool] = True
+    style: Optional[str] = "minimal"
+
+class ProcessVideoRequest(BaseModel):
+    video_path: str
+    script_text: str
+    voice: Optional[str] = "bella"
+    language: Optional[str] = "en"
+    caption_style: Optional[str] = "minimal"
+    burn_in_captions: Optional[bool] = True
+
 class PostCompositionRequest(BaseModel):
     background_path: str
     text: str
@@ -220,58 +333,6 @@ class AndroidTestRequest(BaseModel):
 
 class AndroidTestResultRequest(BaseModel):
     test_id: str
-
-@app.on_event("startup")
-async def startup_event():
-    global image_generator, qa_agent, affirmations_agent, write_hashtag_agent, instagram_ai_prompt_agent, instagram_poster_agent, instagram_analyzer_agent, content_wrapper, workflow_agent, post_composition_agent, video_generation_agent, instagram_reel_agent, android_testing_agent
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    pexels_api_key = os.getenv("PEXELS_API_KEY")
-    instagram_access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN")
-    instagram_business_account_id = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID")
-    
-    if openai_api_key:
-        image_generator = ImageGenerator(openai_api_key)
-        qa_agent = QAAgent(openai_api_key)
-        affirmations_agent = AffirmationsAgent(openai_api_key)
-        write_hashtag_agent = WriteHashtagResearchAgent(openai_api_key)
-        instagram_ai_prompt_agent = InstagramAIPromptAgent(openai_api_key)
-        instagram_poster_agent = InstagramPosterAgent(openai_api_key, instagram_access_token, instagram_business_account_id)
-        instagram_analyzer_agent = InstagramAnalyzerAgent(openai_api_key)
-        content_wrapper = ContentGenerationWrapper()
-        
-        # Initialize new agents
-        workflow_agent = ContentWorkflowAgent(openai_api_key, pexels_api_key, instagram_access_token)
-        post_composition_agent = PostCompositionAgent(openai_api_key)
-        video_generation_agent = VideoGenerationAgent(openai_api_key)
-        instagram_reel_agent = InstagramReelAgent(openai_api_key, os.getenv('RUNWAY_API_KEY'))
-        
-        # Initialize Android testing agent
-        adb_path = os.getenv('ADB_PATH', 'adb')  # Allow custom ADB path
-        logger.info(f"Initializing AndroidTestingAgent with adb_path: {adb_path}")
-        try:
-            android_testing_agent = AndroidTestingAgent(openai_api_key, adb_path)
-            logger.info(f"AndroidTestingAgent initialized successfully: {android_testing_agent is not None}")
-        except Exception as e:
-            logger.error(f"Failed to initialize AndroidTestingAgent: {str(e)}")
-            logger.error(f"AndroidTestingAgent initialization traceback: {traceback.format_exc()}")
-            android_testing_agent = None
-        
-        print(f"InstagramReelAgent initialized: {instagram_reel_agent is not None}")
-        print(f"AndroidTestingAgent initialized: {android_testing_agent is not None}")
-        
-        print("Successfully initialized all agents")
-        
-        # Validate Instagram credentials
-        if instagram_access_token and instagram_business_account_id:
-            validation = instagram_poster_agent.validate_instagram_credentials()
-            if validation["success"]:
-                print(f"Instagram API validated: {validation['account_info'].get('username', 'Unknown')}")
-            else:
-                print(f"Instagram API validation failed: {validation['error']}")
-        else:
-            print("Instagram API credentials not configured - posting features will be disabled")
-    else:
-        print("Warning: OPENAI_API_KEY not found. All AI features will be disabled.")
 
 @app.get("/")
 async def root():
@@ -2041,6 +2102,179 @@ async def get_loop_styles():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting loop styles: {str(e)}")
 
+# Voice Over endpoints
+@app.post("/api/generate-voice-script")
+async def generate_voice_script(request: VoiceScriptRequest):
+    """Generate a voice over script for video content"""
+    try:
+        if not voice_over_agent:
+            raise HTTPException(status_code=503, detail="Voice Over agent not available")
+        
+        result = voice_over_agent.generate_voice_script(
+            video_content=request.video_content,
+            target_duration=request.target_duration,
+            style=request.style,
+            period=request.period
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating voice script: {str(e)}")
+
+@app.post("/api/generate-voice-over")
+async def generate_voice_over(request: VoiceOverRequest):
+    """Generate voice over audio using ElevenLabs"""
+    try:
+        if not voice_over_agent:
+            raise HTTPException(status_code=503, detail="Voice Over agent not available")
+        
+        result = voice_over_agent.generate_voice_over(
+            text=request.text,
+            voice=request.voice,
+            language=request.language,
+            model=request.model,
+            output_format=request.output_format
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating voice over: {str(e)}")
+
+@app.post("/api/generate-captions")
+async def generate_captions(request: CaptionRequest):
+    """Generate captions/subtitles from audio"""
+    try:
+        if not voice_over_agent:
+            raise HTTPException(status_code=503, detail="Voice Over agent not available")
+        
+        result = voice_over_agent.generate_captions(
+            audio_path=request.audio_path,
+            language=request.language,
+            style=request.style,
+            max_chars_per_line=request.max_chars_per_line
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating captions: {str(e)}")
+
+@app.post("/api/add-voice-to-video")
+async def add_voice_to_video(request: AddVoiceToVideoRequest):
+    """Add voice over audio to video"""
+    try:
+        if not voice_over_agent:
+            raise HTTPException(status_code=503, detail="Voice Over agent not available")
+        
+        result = voice_over_agent.add_voice_over_to_video(
+            video_path=request.video_path,
+            audio_path=request.audio_path,
+            volume=request.volume,
+            fade_in=request.fade_in,
+            fade_out=request.fade_out
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding voice to video: {str(e)}")
+
+@app.post("/api/add-captions-to-video")
+async def add_captions_to_video(request: AddCaptionsToVideoRequest):
+    """Add captions/subtitles to video"""
+    try:
+        if not voice_over_agent:
+            raise HTTPException(status_code=503, detail="Voice Over agent not available")
+        
+        result = voice_over_agent.add_captions_to_video(
+            video_path=request.video_path,
+            subtitle_path=request.subtitle_path,
+            burn_in=request.burn_in,
+            style=request.style
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding captions to video: {str(e)}")
+
+@app.post("/api/process-video-with-voice-and-captions")
+async def process_video_with_voice_and_captions(request: ProcessVideoRequest):
+    """Complete pipeline: generate voice over, create captions, and add both to video"""
+    try:
+        if not voice_over_agent:
+            raise HTTPException(status_code=503, detail="Voice Over agent not available")
+        
+        result = voice_over_agent.process_video_with_voice_and_captions(
+            video_path=request.video_path,
+            script_text=request.script_text,
+            voice=request.voice,
+            language=request.language,
+            caption_style=request.caption_style,
+            burn_in_captions=request.burn_in_captions
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}")
+
+@app.get("/api/available-voices")
+async def get_available_voices():
+    """Get list of available voices"""
+    try:
+        if not voice_over_agent:
+            raise HTTPException(status_code=503, detail="Voice Over agent not available")
+        
+        return voice_over_agent.get_available_voices()
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting available voices: {str(e)}")
+
+@app.get("/api/caption-styles")
+async def get_caption_styles():
+    """Get available caption styles"""
+    try:
+        if not voice_over_agent:
+            raise HTTPException(status_code=503, detail="Voice Over agent not available")
+        
+        return voice_over_agent.get_caption_styles()
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting caption styles: {str(e)}")
+
+@app.get("/api/voice-overs")
+async def get_voice_overs():
+    """Get all generated voice overs"""
+    try:
+        if not voice_over_agent:
+            raise HTTPException(status_code=503, detail="Voice Over agent not available")
+        
+        return voice_over_agent.get_voice_overs()
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting voice overs: {str(e)}")
+
 @app.post("/api/android-test")
 async def test_android_app(request: AndroidTestRequest, background_tasks: BackgroundTasks):
     """Start automated Android app testing"""
@@ -2183,6 +2417,86 @@ async def list_android_tests(limit: int = 10):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing test results: {str(e)}")
 
+@app.get("/api/android-avds")
+async def list_android_avds():
+    """List available Android Virtual Devices (AVDs)"""
+    try:
+        # Run emulator command to list AVDs
+        result = subprocess.run(
+            ["emulator", "-list-avds"],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            # If emulator command fails, try to provide helpful error
+            error_msg = result.stderr.strip() if result.stderr else "Emulator command not found"
+            logger.error(f"Failed to list AVDs: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "avds": []
+            }
+        
+        # Parse AVD names from output
+        avd_names = [name.strip() for name in result.stdout.strip().split('\n') if name.strip()]
+        
+        return {
+            "success": True,
+            "avds": avd_names,
+            "count": len(avd_names)
+        }
+        
+    except FileNotFoundError:
+        logger.error("Emulator command not found in PATH")
+        return {
+            "success": False,
+            "error": "Android emulator not found. Please ensure Android SDK is installed and emulator is in PATH",
+            "avds": []
+        }
+    except Exception as e:
+        logger.error(f"Error listing AVDs: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "avds": []
+        }
+
+@app.post("/api/android-test/upload-apk")
+async def upload_apk(file: UploadFile = File(...)):
+    """Upload an APK file for testing"""
+    try:
+        # Validate file is an APK
+        if not file.filename.endswith('.apk'):
+            raise HTTPException(status_code=400, detail="File must be an APK")
+        
+        # Create temp directory for APK uploads if it doesn't exist
+        temp_dir = os.path.join(tempfile.gettempdir(), "android_test_apks")
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        # Save the uploaded file with a unique name
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_filename = f"upload_{timestamp}_{file.filename}"
+        file_path = os.path.join(temp_dir, safe_filename)
+        
+        # Save the file
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        logger.info(f"APK uploaded successfully: {file_path}")
+        
+        return {
+            "success": True,
+            "file_path": file_path,
+            "original_filename": file.filename,
+            "size": len(content)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error uploading APK: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error uploading APK: {str(e)}")
+
 @app.get("/api/android-test/{test_id}/screenshots")
 async def get_test_screenshots(test_id: str):
     """Get list of screenshots for a test"""
@@ -2200,30 +2514,49 @@ async def get_test_screenshots(test_id: str):
         test_data = result["data"]
         screenshots = []
         
-        # Initial screenshot
-        if "screenshots" in test_data and "initial" in test_data["screenshots"]:
-            screenshots.append({
-                "name": "initial",
-                "path": test_data["screenshots"]["initial"],
-                "url": f"/static/android_screenshots/{os.path.basename(test_data['screenshots']['initial'])}"
-            })
+        # Get all screenshots from the directory for this test_id
+        screenshot_dir = android_testing_agent.screenshot_dir
+        import glob
         
-        # Action screenshots
-        if "navigation" in test_data:
-            for i in range(test_data["navigation"].get("action_count", 0)):
-                screenshot_name = f"action_{i}"
-                # Check if file exists in screenshot directory
-                screenshot_pattern = f"{test_id}_{screenshot_name}_*.png"
-                screenshot_dir = android_testing_agent.screenshot_dir
-                
-                import glob
-                matches = glob.glob(os.path.join(screenshot_dir, screenshot_pattern))
-                for match in matches:
-                    screenshots.append({
-                        "name": screenshot_name,
-                        "path": match,
-                        "url": f"/static/android_screenshots/{os.path.basename(match)}"
-                    })
+        # Find all screenshots for this test
+        all_screenshots = glob.glob(os.path.join(screenshot_dir, f"{test_id}_*.png"))
+        
+        # Sort by timestamp in filename
+        all_screenshots.sort()
+        
+        # Create screenshot entries for all found files
+        for screenshot_path in all_screenshots:
+            basename = os.path.basename(screenshot_path)
+            # Extract the name part (between test_id and timestamp)
+            parts = basename.split('_')
+            if len(parts) >= 3:
+                # Skip the test_id hash and reconstruct the name
+                name_parts = []
+                for i in range(2, len(parts)):
+                    if parts[i].startswith('20'):  # Likely a timestamp
+                        break
+                    name_parts.append(parts[i])
+                name = '_'.join(name_parts) if name_parts else 'screenshot'
+            else:
+                name = 'screenshot'
+            
+            # Get metadata from storage if available
+            screenshot_metadata = {}
+            if "screenshots" in test_data and isinstance(test_data["screenshots"], dict):
+                # Find matching metadata by name
+                for stored_name, metadata in test_data["screenshots"].items():
+                    if stored_name in basename or name == stored_name:
+                        screenshot_metadata = metadata
+                        break
+            
+            screenshots.append({
+                "name": name,
+                "path": screenshot_path,
+                "url": f"/static/android_screenshots/{basename}",
+                "action": screenshot_metadata.get("action", ""),
+                "description": screenshot_metadata.get("description", ""),
+                "ui_elements": screenshot_metadata.get("ui_elements_found", {})
+            })
         
         return {
             "success": True,
@@ -2233,6 +2566,33 @@ async def get_test_screenshots(test_id: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving screenshots: {str(e)}")
+
+@app.delete("/api/android-test/{test_id}")
+async def delete_android_test(test_id: str):
+    """Delete Android test results and associated data"""
+    logger.info(f"Löschung von Android-Test angefordert: {test_id}")
+    try:
+        if not android_testing_agent:
+            logger.error("Android-Test-Agent nicht verfügbar")
+            raise HTTPException(status_code=503, detail="Android-Test-Agent nicht verfügbar")
+        
+        logger.info(f"Lösche Testergebnisse für Test-ID: {test_id}")
+        result = android_testing_agent.delete_test_run(test_id)
+        
+        if result["success"]:
+            logger.info(f"Test {test_id} erfolgreich gelöscht")
+            return result
+        else:
+            logger.warning(f"Test {test_id} nicht gefunden: {result['error']}")
+            raise HTTPException(status_code=404, detail=result["error"])
+            
+    except HTTPException as he:
+        logger.error(f"HTTP-Fehler beim Löschen von Test {test_id}: {he.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"Unerwarteter Fehler beim Löschen von Test {test_id}: {str(e)}")
+        logger.error(f"Traceback für Löschvorgang: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Fehler beim Löschen der Testergebnisse: {str(e)}")
 
 @app.get("/health")
 async def health_check():

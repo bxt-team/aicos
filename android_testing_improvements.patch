@@ -1,0 +1,169 @@
+--- a/src/agents/android_testing_agent.py
++++ b/src/agents/android_testing_agent.py
+@@ -390,11 +390,26 @@ class AndroidTestingAgent(BaseCrew):
+     
+     async def _get_ui_dump(self) -> str:
+         """Get UI hierarchy dump."""
+-        self.logger.debug("Getting UI hierarchy dump...")
++        self.logger.debug("Getting UI hierarchy dump with improved method...")
+         
+         try:
+             device_path = "/sdcard/ui_dump.xml"
++            
++            # Clear any existing dump first
++            await self._run_adb_command(["shell", "rm", "-f", device_path])
++            
++            # Dump UI hierarchy
+             await self._run_adb_command(["shell", "uiautomator", "dump", device_path])
++            
++            # Wait a bit for file to be written
++            await asyncio.sleep(0.5)
++            
++            # Read the dump file
++            stdout, _ = await self._run_adb_command(["shell", "cat", device_path])
++            
++            if not stdout or len(stdout) < 100:
++                self.logger.error(f"UI dump appears empty or too small: {len(stdout)} bytes")
++                # Try alternative method
++                stdout, _ = await self._run_adb_command(["shell", "uiautomator", "dump", "/dev/stdout"])
+             
+             stdout, _ = await self._run_adb_command(["shell", "cat", device_path])
+             
+@@ -586,18 +601,106 @@ class AndroidTestingAgent(BaseCrew):
+     
+     async def _perform_ui_actions(self, package_name: str, test_id: str) -> List[Dict[str, Any]]:
+         """Perform automated UI actions and record results."""
+-        self.logger.info("Starting UI action testing...")
++        self.logger.info("Starting improved UI action testing...")
+         actions_log = []
+         
+         # Get initial UI state
+         ui_dump = await self._get_ui_dump()
++        if not ui_dump:
++            self.logger.error("Failed to get UI dump")
++            return actions_log
+         
+-        # Parse clickable elements
+-        clickable_elements = re.findall(
+-            r'<node[^>]*clickable="true"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*/>',
+-            ui_dump
+-        )
++        # Parse clickable elements using improved method
++        clickable_elements = self._parse_clickable_elements_improved(ui_dump)
+         
++        if not clickable_elements:
++            self.logger.warning("No clickable elements found with improved parser, trying regex fallback")
++            # Fallback to original regex method but with better pattern
++            clickable_pattern = r'<node[^>]*clickable="true"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"[^>]*/?>'
++            matches = re.findall(clickable_pattern, ui_dump)
++            clickable_elements = []
++            for match in matches:
++                x1, y1, x2, y2 = map(int, match)
++                clickable_elements.append({
++                    'bounds': (x1, y1, x2, y2),
++                    'center': ((x1 + x2) // 2, (y1 + y2) // 2),
++                    'class': 'Unknown',
++                    'text': '',
++                    'content_desc': ''
++                })
+         
+         self.logger.info(f"Found {len(clickable_elements)} clickable elements")
++        
++        # Log first few elements for debugging
++        for i, elem in enumerate(clickable_elements[:5]):
++            if isinstance(elem, dict):
++                self.logger.debug(
++                    f"Element {i+1}: {elem.get('class', 'Unknown')} at {elem.get('center', 'Unknown')}, "
++                    f"text='{elem.get('text', '')}', desc='{elem.get('content_desc', '')}'"
++                )
+         
+         # Test tapping various elements
+@@ -984,3 +1087,102 @@ class AndroidTestingAgent(BaseCrew):
+                 for test_id, data in sorted_tests
+             ]
+         }
++    
++    def _parse_clickable_elements_improved(self, ui_dump: str) -> List[Dict[str, Any]]:
++        """Parse clickable elements using XML parsing for better accuracy."""
++        import xml.etree.ElementTree as ET
++        
++        clickable_elements = []
++        
++        try:
++            # Clean up the XML if needed
++            ui_dump = ui_dump.strip()
++            if not ui_dump.startswith('<?xml'):
++                # Try to find the start of XML
++                xml_start = ui_dump.find('<?xml')
++                if xml_start > 0:
++                    ui_dump = ui_dump[xml_start:]
++            
++            root = ET.fromstring(ui_dump)
++            
++            # Find all nodes with clickable="true" or that might be interactive
++            for node in root.iter('node'):
++                # Check if element is interactive
++                is_clickable = node.get('clickable') == 'true'
++                is_checkable = node.get('checkable') == 'true'
++                is_long_clickable = node.get('long-clickable') == 'true'
++                has_click_handler = is_clickable or is_checkable or is_long_clickable
++                
++                # Also check for common button/clickable classes
++                class_name = node.get('class', '')
++                is_button_class = any(btn in class_name.lower() for btn in [
++                    'button', 'imagebutton', 'checkbox', 'radiobutton', 
++                    'switch', 'togglebutton', 'chip', 'cardview', 'textview'
++                ])
++                
++                # Check if it's enabled and has bounds
++                is_enabled = node.get('enabled') != 'false'
++                bounds = node.get('bounds', '')
++                
++                if (has_click_handler or is_button_class) and is_enabled and bounds:
++                    # Parse bounds
++                    match = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', bounds)
++                    if match:
++                        x1, y1, x2, y2 = map(int, match.groups())
++                        
++                        # Skip if element has no area
++                        if x2 <= x1 or y2 <= y1:
++                            continue
++                        
++                        # Skip if element is too small (likely hidden)
++                        width = x2 - x1
++                        height = y2 - y1
++                        if width < 10 or height < 10:
++                            continue
++                        
++                        element_info = {
++                            'bounds': (x1, y1, x2, y2),
++                            'center': ((x1 + x2) // 2, (y1 + y2) // 2),
++                            'size': (width, height),
++                            'class': class_name.split('.')[-1] if '.' in class_name else class_name,
++                            'resource_id': node.get('resource-id', ''),
++                            'text': node.get('text', ''),
++                            'content_desc': node.get('content-desc', ''),
++                            'clickable': is_clickable,
++                            'checkable': is_checkable,
++                            'long_clickable': is_long_clickable,
++                            'enabled': is_enabled,
++                            'focusable': node.get('focusable') == 'true',
++                            'scrollable': node.get('scrollable') == 'true',
++                            'index': node.get('index', '0')
++                        }
++                        
++                        clickable_elements.append(element_info)
++            
++            # Sort by position (top to bottom, left to right)
++            clickable_elements.sort(key=lambda e: (e['center'][1], e['center'][0]))
++            
++            self.logger.info(f"XML parser found {len(clickable_elements)} interactive elements")
++            return clickable_elements
++            
++        except ET.ParseError as e:
++            self.logger.error(f"XML parsing error: {e}")
++            self.logger.debug(f"First 500 chars of dump: {ui_dump[:500]}")
++            return []
++        except Exception as e:
++            self.logger.error(f"Error parsing clickable elements: {e}")
++            return []

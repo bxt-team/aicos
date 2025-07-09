@@ -14,6 +14,7 @@ import PostCompositionInterface from './components/PostCompositionInterface';
 import VideoGenerationInterface from './components/VideoGenerationInterface';
 import InstagramReelInterface from './components/InstagramReelInterface';
 import AndroidTestInterface from './components/AndroidTestInterface';
+import VoiceOverInterface from './components/VoiceOverInterface';
 import AgentManagement from './components/AgentManagement';
 import Header from './components/Header';
 
@@ -37,6 +38,7 @@ function App() {
             <Route path="/video-generation" element={<VideoGenerationInterface />} />
             <Route path="/instagram-reel" element={<InstagramReelInterface apiBaseUrl="http://localhost:8000" />} />
             <Route path="/android-test" element={<AndroidTestInterface />} />
+            <Route path="/voice-over" element={<VoiceOverInterface apiBaseUrl="http://localhost:8000" />} />
             <Route path="/content-generator" element={<ContentGenerator />} />
             <Route path="/content/:contentId" element={<ContentViewer />} />
           </Routes>

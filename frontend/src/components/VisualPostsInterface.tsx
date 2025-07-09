@@ -778,27 +778,31 @@ const VisualPostsInterface: React.FC = () => {
                     </span>
                   </div>
                   <div className="post-info">
-                    <div className="tags">
-                      Tags: {post.tags.join(', ')}
-                    </div>
+                    {post.tags && post.tags.length > 0 && (
+                      <div className="tags">
+                        Tags: {post.tags.join(', ')}
+                      </div>
+                    )}
                     <div className="photographer">
                       {post.image_style === 'dalle' ? (
                         <span>🤖 KI-generiert mit DALL-E AI</span>
-                      ) : (
+                      ) : post.background_image ? (
                         <>
                           Foto: <a href={post.background_image.pexels_url} target="_blank" rel="noopener noreferrer">
                             {post.background_image.photographer}
                           </a>
                         </>
-                      )}
+                      ) : null}
                     </div>
                     <div className="timestamp">
                       Erstellt: {formatTimestamp(post.created_at)}
                     </div>
-                    <div className="dimensions">
-                      {post.dimensions.width}x{post.dimensions.height}px
-                      {post.post_format === 'post' ? ' (Instagram Post)' : ' (Instagram Story)'}
-                    </div>
+                    {post.dimensions && (
+                      <div className="dimensions">
+                        {post.dimensions.width}x{post.dimensions.height}px
+                        {post.post_format === 'post' ? ' (Instagram Post)' : ' (Instagram Story)'}
+                      </div>
+                    )}
                     {post.image_style === 'dalle' && (post as any).ai_prompt && (
                       <div className="ai-prompt-info">
                         <strong>🤖 AI Prompt:</strong>
@@ -828,7 +832,7 @@ const VisualPostsInterface: React.FC = () => {
                     generationParams={{
                       text: post.text,
                       period: post.period,
-                      tags: post.tags,
+                      tags: post.tags || [],
                       style: post.image_style,
                       post_format: post.post_format,
                       ai_generated: post.image_style === 'dalle',
