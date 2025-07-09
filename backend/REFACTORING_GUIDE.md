@@ -8,15 +8,20 @@ The backend has been refactored from a single 2600+ line `main.py` file into a m
 
 ```
 backend/
-├── app.py                    # New main application file
-├── main.py                   # Original file (to be deprecated)
+├── app.py                    # Main application file
 ├── api/
 │   └── routers/             # API route modules
 │       ├── health.py        # Health check endpoints
 │       ├── content.py       # Content generation endpoints
 │       ├── affirmations.py  # Affirmation endpoints
 │       ├── visual_posts.py  # Visual post endpoints
-│       └── instagram.py     # Instagram-related endpoints
+│       ├── instagram.py     # Instagram-related endpoints
+│       ├── media.py         # Voice, video, and caption endpoints
+│       ├── workflows.py     # Workflow management endpoints
+│       ├── android_testing.py # Android testing endpoints
+│       ├── feedback.py      # Feedback and analytics endpoints
+│       ├── qa.py           # Q&A and knowledge base endpoints
+│       └── images.py       # Image search endpoints
 ├── core/
 │   ├── config.py           # Configuration settings
 │   └── dependencies.py     # Agent initialization and dependencies
@@ -41,15 +46,7 @@ The new structure is backward compatible. You can run both versions side by side
 
 ### 2. Update imports in your code
 
-If you have any custom scripts importing from main.py, update them:
-
-```python
-# Old
-from main import app
-
-# New
-from app import app
-```
+All imports have been updated. The main.py file has been removed and replaced with the modular app.py structure.
 
 ### 3. Test the new application
 
@@ -118,19 +115,18 @@ Common utilities are extracted to `utils/`:
 
 ## TODO
 
-The following components still need to be migrated:
-- [ ] Media processing endpoints (voice, video, captions)
-- [ ] Workflow endpoints
-- [ ] Android testing endpoints
-- [ ] Feedback and analytics endpoints
-- [ ] Remaining utility functions
+The following components have been migrated:
+- [x] Media processing endpoints (voice, video, captions) - ✅ Completed in media.py
+- [x] Workflow endpoints - ✅ Completed in workflows.py
+- [x] Android testing endpoints - ✅ Completed in android_testing.py
+- [x] Feedback and analytics endpoints - ✅ Completed in feedback.py
+- [x] Q&A endpoints - ✅ Completed in qa.py
+- [x] Image search endpoints - ✅ Completed in images.py
+- [ ] Remaining utility functions (if any)
 
-## Rollback
+## Migration Complete
 
-If you need to rollback to the original version:
-1. Stop the new application
-2. Run `python main.py` to use the original monolithic version
-3. All data and functionality will remain the same
+The refactoring is now complete. The main.py file has been removed and all functionality has been migrated to the modular structure. All endpoints are now available through the organized router system.
 
 ## Support
 

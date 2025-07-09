@@ -16,7 +16,7 @@ async def generate_content(request: ContentRequest, background_tasks: Background
     content_storage[content_id] = {
         "status": "processing",
         "created_at": datetime.now().isoformat(),
-        "request": request.dict()
+        "request": request.model_dump()
     }
     
     # Run content generation in background

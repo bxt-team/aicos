@@ -15,14 +15,15 @@ interface Affirmation {
 
 interface PeriodType {
   description: string;
+  color?: string;
   phases?: string[];
   stages?: string[];
   keywords?: string[];
 }
 
 interface PeriodsData {
-  success: boolean;
-  period_types: { [key: string]: PeriodType };
+  status: string;
+  periods: { [key: string]: PeriodType };
 }
 
 const AffirmationsInterface: React.FC = () => {
@@ -53,8 +54,8 @@ const AffirmationsInterface: React.FC = () => {
         : `${API_BASE_URL}/affirmations`;
       
       const response = await axios.get(url);
-      if (response.data.success) {
-        setAffirmations(response.data.affirmations);
+      if (response.data.status === 'success') {
+        setAffirmations(response.data.affirmations || []);
       }
     } catch (error) {
       console.error('Error loading affirmations:', error);
@@ -92,8 +93,8 @@ const AffirmationsInterface: React.FC = () => {
         count: affirmationCount
       });
 
-      if (response.data.success) {
-        setAffirmations(prev => [...response.data.affirmations, ...prev]);
+      if (response.data.status === 'success') {
+        setAffirmations(prev => [...(response.data.affirmations || []), ...prev]);
         
         // Reset form
         setSelectedPeriod('');
@@ -102,7 +103,7 @@ const AffirmationsInterface: React.FC = () => {
         setAffirmationCount(5);
         
         // Show success message
-        alert(response.data.message);
+        alert(response.data.message || 'Affirmationen erfolgreich generiert!');
       }
     } catch (error: any) {
       console.error('Error generating affirmations:', error);
@@ -121,7 +122,7 @@ const AffirmationsInterface: React.FC = () => {
   const getPhaseOptions = () => {
     if (!periods || !selectedPeriod) return [];
     
-    const periodData = periods.period_types[selectedPeriod];
+    const periodData = periods.periods[selectedPeriod];
     return periodData?.keywords || [];
   };
 
@@ -135,15 +136,20 @@ const AffirmationsInterface: React.FC = () => {
       return affirmation.period_color;
     }
     
+    // Try to get color from periods data
+    if (periods && affirmation.theme && periods.periods[affirmation.theme]?.color) {
+      return periods.periods[affirmation.theme].color;
+    }
+    
     // Fallback to 7 Cycles theme mapping
     const cyclesColors: { [key: string]: string } = {
-      'Image': '#DAA520',
-      'Veränderung': '#2196F3', 
-      'Energie': '#F44336',
-      'Kreativität': '#FFD700',
-      'Erfolg': '#CC0066',
-      'Entspannung': '#4CAF50',
-      'Umsicht': '#9C27B0'
+      'Image': '#FF6B6B',
+      'Veränderung': '#4ECDC4', 
+      'Energie': '#FFE66D',
+      'Kreativität': '#A8E6CF',
+      'Erfolg': '#C7CEEA',
+      'Entspannung': '#FFDAB9',
+      'Umsicht': '#B4A0E5'
     };
     
     return cyclesColors[affirmation.theme] || '#a0a0a0';
@@ -168,7 +174,7 @@ const AffirmationsInterface: React.FC = () => {
                 disabled={loading}
               >
                 <option value="">Wähle einen Perioden-Typ</option>
-                {periods && Object.entries(periods.period_types).map(([key, value]) => {
+                {periods && Object.entries(periods.periods).map(([key, value]) => {
                   return (
                     <option key={key} value={key}>
                       {key} - {value.description}
@@ -238,7 +244,7 @@ const AffirmationsInterface: React.FC = () => {
               onChange={(e) => handleFilterChange(e.target.value)}
             >
               <option value="">Alle Perioden</option>
-              {periods && Object.keys(periods.period_types).map(key => (
+              {periods && Object.keys(periods.periods).map(key => (
                 <option key={key} value={key}>
                   {key}
                 </option>

@@ -9,7 +9,7 @@ from src.crews.base_crew import BaseCrew
 from src.tools.image_generator import ImageGenerator
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 
 class InstagramAIPromptAgent(BaseCrew):

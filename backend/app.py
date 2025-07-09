@@ -17,7 +17,10 @@ from core.config import settings
 from core.dependencies import initialize_agents, cleanup_agents
 
 # Import routers
-from api.routers import health, content, affirmations, visual_posts, instagram
+from api.routers import (
+    health, content, affirmations, visual_posts, instagram,
+    media, workflows, android_testing, feedback, qa, images
+)
 
 # Configure logging
 logging.basicConfig(
@@ -71,11 +74,12 @@ app.include_router(content.router)
 app.include_router(affirmations.router)
 app.include_router(visual_posts.router)
 app.include_router(instagram.router)
-
-# Note: Additional routers for media, workflows, etc. would be added here
-# app.include_router(media.router)
-# app.include_router(workflows.router)
-# app.include_router(android_testing.router)
+app.include_router(media.router)
+app.include_router(workflows.router)
+app.include_router(android_testing.router)
+app.include_router(feedback.router)
+app.include_router(qa.router)
+app.include_router(images.router)
 
 if __name__ == "__main__":
     import uvicorn

@@ -102,6 +102,19 @@ interface ComposedPost {
 }
 
 const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBaseUrl }) => {
+  // Helper function to get recommended loop style based on period
+  const getRecommendedLoopStyle = (period: string): string => {
+    const recommendations: Record<string, string> = {
+      'Image': 'morph - Für visuelle Transformationen',
+      'Veränderung': 'seamless - Für fließende Übergänge',
+      'Energie': 'bounce - Für dynamische Bewegungen',
+      'Kreativität': 'kaleidoscope - Für kreative Effekte',
+      'Erfolg': 'zoom - Für kraftvolle Statements',
+      'Entspannung': 'flow - Für beruhigende Bewegungen',
+      'Umsicht': 'fade - Für sanfte Reflexionen'
+    };
+    return recommendations[period] || 'seamless - Universell einsetzbar';
+  };
   const [reels, setReels] = useState<ReelData[]>([]);
   const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>([]);
   // const [composedPosts, setComposedPosts] = useState<ComposedPost[]>([]);
@@ -126,6 +139,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
   const [visualPosts, setVisualPosts] = useState<any[]>([]);
   const [showVoiceOverModal, setShowVoiceOverModal] = useState(false);
   const [selectedReelForVoiceOver, setSelectedReelForVoiceOver] = useState<ReelData | null>(null);
+  const [showPreviewText, setShowPreviewText] = useState(false);
 
   const periods = [
     'Image', 'Veränderung', 'Energie', 'Kreativität', 
@@ -339,6 +353,20 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
       setSelectedPost(postId);
       setSelectedPeriod(post.period || post.period_name || '');
       setShowPostModal(false);
+      
+      // Auto-suggest content based on period
+      if (!additionalInput && post.period) {
+        const periodSuggestions: Record<string, string> = {
+          'Image': 'Zeige die visuelle Transformation und persönliche Entwicklung',
+          'Veränderung': 'Betone den Wandel und neue Perspektiven',
+          'Energie': 'Fokus auf Dynamik, Aktivität und Lebensfreude',
+          'Kreativität': 'Kreative Ausdruckskraft und künstlerische Elemente',
+          'Erfolg': 'Erfolgsmomente und Zielerreichung hervorheben',
+          'Entspannung': 'Ruhe, Balance und innere Harmonie vermitteln',
+          'Umsicht': 'Weisheit, Reflexion und bewusste Entscheidungen'
+        };
+        setAdditionalInput(periodSuggestions[post.period] || '');
+      }
     }
   };
 
@@ -417,19 +445,18 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                 <div className="form-grid">
                   <div className="form-group">
                     <label htmlFor="period">7 Cycles Periode</label>
-                    <select 
-                      id="period"
-                      value={selectedPeriod} 
-                      onChange={(e) => setSelectedPeriod(e.target.value)}
-                      className="select"
-                    >
-                      <option value="">Periode auswählen</option>
+                    <div className="period-selector">
                       {periods.map(period => (
-                        <option key={period} value={period}>
+                        <button
+                          key={period}
+                          type="button"
+                          className={`period-btn ${selectedPeriod === period ? 'active' : ''}`}
+                          onClick={() => setSelectedPeriod(period)}
+                        >
                           {period}
-                        </option>
+                        </button>
                       ))}
-                    </select>
+                    </div>
                   </div>
 
                   <div className="form-group">
@@ -497,12 +524,24 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                       <small className="loop-style-help">
                         Perfekt für: {loopStyles[selectedLoopStyle]?.best_for}
                       </small>
+                      {selectedPeriod && (
+                        <small className="period-recommendation">
+                          💡 Empfehlung für {selectedPeriod}: {getRecommendedLoopStyle(selectedPeriod)}
+                        </small>
+                      )}
                     </div>
                   )}
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="customText">Oder eigenen Text eingeben</label>
+                  <label htmlFor="customText">
+                    Oder eigenen Text eingeben
+                    {customText && (
+                      <span className="char-count">
+                        {customText.length} Zeichen • ~{Math.ceil(customText.length / 150)} Sek.
+                      </span>
+                    )}
+                  </label>
                   <textarea
                     id="customText"
                     placeholder="Geben Sie hier Ihren eigenen Text ein..."
@@ -510,6 +549,11 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomText(e.target.value)}
                     className="textarea large"
                   />
+                  {customText.length > 300 && (
+                    <small className="text-warning">
+                      ⚠️ Längere Texte können zu schnelleren Sprechgeschwindigkeiten führen
+                    </small>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -548,6 +592,30 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                   )}
                 </div>
 
+                {(selectedPost || customText) && (
+                  <div className="preview-section">
+                    <button 
+                      type="button"
+                      onClick={() => setShowPreviewText(!showPreviewText)}
+                      className="btn-ghost full-width"
+                    >
+                      {showPreviewText ? '👁️ Vorschau verbergen' : '👁️ Textvorschau anzeigen'}
+                    </button>
+                    {showPreviewText && (
+                      <div className="text-preview">
+                        <h4>Reel Text Vorschau:</h4>
+                        <p>{customText || instagramPosts.find(p => p.id === selectedPost)?.text || ''}</p>
+                        {additionalInput && (
+                          <div className="additional-preview">
+                            <strong>Zusätzliche Anweisungen:</strong>
+                            <p>{additionalInput}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 <button 
                   onClick={generateReel} 
                   disabled={loading || !selectedPeriod || (!selectedPost && !customText)}
@@ -559,7 +627,12 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                       Reel wird erstellt...
                     </>
                   ) : (
-                    'Instagram Reel generieren'
+                    <>
+                      🎬 Instagram Reel generieren
+                      {selectedPeriod && (
+                        <span className="period-indicator">{selectedPeriod}</span>
+                      )}
+                    </>
                   )}
                 </button>
               </div>
@@ -816,13 +889,13 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                           {new Date(post.created_at).toLocaleDateString('de-DE')}
                         </span>
                       </div>
-                      <p className="post-text">{post.text || post.post_text}</p>
                       {post.affirmation && (
-                        <div className="affirmation-preview">
-                          <span className="affirmation-label">Affirmation:</span>
+                        <div className="affirmation-preview prominent">
+                          <span className="affirmation-label">✨ Affirmation:</span>
                           <p className="affirmation-text">"{post.affirmation}"</p>
                         </div>
                       )}
+                      <p className="post-text">{post.text || post.post_text}</p>
                       {post.hashtags && post.hashtags.length > 0 && (
                         <div className="post-hashtags">
                           {post.hashtags.slice(0, 3).map(tag => (
@@ -869,11 +942,32 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                   Fertig ({selectedImages.length} ausgewählt)
                 </button>
               </div>
+              {selectedPeriod && availableImages.filter(img => img.period === selectedPeriod).length > 0 && (
+                <div className="quick-actions">
+                  <button 
+                    className="btn-ghost"
+                    onClick={() => {
+                      const periodImages = availableImages
+                        .filter(img => img.period === selectedPeriod)
+                        .map(img => img.value);
+                      setSelectedImages(Array.from(new Set([...selectedImages, ...periodImages])));
+                    }}
+                  >
+                    Alle aus {selectedPeriod} auswählen
+                  </button>
+                  <button 
+                    className="btn-ghost"
+                    onClick={() => setSelectedImages([])}
+                  >
+                    Auswahl löschen
+                  </button>
+                </div>
+              )}
               <div className="image-selection-grid">
                 {availableImages.map(option => (
                   <div 
                     key={option.value} 
-                    className={`image-option ${selectedImages.includes(option.value) ? 'selected' : ''}`}
+                    className={`image-option ${selectedImages.includes(option.value) ? 'selected' : ''} ${selectedPeriod && option.period !== selectedPeriod ? 'dimmed' : ''}`}
                     onClick={() => handleImageSelection(option.value)}
                   >
                     <div className="image-preview">
