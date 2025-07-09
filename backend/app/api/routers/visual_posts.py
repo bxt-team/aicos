@@ -8,7 +8,7 @@ from app.models.visual_post import (
     IntegratedPostCompositionRequest
 )
 from app.models.instagram import InstagramAIImageRequest
-from app.core.dependencies import image_generator, post_composition_agent
+from app.core.dependencies import get_agent
 from app.core.config import settings
 from datetime import datetime
 import json
@@ -25,6 +25,7 @@ os.makedirs(settings.get_storage_path(settings.COMPOSED_DIR), exist_ok=True)
 
 @router.post("/search-images")
 async def search_images(tags: list[str], period: str, count: int = 10):
+    image_generator = get_agent('image_generator')
     if not image_generator:
         raise HTTPException(status_code=503, detail="Image Generator not initialized")
     
@@ -67,6 +68,7 @@ async def create_visual_post(
     post_format: str = "post",
     force_new: bool = True
 ):
+    image_generator = get_agent('image_generator')
     if not image_generator:
         raise HTTPException(status_code=503, detail="Image Generator not initialized")
     
@@ -104,6 +106,7 @@ async def create_visual_post(
 
 @router.post("/create-dalle-visual-post")
 async def create_dalle_visual_post(request: DALLEVisualPostRequest):
+    image_generator = get_agent('image_generator')
     if not image_generator:
         raise HTTPException(status_code=503, detail="Image Generator not initialized")
     

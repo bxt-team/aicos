@@ -10,29 +10,48 @@ from typing import List, Dict, Any
 from datetime import datetime, timedelta
 import hashlib
 from app.agents.crews.base_crew import BaseCrew
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AffirmationsAgent(BaseCrew):
     def __init__(self, openai_api_key: str):
+        logger.info("[AFFIRMATIONS_AGENT] Initializing...")
         super().__init__()
         self.openai_api_key = openai_api_key
-        self.embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+        
+        # Set the API key as environment variable for OpenAIEmbeddings
+        self.embeddings = OpenAIEmbeddings()
         self.vector_store = None
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
         # Storage for generated affirmations
-        self.storage_file = os.path.join(os.path.dirname(__file__), "../../../static/affirmations_storage.json")
+        # Make path relative to the backend directory
+        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.storage_file = os.path.join(backend_dir, "static", "affirmations_storage.json")
+        
+        # Ensure the static directory exists
+        os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
+        
         self.generated_affirmations = self._load_generated_affirmations()
         
         # Initialize knowledge base
         self._load_knowledge_base()
         
         # Create the affirmations agent from YAML config
-        self.affirmations_agent = self.create_agent("affirmations_agent", llm=self.llm)
+        try:
+            self.affirmations_agent = self.create_agent("affirmations_agent", llm=self.llm)
+            logger.info("[AFFIRMATIONS_AGENT] Agent created successfully")
+        except Exception as e:
+            logger.error(f"[AFFIRMATIONS_AGENT] Error creating agent: {e}")
+            raise
     
     def _load_knowledge_base(self):
         """Load and process the PDF knowledge base"""
         try:
-            pdf_path = os.path.join(os.path.dirname(__file__), "../../knowledge/20250607_7Cycles of Life_Ebook.pdf")
+            # Make path relative to the backend directory
+            backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            pdf_path = os.path.join(backend_dir, "knowledge", "20250607_7Cycles of Life_Ebook.pdf")
             
             # Load PDF
             loader = PyPDFLoader(pdf_path)
@@ -50,10 +69,10 @@ class AffirmationsAgent(BaseCrew):
             # Create vector store
             self.vector_store = FAISS.from_documents(texts, self.embeddings)
             
-            print(f"Erfolgreich {len(texts)} Dokumentenabschnitte für Affirmationen geladen")
+            logger.info(f"Erfolgreich {len(texts)} Dokumentenabschnitte für Affirmationen geladen")
             
         except Exception as e:
-            print(f"Fehler beim Laden der Wissensdatenbank für Affirmationen: {e}")
+            logger.error(f"Fehler beim Laden der Wissensdatenbank für Affirmationen: {e}")
             self.vector_store = None
     
     def _load_generated_affirmations(self) -> Dict[str, Any]:

@@ -44,7 +44,7 @@ class AndroidTestingAgent(BaseCrew):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
         
-        self.logger.info(f"Initialisiere AndroidTestingAgent mit ADB-Pfad: {adb_path}")
+        self.logger.info(f"[ANDROID_TESTING_AGENT] Initialisiere mit ADB-Pfad: {adb_path}")
         
         # Storage for test results
         self.storage_file = os.path.join(

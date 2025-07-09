@@ -22,31 +22,69 @@ from app.api.routers import (
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True  # Force reconfiguration of logging
 )
 logger = logging.getLogger(__name__)
+
+# Also configure the dependencies logger
+deps_logger = logging.getLogger('app.core.dependencies')
+deps_logger.setLevel(logging.INFO)
 
 # Lifespan context manager for startup and shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting 7 Cycles Backend...")
+    logger.info("[STARTUP] Starting 7 Cycles Backend...")
     initialize_agents()
-    logger.info("Agents initialized successfully")
+    logger.info("[STARTUP] Agents initialized successfully")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down 7 Cycles Backend...")
+    logger.info("[SHUTDOWN] Shutting down 7 Cycles Backend...")
     cleanup_agents()
-    logger.info("Cleanup completed")
+    logger.info("[SHUTDOWN] Cleanup completed")
 
 # Create FastAPI app
 app = FastAPI(
     title="7 Cycles AI Assistant API",
     version="2.0.0",
-    description="Refactored API for 7 Cycles of Life content generation and management",
-    lifespan=lifespan
+    description="""
+## 7 Cycles AI Content Generation API
+
+This API provides comprehensive AI-powered content generation for the "7 Cycles of Life" methodology.
+
+### Features:
+- 🎯 **Multi-agent AI System**: CrewAI-based agents for specialized tasks
+- 📱 **Instagram Integration**: Create and post content directly to Instagram
+- 🎨 **Visual Content**: Generate images with DALL-E 3 and stock photos
+- 🎬 **Video Generation**: Create Instagram Reels with AI
+- 🎙️ **Voice Over**: Generate voice narration with ElevenLabs
+- 💭 **Q&A System**: Answer questions about the 7 Cycles philosophy
+- ✨ **Affirmations**: Generate period-specific affirmations
+
+### Documentation:
+- Interactive API docs: [/docs](/docs)
+- Alternative docs: [/redoc](/redoc)
+- OpenAPI schema: [/openapi.json](/openapi.json)
+
+### API Sections:
+- **Content** (`/content/*`): Main content generation workflows
+- **Q&A** (`/api/*`): Knowledge base queries and answers
+- **Affirmations** (`/affirmations`, `/generate-affirmations`): Period-specific affirmations
+- **Visual Posts** (`/visual-posts/*`, `/search-images`): Image generation and management
+- **Instagram** (`/instagram-posts/*`): Instagram content creation and posting
+- **Media** (`/api/*`): Voice over, video generation, captions
+- **Workflows** (`/api/workflows/*`): Complex multi-step workflows
+
+### Authentication:
+Currently using API keys configured via environment variables.
+    """,
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
 )
 
 # Configure CORS

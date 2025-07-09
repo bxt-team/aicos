@@ -282,13 +282,19 @@ const VisualPostsInterface: React.FC = () => {
         }
       } else if (useAffirmation && selectedAffirmation) {
         // Create from existing affirmation
+        const selectedAff = affirmations.find(a => a.id === selectedAffirmation);
+        if (!selectedAff) {
+          throw new Error('Selected affirmation not found');
+        }
+        
         const tags = customTags ? customTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
         
-        response = await axios.post(`${API_BASE_URL}/create-affirmation-post`, {
-          affirmation_id: selectedAffirmation,
+        response = await axios.post(`${API_BASE_URL}/create-visual-post`, {
+          text: selectedAff.text,
+          period: selectedAff.period_name,
+          tags: tags.length > 0 ? tags : undefined,
           image_style: imageStyle,
           post_format: postFormat,
-          tags: tags.length > 0 ? tags : undefined,
           force_new: true
         });
       } else if (selectedInstagramPost) {

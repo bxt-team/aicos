@@ -7,12 +7,7 @@ from app.models.instagram import (
     InstagramStrategyRequest,
     InstagramMultipleAnalyzeRequest
 )
-from app.core.dependencies import (
-    write_hashtag_agent, 
-    instagram_ai_prompt_agent,
-    instagram_poster_agent,
-    instagram_analyzer_agent
-)
+from app.core.dependencies import get_agent
 from app.core.config import settings
 from datetime import datetime
 import json
@@ -26,6 +21,7 @@ os.makedirs("storage/instagram_posts", exist_ok=True)
 
 @router.post("/generate-instagram-post")
 async def generate_instagram_post(request: InstagramPostRequest):
+    write_hashtag_agent = get_agent('write_hashtag_agent')
     if not write_hashtag_agent:
         raise HTTPException(status_code=503, detail="Instagram Agent not initialized")
     
@@ -92,6 +88,7 @@ async def get_instagram_posts():
 
 @router.post("/post-to-instagram")
 async def post_to_instagram(request: InstagramPostingRequest):
+    instagram_poster_agent = get_agent('instagram_poster_agent')
     if not instagram_poster_agent:
         raise HTTPException(status_code=503, detail="Instagram Poster Agent not initialized")
     
@@ -145,6 +142,7 @@ async def post_to_instagram(request: InstagramPostingRequest):
 
 @router.post("/api/analyze-instagram-account")
 async def analyze_instagram_account(request: InstagramAnalyzeRequest):
+    instagram_analyzer_agent = get_agent('instagram_analyzer_agent')
     if not instagram_analyzer_agent:
         raise HTTPException(status_code=503, detail="Instagram Analyzer Agent not initialized")
     
@@ -220,6 +218,7 @@ async def prepare_instagram_content(request: InstagramContentPrepareRequest):
 @router.post("/create-visual-from-instagram-post")
 async def create_visual_from_instagram_post(request: dict):
     """Create a visual post from an Instagram post"""
+    instagram_ai_prompt_agent = get_agent('instagram_ai_prompt_agent')
     if not instagram_ai_prompt_agent:
         raise HTTPException(status_code=503, detail="Instagram AI Prompt Agent not initialized")
     
@@ -259,6 +258,7 @@ async def create_visual_from_instagram_post(request: dict):
 @router.get("/instagram-posting-status")
 async def get_instagram_posting_status():
     """Get current Instagram posting status"""
+    instagram_poster_agent = get_agent('instagram_poster_agent')
     if not instagram_poster_agent:
         return {
             "status": "error",

@@ -46,48 +46,82 @@ def initialize_agents():
     global content_wrapper, workflow_agent, post_composition_agent
     global video_generation_agent, instagram_reel_agent, android_testing_agent, voice_over_agent
     
-    logger.info(f"OPENAI_API_KEY present: {bool(settings.OPENAI_API_KEY)}")
-    logger.info(f"OPENAI_API_KEY length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
+    logger.info(f"[INIT] OPENAI_API_KEY present: {bool(settings.OPENAI_API_KEY)}")
+    logger.info(f"[INIT] OPENAI_API_KEY length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
     
     if settings.OPENAI_API_KEY:
+        logger.info("[IMAGE_GENERATOR] Initializing...")
         image_generator = ImageGenerator(settings.OPENAI_API_KEY)
+        logger.info("[IMAGE_GENERATOR] Initialized successfully")
+        
+        logger.info("[QA_AGENT] Initializing...")
         qa_agent = QAAgent(settings.OPENAI_API_KEY)
+        logger.info("[QA_AGENT] Initialized successfully")
         try:
+            logger.info("[AFFIRMATIONS_AGENT] Attempting to initialize...")
             affirmations_agent = AffirmationsAgent(settings.OPENAI_API_KEY)
-            logger.info(f"AffirmationsAgent initialized successfully: {affirmations_agent is not None}")
+            logger.info(f"[AFFIRMATIONS_AGENT] Initialized successfully: {affirmations_agent is not None}")
         except Exception as e:
-            logger.error(f"Failed to initialize AffirmationsAgent: {str(e)}")
+            logger.error(f"[AFFIRMATIONS_AGENT] Failed to initialize: {str(e)}")
+            logger.error(f"[AFFIRMATIONS_AGENT] Full error details: ", exc_info=True)
             affirmations_agent = None
+        logger.info("[WRITE_HASHTAG_AGENT] Initializing...")
         write_hashtag_agent = WriteHashtagResearchAgent(settings.OPENAI_API_KEY)
+        logger.info("[WRITE_HASHTAG_AGENT] Initialized successfully")
+        
+        logger.info("[INSTAGRAM_AI_PROMPT_AGENT] Initializing...")
         instagram_ai_prompt_agent = InstagramAIPromptAgent(settings.OPENAI_API_KEY)
+        logger.info("[INSTAGRAM_AI_PROMPT_AGENT] Initialized successfully")
+        
+        logger.info("[INSTAGRAM_POSTER_AGENT] Initializing...")
         instagram_poster_agent = InstagramPosterAgent(
             settings.OPENAI_API_KEY, 
             settings.INSTAGRAM_ACCESS_TOKEN, 
             settings.INSTAGRAM_BUSINESS_ACCOUNT_ID
         )
+        logger.info("[INSTAGRAM_POSTER_AGENT] Initialized successfully")
+        
+        logger.info("[INSTAGRAM_ANALYZER_AGENT] Initializing...")
         instagram_analyzer_agent = InstagramAnalyzerAgent(settings.OPENAI_API_KEY)
+        logger.info("[INSTAGRAM_ANALYZER_AGENT] Initialized successfully")
+        
+        logger.info("[CONTENT_WRAPPER] Initializing...")
         content_wrapper = ContentGenerationWrapper()
+        logger.info("[CONTENT_WRAPPER] Initialized successfully")
         
         # Initialize new agents
+        logger.info("[WORKFLOW_AGENT] Initializing...")
         workflow_agent = ContentWorkflowAgent(
             settings.OPENAI_API_KEY, 
             settings.PEXELS_API_KEY, 
             settings.INSTAGRAM_ACCESS_TOKEN
         )
+        logger.info("[WORKFLOW_AGENT] Initialized successfully")
+        
+        logger.info("[POST_COMPOSITION_AGENT] Initializing...")
         post_composition_agent = PostCompositionAgent(settings.OPENAI_API_KEY)
+        logger.info("[POST_COMPOSITION_AGENT] Initialized successfully")
+        
+        logger.info("[VIDEO_GENERATION_AGENT] Initializing...")
         video_generation_agent = VideoGenerationAgent(settings.OPENAI_API_KEY)
+        logger.info("[VIDEO_GENERATION_AGENT] Initialized successfully")
+        
+        logger.info("[INSTAGRAM_REEL_AGENT] Initializing...")
         instagram_reel_agent = InstagramReelAgent(settings.OPENAI_API_KEY, settings.RUNWAY_API_KEY)
+        logger.info("[INSTAGRAM_REEL_AGENT] Initialized successfully")
         
         # Initialize Voice Over agent
+        logger.info("[VOICE_OVER_AGENT] Initializing...")
         voice_over_agent = VoiceOverAgent(settings.OPENAI_API_KEY, settings.ELEVENLABS_API_KEY)
+        logger.info("[VOICE_OVER_AGENT] Initialized successfully")
         
         # Initialize Android testing agent
-        logger.info(f"Initializing AndroidTestingAgent with adb_path: {settings.ADB_PATH}")
+        logger.info(f"[ANDROID_TESTING_AGENT] Initializing with adb_path: {settings.ADB_PATH}")
         try:
             android_testing_agent = AndroidTestingAgent(settings.OPENAI_API_KEY, settings.ADB_PATH)
-            logger.info(f"AndroidTestingAgent initialized successfully: {android_testing_agent is not None}")
+            logger.info(f"[ANDROID_TESTING_AGENT] Initialized successfully: {android_testing_agent is not None}")
         except Exception as e:
-            logger.error(f"Failed to initialize AndroidTestingAgent: {str(e)}")
+            logger.error(f"[ANDROID_TESTING_AGENT] Failed to initialize: {str(e)}")
             android_testing_agent = None
     else:
         logger.warning("OpenAI API key not found. Agents not initialized.")
@@ -97,9 +131,9 @@ def cleanup_agents():
     if android_testing_agent:
         try:
             android_testing_agent.cleanup()
-            logger.info("AndroidTestingAgent cleaned up successfully")
+            logger.info("[ANDROID_TESTING_AGENT] Cleaned up successfully")
         except Exception as e:
-            logger.error(f"Error cleaning up AndroidTestingAgent: {e}")
+            logger.error(f"[ANDROID_TESTING_AGENT] Error cleaning up: {e}")
 
 def get_agent(agent_name: str):
     """Get a specific agent instance"""

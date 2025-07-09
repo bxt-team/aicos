@@ -22,7 +22,7 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
 
   const loadOverview = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/knowledge-overview`);
+      const response = await axios.get(`${API_BASE_URL}/api/knowledge-overview`);
       if (response.data.success) {
         setOverview(response.data.overview);
       }
@@ -31,9 +31,7 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
     }
   }, [API_BASE_URL]);
 
-  useEffect(() => {
-    loadOverview();
-  }, [loadOverview]);
+  // Removed automatic loading - will load only when user clicks the button
 
   const handleSubmitQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +39,7 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/ask-question`, {
+      const response = await axios.post(`${API_BASE_URL}/api/ask-question`, {
         question: question.trim()
       });
 
@@ -95,7 +93,12 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
         
         <button
           className="overview-toggle"
-          onClick={() => setShowOverview(!showOverview)}
+          onClick={() => {
+            setShowOverview(!showOverview);
+            if (!showOverview && !overview) {
+              loadOverview();
+            }
+          }}
         >
           {showOverview ? 'Hide' : 'Show'} Knowledge Overview
         </button>

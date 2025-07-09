@@ -27,7 +27,7 @@ const ContentGenerator: React.FC = () => {
         }
       };
 
-      const response = await axios.post('http://localhost:8000/generate-content', requestData);
+      const response = await axios.post('http://localhost:8000/content/generate', requestData);
       const { content_id } = response.data;
 
       navigate(`/content/${content_id}`);

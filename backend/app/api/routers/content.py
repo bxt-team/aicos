@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from app.models.content import ContentRequest, ApprovalRequest, ContentResponse, QuestionRequest
-from app.core.dependencies import content_wrapper, content_storage, qa_agent
+from app.core.dependencies import get_agent, content_wrapper, content_storage
 from datetime import datetime
 import uuid
 import traceback
@@ -116,18 +116,3 @@ async def run_content_generation(content_id: str, knowledge_files, style_prefere
             "traceback": traceback.format_exc()
         })
 
-# Question answering endpoint
-@router.post("/ask-question")
-async def ask_question(request: QuestionRequest):
-    if not qa_agent:
-        raise HTTPException(status_code=503, detail="QA Agent not initialized")
-    
-    try:
-        answer = qa_agent.answer_question(request.question)
-        return {
-            "status": "success",
-            "question": request.question,
-            "answer": answer
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

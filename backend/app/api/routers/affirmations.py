@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.models.content import AffirmationRequest
-from app.core.dependencies import affirmations_agent
+from app.core.dependencies import get_agent
 from datetime import datetime
 import json
 import os
@@ -22,6 +22,7 @@ PERIODS = {
 
 @router.post("/generate-affirmations")
 async def generate_affirmations(request: AffirmationRequest):
+    affirmations_agent = get_agent('affirmations_agent')
     logger.info(f"Affirmations agent status: {affirmations_agent}")
     logger.info(f"Affirmations agent type: {type(affirmations_agent)}")
     

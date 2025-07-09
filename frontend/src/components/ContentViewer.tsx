@@ -59,7 +59,7 @@ const ContentViewer: React.FC = () => {
     if (!contentId) return;
 
     try {
-      await axios.post('http://localhost:8000/approve-content', {
+      await axios.post('http://localhost:8000/content/approve', {
         content_id: contentId,
         approved,
         feedback: feedback || null

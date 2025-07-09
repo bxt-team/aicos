@@ -253,7 +253,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
       const selectedPostData = instagramPosts.find(p => p.id === selectedPost);
       const textToUse = customText || selectedPostData?.text || '';
       
-      const response = await fetch(`${apiBaseUrl}/api/generate-reel`, {
+      const response = await fetch(`${apiBaseUrl}/api/generate-instagram-reel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
