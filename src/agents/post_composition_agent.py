@@ -121,12 +121,15 @@ class PostCompositionAgent(BaseCrew):
                 "id": composition_hash,
                 "text": text,
                 "period": period,
+                "tags": [],  # Add empty tags array for compatibility
                 "template_name": template_name,
                 "post_format": post_format,
                 "period_color": self.period_colors.get(period, "#808080"),
+                "image_style": "composed",  # Mark as composed image
                 "background_path": background_path,
                 "file_path": composition_result["output_path"],
                 "file_url": composition_result["output_url"],
+                "background_image": {},  # Add empty background_image for compatibility
                 "custom_options": custom_options or {},
                 "created_at": datetime.now().isoformat(),
                 "dimensions": {

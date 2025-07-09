@@ -32,6 +32,7 @@ from src.agents.video_generation_agent import VideoGenerationAgent
 from src.agents.instagram_reel_agent import InstagramReelAgent
 from src.agents.android_testing_agent import AndroidTestingAgent
 from src.agents.voice_over_agent import VoiceOverAgent
+from src.agents.visual_post_creator_agent import VisualPostCreatorAgent
 from dotenv import load_dotenv
 
 load_dotenv()
