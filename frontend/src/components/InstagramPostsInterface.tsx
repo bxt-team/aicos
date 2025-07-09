@@ -77,9 +77,9 @@ const InstagramPostsInterface: React.FC = () => {
         ? `${API_BASE_URL}/instagram-posts?period_name=${periodFilter}`
         : `${API_BASE_URL}/instagram-posts`;
       
-      const response = await axios.get<PostsResponse>(url);
-      if (response.data.success) {
-        setPosts(response.data.posts);
+      const response = await axios.get(url);
+      if (response.data.status === 'success') {
+        setPosts(response.data.posts || []);
       }
     } catch (error) {
       console.error('Error loading Instagram posts:', error);
@@ -90,8 +90,8 @@ const InstagramPostsInterface: React.FC = () => {
     setLoadingAffirmations(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/affirmations`);
-      if (response.data.success) {
-        setAffirmations(response.data.affirmations);
+      if (response.data.status === 'success') {
+        setAffirmations(response.data.affirmations || []);
       }
     } catch (error) {
       console.error('Error loading affirmations:', error);

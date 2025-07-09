@@ -11,9 +11,9 @@ from .feedback_system import FeedbackCollector, FeedbackAnalyzer, PromptOptimize
 class ImageGenerator:
     def __init__(self, api_key: str):
         self.client = openai.OpenAI(api_key=api_key)
-        # Use absolute path for output directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.output_dir = os.path.join(current_dir, "..", "..", "static", "generated")
+        # Use absolute path for output directory - backend/static
+        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        self.output_dir = os.path.join(backend_dir, "static", "generated")
         os.makedirs(self.output_dir, exist_ok=True)
         
         # Initialize feedback system
@@ -34,6 +34,15 @@ class ImageGenerator:
                     style = recommendations["recommended_style"]
             
             enhanced_prompt = self._enhance_prompt(prompt, style, use_feedback_optimization)
+            
+            # Log the prompt for debugging
+            print(f"\n{'='*60}")
+            print(f"DALL-E Image Generation Request")
+            print(f"Original Prompt: {prompt}")
+            print(f"Enhanced Prompt: {enhanced_prompt}")
+            print(f"Style: {style}")
+            print(f"Size: {size}")
+            print(f"{'='*60}\n")
             
             response = self.client.images.generate(
                 model="dall-e-3",

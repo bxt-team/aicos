@@ -55,7 +55,10 @@ const AffirmationsInterface: React.FC = () => {
       
       const response = await axios.get(url);
       if (response.data.status === 'success') {
-        setAffirmations(response.data.affirmations || []);
+        const affirmationsData = Array.isArray(response.data.affirmations) 
+          ? response.data.affirmations 
+          : [];
+        setAffirmations(affirmationsData);
       }
     } catch (error) {
       console.error('Error loading affirmations:', error);
@@ -94,7 +97,10 @@ const AffirmationsInterface: React.FC = () => {
       });
 
       if (response.data.status === 'success') {
-        setAffirmations(prev => [...(response.data.affirmations || []), ...prev]);
+        const newAffirmations = Array.isArray(response.data.affirmations) 
+          ? response.data.affirmations 
+          : [];
+        setAffirmations(prev => [...newAffirmations, ...prev]);
         
         // Reset form
         setSelectedPeriod('');

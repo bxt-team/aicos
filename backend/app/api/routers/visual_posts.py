@@ -112,19 +112,56 @@ async def create_dalle_visual_post(request: DALLEVisualPostRequest):
     
     try:
         # Generate DALL-E image
-        result = image_generator.create_dalle_affirmation_image(
-            text=request.text,
-            period=request.period,
-            tags=request.tags or [],
+        result = image_generator.generate_image(
+            prompt=request.text,
             style="dalle",
-            post_format=request.post_format,
-            ai_context=request.ai_context
+            size="1024x1024"
         )
+        
+        # Transform the response to match frontend expectations
+        visual_post = {
+            "id": f"dalle_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "text": request.text,
+            "period": request.period,
+            "tags": request.tags or [],
+            "period_color": get_period_color(request.period),
+            "image_style": "dalle",
+            "post_format": request.post_format,
+            "file_path": result.get("image_path", ""),
+            "file_url": result.get("image_url", ""),  # This is the key field frontend expects
+            "background_image": {
+                "id": "ai_generated",
+                "photographer": "DALL-E AI",
+                "pexels_url": ""
+            },
+            "created_at": datetime.now().isoformat(),
+            "dimensions": {
+                "width": 1024,
+                "height": 1024
+            }
+        }
+        
+        # Save metadata - this is required for the visual posts to show up in the list
+        if result.get("success") and result.get("image_path"):
+            metadata_path = result['image_path'].replace('.jpg', '_metadata.json').replace('.png', '_metadata.json')
+            with open(metadata_path, 'w') as f:
+                json.dump({
+                    "text": request.text,
+                    "period": request.period,
+                    "tags": request.tags or [],
+                    "image_style": "dalle",
+                    "post_format": request.post_format,
+                    "created_at": datetime.now().isoformat(),
+                    "background_image": visual_post["background_image"],
+                    "dimensions": visual_post["dimensions"],
+                    "file_path": result.get("image_path", ""),
+                    "file_url": result.get("image_url", "")
+                }, f, indent=2)
         
         return {
             "status": "success",
             "message": "DALL-E visual post created successfully",
-            "visual_post": result
+            "visual_post": visual_post
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -137,17 +174,31 @@ async def create_instagram_ai_image(request: InstagramAIImageRequest):
 
 @router.get("/visual-posts")
 async def get_visual_posts(period: Optional[str] = None):
-    generated_dir = settings.get_storage_path(settings.GENERATED_DIR)
+    # Use the static/generated directory where images are actually saved
+    generated_dir = os.path.join("static", "generated")
+    
+    # Add debug logging
+    print(f"\n{'='*60}")
+    print(f"Visual Posts Listing")
+    print(f"Looking in directory: {generated_dir}")
+    print(f"Directory exists: {os.path.exists(generated_dir)}")
     
     if not os.path.exists(generated_dir):
+        print(f"Directory does not exist, returning empty list")
+        print(f"{'='*60}\n")
         return {"status": "success", "posts": []}
     
     posts = []
+    files = os.listdir(generated_dir)
+    print(f"Files in directory: {len(files)}")
     
-    for filename in os.listdir(generated_dir):
+    for filename in files:
         if filename.endswith('_metadata.json'):
-            with open(os.path.join(generated_dir, filename), 'r') as f:
-                metadata = json.load(f)
+            print(f"Found metadata file: {filename}")
+            metadata_path = os.path.join(generated_dir, filename)
+            try:
+                with open(metadata_path, 'r') as f:
+                    metadata = json.load(f)
                 
                 # Filter by period if specified
                 if period and metadata.get('period') != period:
@@ -159,6 +210,9 @@ async def get_visual_posts(period: Optional[str] = None):
                 
                 post_id = filename.replace('_metadata.json', '')
                 
+                # Use the file_url from metadata if available, otherwise construct it
+                file_url = metadata.get('file_url', f"/static/generated/{image_filename}")
+                
                 posts.append({
                     "id": post_id,
                     "text": metadata.get('text', ''),
@@ -167,15 +221,21 @@ async def get_visual_posts(period: Optional[str] = None):
                     "period_color": get_period_color(metadata.get('period', '')),
                     "image_style": metadata.get('image_style', 'minimal'),
                     "post_format": metadata.get('post_format', 'post'),
-                    "file_path": os.path.join(generated_dir, image_filename),
-                    "file_url": f"/static/{settings.GENERATED_DIR}/{image_filename}",
+                    "file_path": metadata.get('file_path', os.path.join(generated_dir, image_filename)),
+                    "file_url": file_url,
                     "background_image": metadata.get('background_image', {}),
                     "created_at": metadata.get('created_at', ''),
                     "dimensions": metadata.get('dimensions', {"width": 1080, "height": 1350})
                 })
+                print(f"Added post with id: {post_id}, file_url: {file_url}")
+            except Exception as e:
+                print(f"Error reading metadata file {filename}: {e}")
     
     # Sort by creation date, newest first
     posts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    
+    print(f"Total posts found: {len(posts)}")
+    print(f"{'='*60}\n")
     
     return {
         "status": "success",
@@ -185,7 +245,7 @@ async def get_visual_posts(period: Optional[str] = None):
 
 @router.delete("/visual-posts/{post_id}")
 async def delete_visual_post(post_id: str):
-    generated_dir = settings.get_storage_path(settings.GENERATED_DIR)
+    generated_dir = os.path.join("static", "generated")
     
     # Find and delete the image file and metadata
     deleted = False

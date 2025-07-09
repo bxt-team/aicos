@@ -13,11 +13,10 @@ from datetime import datetime
 import json
 import os
 import uuid
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Instagram"])
-
-# Storage for Instagram posts
-os.makedirs("storage/instagram_posts", exist_ok=True)
 
 @router.post("/generate-instagram-post")
 async def generate_instagram_post(request: InstagramPostRequest):
@@ -33,58 +32,47 @@ async def generate_instagram_post(request: InstagramPostRequest):
             style=request.style
         )
         
-        # Save the post
-        post_id = str(uuid.uuid4())
-        filename = f"storage/instagram_posts/{post_id}.json"
+        # Check if generation was successful
+        if not result.get("success", False):
+            raise HTTPException(status_code=500, detail=result.get("error", "Failed to generate Instagram post"))
         
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump({
-                "id": post_id,
-                "affirmation": request.affirmation,
-                "period_name": request.period_name,
-                "style": request.style,
-                "post_text": result['post_text'],
-                "hashtags": result['hashtags'],
-                "call_to_action": result['call_to_action'],
-                "period_color": get_period_color(request.period_name),
-                "created_at": datetime.now().isoformat(),
-                "source": "manual_generation"
-            }, f, ensure_ascii=False, indent=2)
+        # Extract the post data
+        post_data = result.get("post", {})
         
+        # The agent already stores the post, just return it
         return {
             "status": "success",
-            "instagram_post": {
-                "id": post_id,
-                **result,
-                "period_color": get_period_color(request.period_name)
-            }
+            "instagram_post": post_data,
+            "message": result.get('message', 'Instagram post generated successfully')
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/instagram-posts")
-async def get_instagram_posts():
-    posts_dir = "storage/instagram_posts"
-    
-    if not os.path.exists(posts_dir):
+async def get_instagram_posts(period_name: str = None):
+    write_hashtag_agent = get_agent('write_hashtag_agent')
+    if not write_hashtag_agent:
         return {"status": "success", "posts": []}
     
-    posts = []
-    
-    for filename in os.listdir(posts_dir):
-        if filename.endswith('.json'):
-            with open(os.path.join(posts_dir, filename), 'r', encoding='utf-8') as f:
-                post = json.load(f)
-                posts.append(post)
-    
-    # Sort by creation date, newest first
-    posts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-    
-    return {
-        "status": "success",
-        "posts": posts,
-        "count": len(posts)
-    }
+    try:
+        result = write_hashtag_agent.get_generated_posts(period_name)
+        
+        if not result.get("success", False):
+            return {"status": "success", "posts": []}
+        
+        posts = result.get("posts", [])
+        
+        # Sort by creation date, newest first
+        posts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        
+        return {
+            "status": "success",
+            "posts": posts,
+            "count": len(posts)
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving Instagram posts: {e}")
+        return {"status": "success", "posts": []}
 
 @router.post("/post-to-instagram")
 async def post_to_instagram(request: InstagramPostingRequest):
@@ -93,13 +81,23 @@ async def post_to_instagram(request: InstagramPostingRequest):
         raise HTTPException(status_code=503, detail="Instagram Poster Agent not initialized")
     
     try:
-        # Load Instagram post data
-        post_path = f"storage/instagram_posts/{request.instagram_post_id}.json"
-        if not os.path.exists(post_path):
-            raise HTTPException(status_code=404, detail="Instagram post not found")
+        # Get Instagram post from agent
+        write_hashtag_agent = get_agent('write_hashtag_agent')
+        if not write_hashtag_agent:
+            raise HTTPException(status_code=503, detail="Write Hashtag Agent not initialized")
         
-        with open(post_path, 'r', encoding='utf-8') as f:
-            instagram_post = json.load(f)
+        result = write_hashtag_agent.get_generated_posts()
+        posts = result.get("posts", [])
+        
+        # Find the specific post by ID
+        instagram_post = None
+        for post in posts:
+            if post.get("id") == request.instagram_post_id:
+                instagram_post = post
+                break
+        
+        if not instagram_post:
+            raise HTTPException(status_code=404, detail="Instagram post not found")
         
         # Load visual post data if provided
         visual_post = None
@@ -177,13 +175,23 @@ async def analyze_instagram_account(request: InstagramAnalyzeRequest):
 async def prepare_instagram_content(request: InstagramContentPrepareRequest):
     """Prepare Instagram content for posting"""
     try:
-        # Load Instagram post data
-        post_path = f"storage/instagram_posts/{request.instagram_post_id}.json"
-        if not os.path.exists(post_path):
-            raise HTTPException(status_code=404, detail="Instagram post not found")
+        # Get Instagram post from agent
+        write_hashtag_agent = get_agent('write_hashtag_agent')
+        if not write_hashtag_agent:
+            raise HTTPException(status_code=503, detail="Write Hashtag Agent not initialized")
         
-        with open(post_path, 'r', encoding='utf-8') as f:
-            instagram_post = json.load(f)
+        result = write_hashtag_agent.get_generated_posts()
+        posts = result.get("posts", [])
+        
+        # Find the specific post by ID
+        instagram_post = None
+        for post in posts:
+            if post.get("id") == request.instagram_post_id:
+                instagram_post = post
+                break
+        
+        if not instagram_post:
+            raise HTTPException(status_code=404, detail="Instagram post not found")
         
         # Load visual post data if provided
         visual_post = None
@@ -227,13 +235,23 @@ async def create_visual_from_instagram_post(request: dict):
         if not instagram_post_id:
             raise HTTPException(status_code=400, detail="instagram_post_id is required")
         
-        # Load Instagram post data
-        post_path = f"storage/instagram_posts/{instagram_post_id}.json"
-        if not os.path.exists(post_path):
-            raise HTTPException(status_code=404, detail="Instagram post not found")
+        # Get Instagram post from agent
+        write_hashtag_agent = get_agent('write_hashtag_agent')
+        if not write_hashtag_agent:
+            raise HTTPException(status_code=503, detail="Write Hashtag Agent not initialized")
         
-        with open(post_path, 'r', encoding='utf-8') as f:
-            instagram_post = json.load(f)
+        result = write_hashtag_agent.get_generated_posts()
+        posts = result.get("posts", [])
+        
+        # Find the specific post by ID
+        instagram_post = None
+        for post in posts:
+            if post.get("id") == instagram_post_id:
+                instagram_post = post
+                break
+        
+        if not instagram_post:
+            raise HTTPException(status_code=404, detail="Instagram post not found")
         
         # Generate AI prompt for visual creation
         ai_prompt_result = instagram_ai_prompt_agent.generate_ai_prompt(

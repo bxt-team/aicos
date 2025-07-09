@@ -83,3 +83,4 @@ htmlcov/
 .temp/
 /.claude/
 /static/
+/backend/static/

@@ -1,9 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.models.content import AffirmationRequest
 from app.core.dependencies import get_agent
-from datetime import datetime
-import json
-import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,66 +30,56 @@ async def generate_affirmations(request: AffirmationRequest):
     try:
         period_info = PERIODS.get(request.period_name, request.period_info)
         
-        affirmations = affirmations_agent.generate_affirmations(
+        result = affirmations_agent.generate_affirmations(
             period_name=request.period_name,
             period_info=period_info,
             count=request.count
         )
         
-        # Save affirmations to file
-        storage_dir = "storage/affirmations"
-        os.makedirs(storage_dir, exist_ok=True)
-        
-        filename = f"{storage_dir}/affirmations_{request.period_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump({
-                "period": request.period_name,
-                "affirmations": affirmations,
-                "created_at": datetime.now().isoformat()
-            }, f, ensure_ascii=False, indent=2)
+        # Check if generation was successful
+        if not result.get("success", False):
+            raise HTTPException(status_code=500, detail=result.get("error", "Failed to generate affirmations"))
         
         return {
             "status": "success",
             "period": request.period_name,
-            "affirmations": affirmations,
-            "count": len(affirmations)
+            "affirmations": result.get("affirmations", []),
+            "count": len(result.get("affirmations", [])),
+            "message": result.get("message", "Affirmations generated successfully")
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/affirmations")
-async def get_all_affirmations():
-    storage_dir = "storage/affirmations"
+async def get_all_affirmations(period_name: str = None):
+    affirmations_agent = get_agent('affirmations_agent')
     
-    if not os.path.exists(storage_dir):
-        return {"status": "success", "affirmations": []}
+    if not affirmations_agent:
+        logger.error("Affirmations Agent is None")
+        raise HTTPException(status_code=503, detail="Affirmations Agent not initialized")
     
-    all_affirmations = []
-    
-    for filename in os.listdir(storage_dir):
-        if filename.endswith('.json'):
-            with open(os.path.join(storage_dir, filename), 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
-                # Create individual affirmation entries
-                for affirmation_text in data.get('affirmations', []):
-                    all_affirmations.append({
-                        "id": f"{filename}_{hash(affirmation_text)}",
-                        "text": affirmation_text,
-                        "period_name": data['period'],
-                        "period_color": PERIODS.get(data['period'], {}).get('color', '#999999'),
-                        "created_at": data.get('created_at', '')
-                    })
-    
-    # Sort by creation date, newest first
-    all_affirmations.sort(key=lambda x: x['created_at'], reverse=True)
-    
-    return {
-        "status": "success",
-        "affirmations": all_affirmations,
-        "count": len(all_affirmations)
-    }
+    try:
+        result = affirmations_agent.get_affirmations_by_period(period_name)
+        
+        if not result.get("success", False):
+            raise HTTPException(status_code=500, detail=result.get("error", "Failed to retrieve affirmations"))
+        
+        # Add theme and focus if missing for compatibility
+        affirmations = result.get("affirmations", [])
+        for aff in affirmations:
+            if "theme" not in aff and "period_name" in aff:
+                aff["theme"] = aff["period_name"]
+            if "focus" not in aff and "period_name" in aff:
+                aff["focus"] = f"{aff['period_name']} Stärkung"
+        
+        return {
+            "status": "success",
+            "affirmations": affirmations,
+            "count": len(affirmations)
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving affirmations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/periods")
 async def get_periods():
