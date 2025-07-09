@@ -141,7 +141,7 @@ async def list_composed_posts():
     if not post_composition_agent:
         raise HTTPException(status_code=503, detail="Post composition agent not available")
     
-    return post_composition_agent.list_composed_posts()
+    return post_composition_agent.get_composed_posts()
 
 @router.get("/post-composition-storage")
 async def get_post_composition_storage():

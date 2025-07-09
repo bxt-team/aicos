@@ -300,41 +300,67 @@ async def generate_instagram_reel(request: InstagramReelRequest):
 async def get_video_providers():
     """Get available video generation providers"""
     return {
-        "providers": [
-            {
-                "id": "runway",
+        "success": True,
+        "providers": {
+            "runway": {
                 "name": "Runway ML",
                 "description": "High-quality AI video generation",
-                "features": ["image_to_video", "text_to_video", "video_editing"]
+                "max_duration": 16,
+                "supports_loops": False,
+                "formats": ["mp4", "mov"],
+                "quality": "1080p"
             },
-            {
-                "id": "sora",
+            "sora": {
                 "name": "OpenAI Sora",
-                "description": "Advanced AI video generation",
-                "features": ["text_to_video", "seamless_loops", "long_form"]
+                "description": "Advanced AI video generation with seamless loops",
+                "max_duration": 60,
+                "supports_loops": True,
+                "formats": ["mp4", "webm"],
+                "quality": "4K"
             }
-        ]
+        }
     }
 
 @router.get("/loop-styles")
 async def get_loop_styles():
     """Get available loop styles for video generation"""
     return {
-        "styles": [
-            {
-                "id": "seamless",
+        "success": True,
+        "loop_styles": {
+            "seamless": {
                 "name": "Seamless Loop",
-                "description": "Perfect loop with no visible cut"
+                "description": "Perfekter Loop ohne sichtbaren Schnitt",
+                "best_for": "Fließende Bewegungen und Übergänge"
             },
-            {
-                "id": "fade",
+            "fade": {
                 "name": "Fade Loop",
-                "description": "Fade transition at loop point"
+                "description": "Weiche Überblendung am Loop-Punkt",
+                "best_for": "Ruhige, meditative Szenen"
             },
-            {
-                "id": "bounce",
+            "bounce": {
                 "name": "Bounce Loop",
-                "description": "Forward then reverse playback"
+                "description": "Vor- und Rückwärtswiedergabe",
+                "best_for": "Dynamische, spielerische Effekte"
+            },
+            "morph": {
+                "name": "Morph Loop",
+                "description": "Transformation zurück zum Anfang",
+                "best_for": "Kreative Verwandlungen"
+            },
+            "kaleidoscope": {
+                "name": "Kaleidoscope Loop",
+                "description": "Symmetrische, sich wiederholende Muster",
+                "best_for": "Abstrakte, künstlerische Effekte"
+            },
+            "zoom": {
+                "name": "Zoom Loop",
+                "description": "Endloser Zoom-Effekt",
+                "best_for": "Tiefe und Perspektive"
+            },
+            "flow": {
+                "name": "Flow Loop",
+                "description": "Natürliche, fließende Bewegung",
+                "best_for": "Wasser, Wind, organische Bewegungen"
             }
-        ]
+        }
     }

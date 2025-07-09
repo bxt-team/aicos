@@ -52,13 +52,13 @@ async def generate_instagram_post(request: InstagramPostRequest):
 async def get_instagram_posts(period_name: str = None):
     write_hashtag_agent = get_agent('write_hashtag_agent')
     if not write_hashtag_agent:
-        return {"status": "success", "posts": []}
+        return {"success": True, "status": "success", "posts": []}
     
     try:
         result = write_hashtag_agent.get_generated_posts(period_name)
         
         if not result.get("success", False):
-            return {"status": "success", "posts": []}
+            return {"success": True, "status": "success", "posts": []}
         
         posts = result.get("posts", [])
         
@@ -66,13 +66,14 @@ async def get_instagram_posts(period_name: str = None):
         posts.sort(key=lambda x: x.get('created_at', ''), reverse=True)
         
         return {
+            "success": True,
             "status": "success",
             "posts": posts,
             "count": len(posts)
         }
     except Exception as e:
         logger.error(f"Error retrieving Instagram posts: {e}")
-        return {"status": "success", "posts": []}
+        return {"success": True, "status": "success", "posts": []}
 
 @router.post("/post-to-instagram")
 async def post_to_instagram(request: InstagramPostingRequest):

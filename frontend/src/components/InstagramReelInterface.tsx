@@ -174,8 +174,15 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     try {
       const response = await fetch(`${apiBaseUrl}/api/composed-posts`);
       const data = await response.json();
-      if (data.success) {
-        // setComposedPosts(data.posts);
+      if (data.posts) {
+        // Add composed posts to available images
+        const composedImageOptions = (data.posts || []).map((post: any) => ({
+          value: post.file_url,
+          label: `[Composed] ${post.period} - ${post.text ? post.text.substring(0, 40) : 'Kein Text'}...`,
+          period: post.period,
+          thumbnail: post.file_url
+        }));
+        setAvailableImages(prev => [...prev, ...composedImageOptions]);
       }
     } catch (err) {
       console.error('Error loading composed posts:', err);
@@ -186,8 +193,16 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     try {
       const response = await fetch(`${apiBaseUrl}/visual-posts`);
       const data = await response.json();
-      if (data.success) {
-        setVisualPosts(data.posts);
+      if (data.status === 'success' || data.posts) {
+        setVisualPosts(data.posts || []);
+        // Update available images immediately
+        const imageOptions = (data.posts || []).map((post: any) => ({
+          value: post.file_url,
+          label: `${post.period} - ${post.text ? post.text.substring(0, 50) : 'Kein Text'}...`,
+          period: post.period,
+          thumbnail: post.file_url
+        }));
+        setAvailableImages(imageOptions);
       }
     } catch (err) {
       console.error('Error loading visual posts:', err);
