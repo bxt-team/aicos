@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { agentConfigs, futureAgents, AgentConfig } from '../config/agents';
+import { agentConfigs, AgentConfig } from '../config/agents';
 import './AgentManagement.css';
 
 const AgentManagement: React.FC = () => {
   const [agents] = useState<AgentConfig[]>(agentConfigs);
-  const [upcoming] = useState<Partial<AgentConfig>[]>(futureAgents);
   const [healthStatus, setHealthStatus] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState(false);
 
@@ -97,10 +96,6 @@ const AgentManagement: React.FC = () => {
             <div className="stat-label">Online</div>
           </div>
           <div className="stat-card">
-            <div className="stat-number">{upcoming.length}</div>
-            <div className="stat-label">Geplant</div>
-          </div>
-          <div className="stat-card">
             <div className="stat-number">{Array.from(new Set(agents.map(a => a.category))).length}</div>
             <div className="stat-label">Kategorien</div>
           </div>
@@ -172,36 +167,6 @@ const AgentManagement: React.FC = () => {
         </div>
       </div>
 
-      <div className="upcoming-section">
-        <h3>🚧 Geplante Agenten</h3>
-        <div className="upcoming-grid">
-          {upcoming.map((agent, index) => (
-            <div key={agent.id || index} className="upcoming-card">
-              <div className="upcoming-header">
-                <span className="upcoming-icon">{agent.icon}</span>
-                <div>
-                  <h4>{agent.name}</h4>
-                  <span 
-                    className="category-badge upcoming"
-                    style={{ backgroundColor: getCategoryColor(agent.category || '') }}
-                  >
-                    {agent.category}
-                  </span>
-                </div>
-                <div className="coming-soon">Bald verfügbar</div>
-              </div>
-              <p className="upcoming-description">{agent.description}</p>
-              {agent.features && (
-                <div className="upcoming-features">
-                  {agent.features.slice(0, 3).map((feature, fIndex) => (
-                    <span key={fIndex} className="feature-chip upcoming">{feature}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
 
       <div className="system-info">
         <h3>📊 System Information</h3>

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import AgentSelector from './AgentSelector';
 import './Header.css';
 
 const Header: React.FC = () => {
@@ -13,9 +12,6 @@ const Header: React.FC = () => {
             <h1>7 Lebenszyklen KI-Assistent</h1>
           </div>
         </Link>
-        <nav className="header-nav">
-          <AgentSelector />
-        </nav>
       </div>
     </header>
   );

@@ -28,7 +28,8 @@
       "Bash(rg:*)",
       "Bash(ls:*)",
       "Bash(grep:*)",
-      "Bash(export PATH=\"$ANDROID_HOME/build-tools/35.0.0:$PATH\")"
+      "Bash(export PATH=\"$ANDROID_HOME/build-tools/35.0.0:$PATH\")",
+      "Bash(# Move agent tests\nmv /Users/marc/IdeaProjects/7cycles-ai/test_researcher.py /Users/marc/IdeaProjects/7cycles-ai/tests/unit/agents/\nmv /Users/marc/IdeaProjects/7cycles-ai/test_researcher_simple.py /Users/marc/IdeaProjects/7cycles-ai/tests/unit/agents/\nmv /Users/marc/IdeaProjects/7cycles-ai/test_write_hashtag_agent.py /Users/marc/IdeaProjects/7cycles-ai/tests/unit/agents/\nmv /Users/marc/IdeaProjects/7cycles-ai/test_android_improvements.py /Users/marc/IdeaProjects/7cycles-ai/tests/unit/agents/\nmv /Users/marc/IdeaProjects/7cycles-ai/test_android_improvements_v2.py /Users/marc/IdeaProjects/7cycles-ai/tests/unit/agents/\n\n# Move tool tests\nmv /Users/marc/IdeaProjects/7cycles-ai/test_tools.py /Users/marc/IdeaProjects/7cycles-ai/tests/unit/tools/\n\n# Move crew tests\nmv /Users/marc/IdeaProjects/7cycles-ai/test_yaml_config.py /Users/marc/IdeaProjects/7cycles-ai/tests/unit/crews/\n\n# Move integration tests\nmv /Users/marc/IdeaProjects/7cycles-ai/test_7cycles_affirmations.py /Users/marc/IdeaProjects/7cycles-ai/tests/integration/\nmv /Users/marc/IdeaProjects/7cycles-ai/test_instagram_integration.py /Users/marc/IdeaProjects/7cycles-ai/tests/integration/\nmv /Users/marc/IdeaProjects/7cycles-ai/test_instagram_analyzer.py /Users/marc/IdeaProjects/7cycles-ai/tests/integration/)"
     ],
     "deny": []
   }

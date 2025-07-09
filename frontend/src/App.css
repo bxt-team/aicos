@@ -2,10 +2,29 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+}
+
+.app-container {
+  flex: 1;
+  margin-left: 280px;
+  transition: margin-left 0.3s ease;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .main-content {
-  padding-top: 1rem;
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+/* Adjust for collapsed sidebar */
+@media (max-width: 768px) {
+  .app-container {
+    margin-left: 0;
+  }
 }
 
 * {

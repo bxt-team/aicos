@@ -10,13 +10,13 @@
 }
 
 .header-container {
-  max-width: 1400px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 0 30px;
-  height: 80px;
+  height: 70px;
 }
 
 .header-title {
@@ -60,11 +60,6 @@
   background-clip: text;
 }
 
-.header-nav {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {

@@ -18,14 +18,17 @@ import VoiceOverInterface from './components/VoiceOverInterface';
 import AgentManagement from './components/AgentManagement';
 import AgentPromptsDisplay from './components/AgentPromptsDisplay';
 import Header from './components/Header';
+import SideMenu from './components/SideMenu';
 
 function App() {
   return (
     <Router>
       <div className="App">
-        <Header />
-        <main className="main-content">
-          <Routes>
+        <SideMenu />
+        <div className="app-container">
+          <Header />
+          <main className="main-content">
+            <Routes>
             <Route path="/" element={<AgentManagement />} />
             <Route path="/agents" element={<AgentManagement />} />
             <Route path="/qa" element={<QAInterface />} />
@@ -43,8 +46,9 @@ function App() {
             <Route path="/agent-prompts" element={<AgentPromptsDisplay />} />
             <Route path="/content-generator" element={<ContentGenerator />} />
             <Route path="/content/:contentId" element={<ContentViewer />} />
-          </Routes>
-        </main>
+            </Routes>
+          </main>
+        </div>
       </div>
     </Router>
   );

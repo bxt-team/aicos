@@ -181,60 +181,6 @@ export const agentConfigs: AgentConfig[] = [
   }
 ];
 
-// Future agents that could be added
-export const futureAgents: Partial<AgentConfig>[] = [
-  {
-    id: 'email-marketing',
-    name: 'E-Mail Marketing Agent',
-    route: '/email-marketing',
-    icon: '📧',
-    description: 'Erstellt E-Mail-Kampagnen und Newsletter basierend auf 7 Cycles',
-    category: 'E-Mail Marketing',
-    enabled: false,
-    features: ['Newsletter Templates', 'Segmentierung', 'A/B Testing']
-  },
-  {
-    id: 'video-scripts',
-    name: 'Video Script Generator',
-    route: '/video-scripts',
-    icon: '🎬',
-    description: 'Generiert Skripte für YouTube, TikTok und andere Video-Plattformen',
-    category: 'Video Content',
-    enabled: false,
-    features: ['Script Writing', 'Hook Creation', 'Platform Optimization']
-  },
-  {
-    id: 'blog-writer',
-    name: 'Blog Content Writer',
-    route: '/blog-writer',
-    icon: '📝',
-    description: 'Schreibt ausführliche Blog-Artikel über 7 Cycles Themen',
-    category: 'Content Creation',
-    enabled: false,
-    features: ['SEO Optimization', 'Long-form Content', 'Research Integration']
-  },
-  {
-    id: 'course-creator',
-    name: 'Online Kurs Creator',
-    route: '/course-creator',
-    icon: '🎓',
-    description: 'Erstellt strukturierte Online-Kurse basierend auf 7 Cycles',
-    category: 'Bildung',
-    enabled: false,
-    features: ['Curriculum Design', 'Lesson Planning', 'Interactive Content']
-  },
-  {
-    id: 'analytics',
-    name: 'Performance Analytics',
-    route: '/analytics',
-    icon: '📊',
-    description: 'Analysiert die Performance aller generierten Inhalte',
-    category: 'Analytics',
-    enabled: false,
-    features: ['Content Performance', 'Engagement Tracking', 'ROI Analysis']
-  }
-];
-
 export const getEnabledAgents = (): AgentConfig[] => {
   return agentConfigs.filter(agent => agent.enabled);
 };

@@ -120,10 +120,20 @@ const AffirmationsInterface: React.FC = () => {
   };
 
   const getPhaseOptions = () => {
-    if (!periods || !selectedPeriod) return [];
+    if (!selectedPeriod) return [];
     
-    const periodData = periods.periods[selectedPeriod];
-    return periodData?.keywords || [];
+    // Define keywords for each period type
+    const periodKeywords: { [key: string]: string[] } = {
+      'Image': ['Selbstbild', 'Identität', 'Ausstrahlung', 'Präsenz', 'Authentizität'],
+      'Veränderung': ['Transformation', 'Wandel', 'Neuanfang', 'Loslassen', 'Evolution'],
+      'Energie': ['Vitalität', 'Kraft', 'Aktivität', 'Dynamik', 'Lebensfreude'],
+      'Kreativität': ['Schöpferkraft', 'Innovation', 'Inspiration', 'Ausdruck', 'Vision'],
+      'Erfolg': ['Zielerreichung', 'Anerkennung', 'Leistung', 'Fülle', 'Manifestation'],
+      'Entspannung': ['Ruhe', 'Frieden', 'Balance', 'Regeneration', 'Harmonie'],
+      'Umsicht': ['Weisheit', 'Reflexion', 'Klarheit', 'Erkenntnis', 'Bewusstsein']
+    };
+    
+    return periodKeywords[selectedPeriod] || [];
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -192,7 +202,7 @@ const AffirmationsInterface: React.FC = () => {
                 disabled={loading || !selectedPeriod}
               >
                 <option value="">Wähle ein Fokus-Stichwort (optional)</option>
-                {getPhaseOptions().map((keyword: string) => (
+                {getPhaseOptions().map((keyword) => (
                   <option key={keyword} value={keyword}>
                     {keyword}
                   </option>
