@@ -111,7 +111,7 @@ const VisualPostsInterface: React.FC = () => {
         : `${API_BASE_URL}/visual-posts`;
       
       const response = await axios.get(url);
-      if (response.data.status === 'success') {
+      if (response.data.success) {
         setPosts(response.data.posts || []);
       }
     } catch (error) {
@@ -122,7 +122,7 @@ const VisualPostsInterface: React.FC = () => {
   const loadAffirmations = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/affirmations`);
-      if (response.data.status === 'success') {
+      if (response.data.success) {
         setAffirmations(response.data.affirmations || []);
       }
     } catch (error) {
@@ -133,7 +133,7 @@ const VisualPostsInterface: React.FC = () => {
   const loadInstagramPosts = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/instagram-posts`);
-      if (response.data.status === 'success') {
+      if (response.data.success) {
         setInstagramPosts(response.data.posts || []);
       }
     } catch (error) {

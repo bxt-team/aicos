@@ -277,22 +277,33 @@ async def get_video_types():
     }
 
 # Instagram Reel endpoints
-@router.post("/api/generate-instagram-reel")
+@router.post("/generate-instagram-reel")
 async def generate_instagram_reel(request: InstagramReelRequest):
     """Generate Instagram Reel video"""
     instagram_reel_agent = get_agent('instagram_reel_agent')
     if not instagram_reel_agent:
         raise HTTPException(status_code=503, detail="Instagram Reel agent not available")
     
-    result = instagram_reel_agent.generate_reel(
-        request.instagram_text,
-        request.period,
-        request.additional_input,
-        request.image_paths,
-        request.image_descriptions,
-        request.force_new,
-        request.provider
-    )
+    # Call the appropriate method based on the provider
+    if request.provider == "sora":
+        result = instagram_reel_agent.generate_reel_with_sora(
+            request.instagram_text,
+            request.period,
+            request.additional_input,
+            request.image_paths,
+            request.image_descriptions,
+            request.loop_style,
+            request.force_new
+        )
+    else:  # Default to runway
+        result = instagram_reel_agent.generate_reel_with_runway(
+            request.instagram_text,
+            request.period,
+            request.additional_input,
+            request.image_paths,
+            request.image_descriptions,
+            request.force_new
+        )
     
     return result
 

@@ -50,7 +50,7 @@ async def search_images(tags: list[str], period: str, count: int = 10):
             image['period_color'] = period_colors.get(period, '#999999')
         
         return {
-            "status": "success",
+            "success": True,
             "images": images,
             "count": len(images),
             "search_tags": tags,
@@ -82,6 +82,11 @@ async def create_visual_post(
             post_format=post_format
         )
         
+        # Check if generation was successful
+        if not result.get('success', False):
+            error_msg = result.get('error', 'Unknown error during image generation')
+            raise HTTPException(status_code=500, detail=error_msg)
+        
         # Save metadata
         metadata_path = result['file_path'].replace('.jpg', '_metadata.json').replace('.png', '_metadata.json')
         with open(metadata_path, 'w') as f:
@@ -93,14 +98,18 @@ async def create_visual_post(
                 "post_format": post_format,
                 "created_at": datetime.now().isoformat(),
                 "background_image": result.get('background_image', {}),
-                "dimensions": result.get('dimensions', {})
+                "dimensions": result.get('dimensions', {}),
+                "file_path": result.get('file_path', ''),
+                "file_url": result.get('file_url', '')
             }, f, indent=2)
         
         return {
-            "status": "success",
+            "success": True,
             "message": "Visual post created successfully",
             "visual_post": result
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -159,7 +168,7 @@ async def create_dalle_visual_post(request: DALLEVisualPostRequest):
                 }, f, indent=2)
         
         return {
-            "status": "success",
+            "success": True,
             "message": "DALL-E visual post created successfully",
             "visual_post": visual_post
         }
@@ -186,7 +195,7 @@ async def get_visual_posts(period: Optional[str] = None):
     if not os.path.exists(generated_dir):
         print(f"Directory does not exist, returning empty list")
         print(f"{'='*60}\n")
-        return {"status": "success", "posts": []}
+        return {"success": True, "posts": []}
     
     posts = []
     files = os.listdir(generated_dir)
@@ -238,7 +247,7 @@ async def get_visual_posts(period: Optional[str] = None):
     print(f"{'='*60}\n")
     
     return {
-        "status": "success",
+        "success": True,
         "posts": posts,
         "count": len(posts)
     }
@@ -265,7 +274,7 @@ async def delete_visual_post(post_id: str):
         raise HTTPException(status_code=404, detail="Visual post not found")
     
     return {
-        "status": "success",
+        "success": True,
         "message": "Visual post deleted successfully"
     }
 

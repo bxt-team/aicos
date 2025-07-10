@@ -271,6 +271,167 @@ class ImageGenerator:
         """Get feedback for a specific image"""
         return self.feedback_collector.get_feedback_for_image(image_path)
     
+    def create_affirmation_image(self, text: str, period: str, tags: Optional[list] = None,
+                                style: str = "minimal", post_format: str = "post") -> Dict[str, Any]:
+        """Create a visual post image for an affirmation using DALL-E"""
+        try:
+            # Prepare the prompt based on the affirmation text and period
+            prompt = self._prepare_affirmation_prompt(text, period, tags, style, post_format)
+            
+            # Determine size based on post format
+            size = "1024x1024"
+            if post_format == "story":
+                size = "1024x1792"  # Closest to 9:16 for stories
+            elif post_format == "post":
+                size = "1024x1024"  # Square, will be cropped for 4:5
+            
+            # Generate the image
+            result = self.generate_image(prompt, style=style, size=size)
+            
+            if result["success"]:
+                # Add additional metadata
+                result.update({
+                    "text": text,
+                    "period": period,
+                    "tags": tags or [],
+                    "period_color": self._get_period_color(period),
+                    "image_style": style,
+                    "post_format": post_format,
+                    "file_path": result["image_path"],
+                    "file_url": result["image_url"],
+                    "background_image": {
+                        "id": "dalle_generated",
+                        "photographer": "DALL-E AI",
+                        "pexels_url": ""
+                    },
+                    "created_at": datetime.datetime.now().isoformat(),
+                    "dimensions": self._get_dimensions(size, post_format)
+                })
+            
+            return result
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Fehler beim Erstellen des visuellen Posts"
+            }
+    
+    def _prepare_affirmation_prompt(self, text: str, period: str, tags: Optional[list], 
+                                   style: str, post_format: str) -> str:
+        """Prepare a DALL-E prompt for an affirmation visual post"""
+        # Period-specific visual themes
+        period_themes = {
+            "Image": "Selbstreflexion, Spiegel, persönliche Identität, Selbstvertrauen",
+            "Veränderung": "Transformation, Schmetterling, Wachstum, neue Wege",
+            "Energie": "Kraft, Bewegung, Vitalität, Lebendigkeit",
+            "Kreativität": "Kunst, Farben, Inspiration, kreative Ausdruckskraft",
+            "Erfolg": "Gipfel, Zielerreichung, Triumph, Leistung",
+            "Entspannung": "Ruhe, Meditation, Frieden, Harmonie",
+            "Umsicht": "Weisheit, Überblick, Balance, Achtsamkeit"
+        }
+        
+        theme = period_themes.get(period, "spirituelle Entwicklung")
+        
+        # Build the prompt
+        prompt_parts = [
+            f"Erstelle ein visuelles Bild zum Thema {theme}",
+            f"für die Affirmation: '{text}'",
+            f"im {style} Stil"
+        ]
+        
+        if tags:
+            prompt_parts.append(f"mit Elementen von: {', '.join(tags[:3])}")
+        
+        if post_format == "story":
+            prompt_parts.append("optimiert für Instagram Story Format (9:16)")
+        else:
+            prompt_parts.append("optimiert für Instagram Post Format (4:5)")
+        
+        prompt_parts.append("hochwertig, ästhetisch ansprechend, inspirierend")
+        
+        return ", ".join(prompt_parts)
+    
+    def _get_period_color(self, period: str) -> str:
+        """Get the color associated with a period"""
+        period_colors = {
+            "Image": "#FF6B6B",
+            "Veränderung": "#4ECDC4",
+            "Energie": "#FFE66D",
+            "Kreativität": "#A8E6CF",
+            "Erfolg": "#C7CEEA",
+            "Entspannung": "#FFDAB9",
+            "Umsicht": "#B4A0E5"
+        }
+        return period_colors.get(period, "#999999")
+    
+    def _get_dimensions(self, size: str, post_format: str) -> Dict[str, int]:
+        """Get dimensions based on size and format"""
+        if post_format == "story":
+            return {"width": 1080, "height": 1920}
+        elif post_format == "post":
+            return {"width": 1080, "height": 1350}
+        else:
+            # Default square
+            return {"width": 1024, "height": 1024}
+    
+    def generate_with_feedback(self, enhanced_prompt: str, original_image_path: str,
+                             keep_original_style: bool = True, 
+                             generation_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Generate a new image based on feedback from a previous generation"""
+        try:
+            # Extract style and other params from the original generation if available
+            style = "dalle"
+            size = "1024x1024"
+            
+            if generation_params:
+                style = generation_params.get("style", "dalle")
+                post_format = generation_params.get("post_format", "post")
+                
+                # Determine size based on post format
+                if post_format == "story":
+                    size = "1024x1792"
+                elif post_format == "post":
+                    size = "1024x1024"
+            
+            # Generate the new image with the enhanced prompt
+            result = self.generate_image(
+                prompt=enhanced_prompt,
+                style=style if keep_original_style else "dalle",
+                size=size,
+                use_feedback_optimization=True
+            )
+            
+            if result["success"]:
+                # Add reference to original image
+                result["original_image_path"] = original_image_path
+                result["regenerated"] = True
+                result["feedback_applied"] = True
+                
+                # If this was an affirmation image, preserve that metadata
+                if generation_params:
+                    result["text"] = generation_params.get("text", "")
+                    result["period"] = generation_params.get("period", "")
+                    result["tags"] = generation_params.get("tags", [])
+                    result["period_color"] = self._get_period_color(generation_params.get("period", ""))
+                    result["image_style"] = style
+                    result["post_format"] = generation_params.get("post_format", "post")
+                    result["background_image"] = {
+                        "id": "dalle_regenerated",
+                        "photographer": "DALL-E AI (Regenerated)",
+                        "pexels_url": ""
+                    }
+                    result["dimensions"] = self._get_dimensions(size, generation_params.get("post_format", "post"))
+            
+            return result
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Fehler beim Regenerieren des Bildes"
+            }
+    
     def optimize_prompt_with_feedback(self, original_prompt: str, feedback: str, rating: int, 
                                     style: str = "dalle", period: str = "", 
                                     existing_generation_params: Optional[Dict] = None) -> str:
