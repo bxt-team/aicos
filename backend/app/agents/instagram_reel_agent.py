@@ -7,15 +7,23 @@ import requests
 from app.agents.crews.base_crew import BaseCrew
 from crewai import Agent, Task, Crew
 from crewai.llm import LLM
+from app.services.klingai_client import KlingAIClient
 
 class InstagramReelAgent(BaseCrew):
     """Agent for generating Instagram Reels using Runway AI and ChatGPT Sora"""
     
-    def __init__(self, openai_api_key: str, runway_api_key: str = None):
+    def __init__(self, openai_api_key: str, runway_api_key: str = None, klingai_api_key: str = None, klingai_provider: str = "piapi"):
         super().__init__()
         self.openai_api_key = openai_api_key
         self.runway_api_key = runway_api_key
+        self.klingai_api_key = klingai_api_key
+        self.klingai_provider = klingai_provider
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
+        
+        # Initialize KlingAI client if API key is provided
+        self.klingai_client = None
+        if klingai_api_key:
+            self.klingai_client = KlingAIClient(klingai_api_key, klingai_provider)
         
         # Storage for generated reels
         self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/instagram_reels_storage.json")
@@ -97,6 +105,16 @@ class InstagramReelAgent(BaseCrew):
                 "supports_loops": True,
                 "formats": ["mp4"],
                 "quality": "high"
+            },
+            "klingai": {
+                "name": "KlingAI",
+                "description": "High-quality cinematic video generation up to 10 seconds",
+                "max_duration": 10,
+                "supports_loops": True,
+                "formats": ["mp4"],
+                "quality": "high",
+                "features": ["text-to-video", "image-to-video", "camera-control"],
+                "models": ["kling-2.1", "kling-2.0", "kling-1.6", "kling-1.5", "kling-1.0"]
             }
         }
     
@@ -502,6 +520,279 @@ class InstagramReelAgent(BaseCrew):
                 "success": False,
                 "error": str(e),
                 "message": "Fehler beim Erstellen des Sora Reels"
+            }
+
+    def generate_klingai_prompt(self, script: Dict[str, Any], period: str, 
+                              image_paths: List[str] = None, model: str = "kling-2.1") -> Dict[str, Any]:
+        """Generate a KlingAI prompt for high-quality video generation"""
+        try:
+            period_theme = self.period_themes.get(period, {})
+            
+            # Create optimized prompt for KlingAI
+            klingai_prompt = f"""
+            Create a stunning Instagram Reel for the {period} period of the 7 Cycles method.
+            
+            Visual Style: {period_theme.get('style', 'cinematic, professional')}
+            Mood: {period_theme.get('mood', 'inspiring')}
+            Color Theme: {period_theme.get('color', '#808080')}
+            
+            Content: {script.get('scenes', [{}])[0].get('visual_description', 'Inspiring visual content')}
+            
+            Requirements:
+            - Cinematic quality with professional cinematography
+            - Vertical 9:16 aspect ratio for Instagram Reels
+            - High visual impact from the first frame
+            - Smooth, fluid camera movements
+            - {period_theme.get('color', '#808080')} color dominance
+            - Instagram-optimized lighting and contrast
+            - Natural, realistic motion
+            - Eye-catching transitions
+            
+            Camera Movement:
+            - Subtle but engaging camera work
+            - Professional dolly, pan, or zoom movements
+            - Maintain focus on the main subject
+            - Create depth and dimension
+            
+            Visual Effects:
+            - High-quality rendering with no artifacts
+            - Realistic lighting and shadows
+            - Subtle particle effects if appropriate
+            - Professional color grading
+            
+            Style: Cinematic, Instagram-worthy, professional quality
+            """
+            
+            # Add specific camera control instructions based on period
+            camera_controls = {
+                "Image": {"type": "zoom", "direction": "in", "speed": "slow"},
+                "Veränderung": {"type": "pan", "direction": "horizontal", "speed": "smooth"},
+                "Energie": {"type": "orbit", "direction": "clockwise", "speed": "dynamic"},
+                "Kreativität": {"type": "dolly", "direction": "forward", "speed": "creative"},
+                "Erfolg": {"type": "crane", "direction": "up", "speed": "elegant"},
+                "Entspannung": {"type": "static", "direction": "none", "speed": "peaceful"},
+                "Umsicht": {"type": "pull", "direction": "back", "speed": "contemplative"}
+            }
+            
+            return {
+                "success": True,
+                "prompt": klingai_prompt.strip(),
+                "settings": {
+                    "duration": 10,  # KlingAI supports up to 10 seconds
+                    "aspect_ratio": "9:16",
+                    "quality": "high",
+                    "model": model,
+                    "style": period_theme.get('style', 'cinematic'),
+                    "mood": period_theme.get('mood', 'inspiring'),
+                    "color_theme": period_theme.get('color', '#808080'),
+                    "camera_control": camera_controls.get(period, {"type": "static"})
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Fehler beim Erstellen des KlingAI Prompts"
+            }
+    
+    def _generate_video_with_klingai_api(self, prompt: str, settings: Dict[str, Any], 
+                                       image_paths: List[str] = None) -> Dict[str, Any]:
+        """Generate video using KlingAI API"""
+        try:
+            if not self.klingai_client:
+                return {
+                    "success": False,
+                    "error": "KlingAI client not initialized",
+                    "message": "KlingAI API key not provided"
+                }
+            
+            # Determine if we should use text-to-video or image-to-video
+            if image_paths and len(image_paths) > 0:
+                # Use the first image for image-to-video generation
+                result = self.klingai_client.generate_image_to_video(
+                    image_path=image_paths[0],
+                    prompt=prompt,
+                    duration=settings.get("duration", 10),
+                    aspect_ratio=settings.get("aspect_ratio", "9:16"),
+                    model=settings.get("model", "kling-2.1"),
+                    cfg_scale=0.5
+                )
+            else:
+                # Use text-to-video generation
+                result = self.klingai_client.generate_text_to_video(
+                    prompt=prompt,
+                    duration=settings.get("duration", 10),
+                    aspect_ratio=settings.get("aspect_ratio", "9:16"),
+                    model=settings.get("model", "kling-2.1"),
+                    negative_prompt="low quality, blurry, distorted, watermark",
+                    cfg_scale=0.5,
+                    camera_control=settings.get("camera_control")
+                )
+            
+            if not result.get("success"):
+                return result
+            
+            # Wait for video generation to complete
+            task_id = result.get("task_id")
+            if not task_id:
+                return {
+                    "success": False,
+                    "error": "No task ID returned from KlingAI",
+                    "message": "Fehler bei der KlingAI Anfrage"
+                }
+            
+            # Poll for completion (max 5 minutes)
+            completion_result = self.klingai_client.wait_for_completion(
+                task_id, 
+                timeout=300,
+                poll_interval=5
+            )
+            
+            if not completion_result.get("success"):
+                return completion_result
+            
+            # Download the generated video
+            video_url = completion_result.get("video_url")
+            if video_url:
+                video_filename = f"klingai_{settings.get('model', 'kling-2.1').replace('.', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+                video_path = os.path.join(self.output_dir, video_filename)
+                
+                # Download video
+                video_response = requests.get(video_url)
+                with open(video_path, 'wb') as f:
+                    f.write(video_response.content)
+                
+                return {
+                    "success": True,
+                    "file_path": video_path,
+                    "file_url": f"/static/reels/{video_filename}",
+                    "thumbnail_url": completion_result.get("thumbnail_url"),
+                    "provider": "klingai",
+                    "model": settings.get("model", "kling-2.1"),
+                    "duration": settings.get("duration", 10)
+                }
+            
+            # Handle case where video data is returned as base64
+            video_data = completion_result.get("video_data")
+            if video_data:
+                import base64
+                video_filename = f"klingai_{settings.get('model', 'kling-2.1').replace('.', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+                video_path = os.path.join(self.output_dir, video_filename)
+                
+                # Decode and save video
+                video_bytes = base64.b64decode(video_data)
+                with open(video_path, 'wb') as f:
+                    f.write(video_bytes)
+                
+                return {
+                    "success": True,
+                    "file_path": video_path,
+                    "file_url": f"/static/reels/{video_filename}",
+                    "thumbnail_url": completion_result.get("thumbnail_url"),
+                    "provider": "klingai",
+                    "model": settings.get("model", "kling-2.1"),
+                    "duration": settings.get("duration", 10)
+                }
+            
+            return {
+                "success": False,
+                "error": "No video URL or data in response",
+                "message": "Fehler beim Abrufen des generierten Videos"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Fehler bei der KlingAI Video-Generierung"
+            }
+    
+    def generate_reel_with_klingai(self, instagram_text: str, period: str, 
+                                 additional_input: str = "", image_paths: List[str] = None,
+                                 image_descriptions: List[str] = None, model: str = "kling-2.1",
+                                 force_new: bool = False) -> Dict[str, Any]:
+        """Generate Instagram Reel using KlingAI"""
+        try:
+            # Check if reel already exists
+            reel_hash = self._generate_reel_hash(instagram_text, period, f"{additional_input}_klingai_{model}")
+            
+            if not force_new and reel_hash in self.reels_storage.get("by_hash", {}):
+                existing_reel = self.reels_storage["by_hash"][reel_hash]
+                if os.path.exists(existing_reel.get("file_path", "")):
+                    return {
+                        "success": True,
+                        "reel": existing_reel,
+                        "source": "existing",
+                        "message": "Bestehender KlingAI Reel abgerufen"
+                    }
+            
+            # Generate video script
+            script_result = self.generate_video_script(
+                instagram_text, period, additional_input, image_descriptions
+            )
+            
+            if not script_result["success"]:
+                return script_result
+            
+            script = script_result["script"]
+            
+            # Generate KlingAI prompt
+            prompt_result = self.generate_klingai_prompt(script, period, image_paths, model)
+            
+            if not prompt_result["success"]:
+                return prompt_result
+            
+            # Generate video with KlingAI
+            video_result = self._generate_video_with_klingai_api(
+                prompt_result["prompt"],
+                prompt_result["settings"],
+                image_paths
+            )
+            
+            if not video_result["success"]:
+                return video_result
+            
+            # Store reel information
+            reel_info = {
+                "id": reel_hash,
+                "instagram_text": instagram_text,
+                "period": period,
+                "additional_input": additional_input,
+                "period_color": self.period_themes.get(period, {}).get('color', '#808080'),
+                "script": script,
+                "klingai_prompt": prompt_result["prompt"],
+                "klingai_settings": prompt_result["settings"],
+                "klingai_model": model,
+                "image_paths": image_paths or [],
+                "image_descriptions": image_descriptions or [],
+                "file_path": video_result["file_path"],
+                "file_url": video_result["file_url"],
+                "thumbnail_url": video_result.get("thumbnail_url"),
+                "created_at": datetime.now().isoformat(),
+                "duration": "10",
+                "provider": "klingai",
+                "model": video_result.get("model", model),
+                "hashtags": script.get("hashtags", [])
+            }
+            
+            # Save to storage
+            self.reels_storage["reels"].append(reel_info)
+            self.reels_storage["by_hash"][reel_hash] = reel_info
+            self._save_reels_storage()
+            
+            return {
+                "success": True,
+                "reel": reel_info,
+                "source": "generated",
+                "message": f"KlingAI Reel für {period} mit Model {model} erstellt"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Fehler beim Erstellen des KlingAI Reels"
             }
 
     def generate_reel_with_runway(self, instagram_text: str, period: str, 

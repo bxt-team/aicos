@@ -107,7 +107,12 @@ def initialize_agents():
         logger.info("[VIDEO_GENERATION_AGENT] Initialized successfully")
         
         logger.info("[INSTAGRAM_REEL_AGENT] Initializing...")
-        instagram_reel_agent = InstagramReelAgent(settings.OPENAI_API_KEY, settings.RUNWAY_API_KEY)
+        instagram_reel_agent = InstagramReelAgent(
+            settings.OPENAI_API_KEY, 
+            settings.RUNWAY_API_KEY,
+            settings.KLINGAI_API_KEY,
+            settings.KLINGAI_PROVIDER
+        )
         logger.info("[INSTAGRAM_REEL_AGENT] Initialized successfully")
         
         # Initialize Voice Over agent

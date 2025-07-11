@@ -68,8 +68,9 @@ class InstagramReelRequest(BaseModel):
     image_paths: Optional[List[str]] = None
     image_descriptions: Optional[List[str]] = None
     force_new: Optional[bool] = False
-    provider: Optional[str] = "runway"  # "runway" or "sora"
+    provider: Optional[str] = "runway"  # "runway", "sora", or "klingai"
     loop_style: Optional[str] = "seamless"  # For Sora videos
+    klingai_model: Optional[str] = "kling-2.1"  # For KlingAI videos
 
 # Voice endpoints
 @router.post("/generate-voice-script")
@@ -295,6 +296,16 @@ async def generate_instagram_reel(request: InstagramReelRequest):
             request.loop_style,
             request.force_new
         )
+    elif request.provider == "klingai":
+        result = instagram_reel_agent.generate_reel_with_klingai(
+            request.instagram_text,
+            request.period,
+            request.additional_input,
+            request.image_paths,
+            request.image_descriptions,
+            request.klingai_model,
+            request.force_new
+        )
     else:  # Default to runway
         result = instagram_reel_agent.generate_reel_with_runway(
             request.instagram_text,
@@ -328,6 +339,16 @@ async def get_video_providers():
                 "supports_loops": True,
                 "formats": ["mp4", "webm"],
                 "quality": "4K"
+            },
+            "klingai": {
+                "name": "KlingAI",
+                "description": "Cinematic quality video generation up to 10 seconds",
+                "max_duration": 10,
+                "supports_loops": True,
+                "formats": ["mp4"],
+                "quality": "1080p",
+                "models": ["kling-2.1", "kling-2.0", "kling-1.6", "kling-1.5", "kling-1.0"],
+                "features": ["text-to-video", "image-to-video", "camera-control"]
             }
         }
     }
@@ -372,6 +393,41 @@ async def get_loop_styles():
                 "name": "Flow Loop",
                 "description": "Natürliche, fließende Bewegung",
                 "best_for": "Wasser, Wind, organische Bewegungen"
+            }
+        }
+    }
+
+@router.get("/klingai-models")
+async def get_klingai_models():
+    """Get available KlingAI model versions"""
+    return {
+        "success": True,
+        "models": {
+            "kling-2.1": {
+                "name": "Kling 2.1",
+                "description": "Latest model with best quality and motion understanding",
+                "features": ["Enhanced motion", "Better prompts", "Improved camera control"],
+                "recommended": True
+            },
+            "kling-2.0": {
+                "name": "Kling 2.0", 
+                "description": "Stable model with excellent quality",
+                "features": ["High quality", "Stable generation", "Good motion"]
+            },
+            "kling-1.6": {
+                "name": "Kling 1.6",
+                "description": "Previous generation with good performance",
+                "features": ["Reliable", "Fast generation", "Good quality"]
+            },
+            "kling-1.5": {
+                "name": "Kling 1.5",
+                "description": "Earlier version with basic features",
+                "features": ["Basic generation", "Standard quality"]
+            },
+            "kling-1.0": {
+                "name": "Kling 1.0",
+                "description": "Original model",
+                "features": ["Original quality", "Basic features"]
             }
         }
     }

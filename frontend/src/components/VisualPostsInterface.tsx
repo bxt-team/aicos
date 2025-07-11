@@ -84,6 +84,9 @@ const VisualPostsInterface: React.FC = () => {
   
   // Prevent duplicate popup
   const [hasShownDataLoadedPopup, setHasShownDataLoadedPopup] = useState<boolean>(false);
+  
+  // Force refresh state
+  const [refreshKey, setRefreshKey] = useState<number>(0);
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -110,9 +113,13 @@ const VisualPostsInterface: React.FC = () => {
         ? `${API_BASE_URL}/visual-posts?period=${periodFilter}`
         : `${API_BASE_URL}/visual-posts`;
       
+      console.log('Loading posts from:', url);
       const response = await axios.get(url);
+      console.log('Posts response:', response.data);
+      
       if (response.data.success) {
         setPosts(response.data.posts || []);
+        console.log('Set posts:', response.data.posts?.length || 0, 'posts');
       }
     } catch (error) {
       console.error('Error loading visual posts:', error);
@@ -194,6 +201,14 @@ const VisualPostsInterface: React.FC = () => {
     loadInstagramPosts();
     handleUrlParameters();
   }, [loadPosts, loadAffirmations, loadInstagramPosts, handleUrlParameters]);
+  
+  // Add effect to reload posts when refresh key changes
+  useEffect(() => {
+    if (refreshKey > 0) {
+      console.log('Refresh key changed, reloading posts...');
+      loadPosts(filterPeriod || undefined);
+    }
+  }, [refreshKey, filterPeriod, loadPosts]);
 
 
   const handleSearchImages = async () => {
@@ -337,7 +352,16 @@ const VisualPostsInterface: React.FC = () => {
       }
 
       if (response && response.data.success) {
+        console.log('Post created successfully, reloading posts...');
+        
+        // Small delay to ensure file is saved
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Force refresh by updating key
+        setRefreshKey(prev => prev + 1);
+        
         await loadPosts(filterPeriod || undefined);
+        console.log('Posts reloaded after creation');
         
         // Reset form
         setSelectedAffirmation('');
@@ -760,9 +784,9 @@ const VisualPostsInterface: React.FC = () => {
             <p>Erstelle deinen ersten visuellen Post oben!</p>
           </div>
         ) : (
-          <div className="posts-grid">
+          <div className="posts-grid" key={refreshKey}>
             {posts.map((post, index) => (
-              <div key={`${post.id}-${index}`} className="visual-post-card">
+              <div key={`${post.id}-${index}-${refreshKey}`} className="visual-post-card">
                 <div className="post-image">
                   <img 
                     src={`${API_BASE_URL}${post.file_url}`} 

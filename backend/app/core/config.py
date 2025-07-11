@@ -38,6 +38,8 @@ class Settings:
     INSTAGRAM_BUSINESS_ACCOUNT_ID: Optional[str] = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID")
     RUNWAY_API_KEY: Optional[str] = os.getenv("RUNWAY_API_KEY")
     ELEVENLABS_API_KEY: Optional[str] = os.getenv("ELEVENLABS_API_KEY")
+    KLINGAI_API_KEY: Optional[str] = os.getenv("KLINGAI_API_KEY")
+    KLINGAI_PROVIDER: str = os.getenv("KLINGAI_PROVIDER", "piapi")  # piapi, appypie, or segmind
     
     # Paths
     ADB_PATH: str = os.getenv("ADB_PATH", "adb")

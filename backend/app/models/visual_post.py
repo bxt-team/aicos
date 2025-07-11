@@ -1,6 +1,14 @@
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
 
+class VisualPostRequest(BaseModel):
+    text: str
+    period: str
+    tags: Optional[List[str]] = []
+    image_style: str = "minimal"
+    post_format: str = "post"
+    force_new: bool = True
+
 class DALLEVisualPostRequest(BaseModel):
     text: str
     period: str

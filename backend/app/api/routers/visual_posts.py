@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from app.models.visual_post import (
+    VisualPostRequest,
     DALLEVisualPostRequest, 
     ImageFeedbackRequest, 
     RegenerateWithFeedbackRequest,
@@ -60,14 +61,7 @@ async def search_images(tags: list[str], period: str, count: int = 10):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/create-visual-post")
-async def create_visual_post(
-    text: str,
-    period: str,
-    tags: Optional[list[str]] = None,
-    image_style: str = "minimal",
-    post_format: str = "post",
-    force_new: bool = True
-):
+async def create_visual_post(request: VisualPostRequest):
     image_generator = get_agent('image_generator')
     if not image_generator:
         raise HTTPException(status_code=503, detail="Image Generator not initialized")
@@ -75,11 +69,11 @@ async def create_visual_post(
     try:
         # Generate visual post
         result = image_generator.create_affirmation_image(
-            text=text,
-            period=period,
-            tags=tags or [],
-            style=image_style,
-            post_format=post_format
+            text=request.text,
+            period=request.period,
+            tags=request.tags or [],
+            style=request.image_style,
+            post_format=request.post_format
         )
         
         # Check if generation was successful
@@ -91,11 +85,11 @@ async def create_visual_post(
         metadata_path = result['file_path'].replace('.jpg', '_metadata.json').replace('.png', '_metadata.json')
         with open(metadata_path, 'w') as f:
             json.dump({
-                "text": text,
-                "period": period,
-                "tags": tags or [],
-                "image_style": image_style,
-                "post_format": post_format,
+                "text": request.text,
+                "period": request.period,
+                "tags": request.tags or [],
+                "image_style": request.image_style,
+                "post_format": request.post_format,
                 "created_at": datetime.now().isoformat(),
                 "background_image": result.get('background_image', {}),
                 "dimensions": result.get('dimensions', {}),
