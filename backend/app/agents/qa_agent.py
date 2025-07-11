@@ -145,17 +145,20 @@ class QAAgent(BaseCrew):
         """Check if the Q&A agent is properly initialized"""
         try:
             is_ready = self.vector_store is not None
-            documents_loaded = 0
+            documents_loaded = False
             index_size = 0
             
             if self.vector_store:
-                # Get vector store statistics
+                # Get vector store statistics without executing searches
                 try:
-                    # FAISS doesn't have a direct way to get document count
-                    # We'll do a dummy search to verify it's working
-                    test_search = self.vector_store.similarity_search("test", k=1)
-                    documents_loaded = len(test_search) > 0
-                    index_size = self.vector_store.index.ntotal if hasattr(self.vector_store, 'index') else 0
+                    # Check if FAISS index exists and has vectors
+                    if hasattr(self.vector_store, 'index') and hasattr(self.vector_store.index, 'ntotal'):
+                        index_size = self.vector_store.index.ntotal
+                        documents_loaded = index_size > 0
+                    else:
+                        # Fallback: check if docstore has documents
+                        if hasattr(self.vector_store, 'docstore') and hasattr(self.vector_store.docstore, '_dict'):
+                            documents_loaded = len(self.vector_store.docstore._dict) > 0
                 except:
                     documents_loaded = False
                     index_size = 0

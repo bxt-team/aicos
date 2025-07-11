@@ -13,3 +13,5 @@ langchain-community>=0.3.27
 langchain-openai>=0.2.14
 faiss-cpu>=1.11.0
 PyYAML>=6.0
+textblob>=0.18.0
+beautifulsoup4>=4.12.0

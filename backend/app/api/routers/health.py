@@ -48,12 +48,14 @@ async def qa_health():
         return {"status": "error", "message": "QA Agent not initialized"}
     
     try:
-        # Test the QA agent with a simple query
-        test_result = qa_agent.answer_question("What is 7 cycles?")
+        # Check if agent is initialized without executing it
+        has_knowledge = hasattr(qa_agent, 'vector_store') and qa_agent.vector_store is not None
+        has_documents = hasattr(qa_agent, 'documents') and qa_agent.documents is not None
+        
         return {
             "status": "healthy",
-            "test_response": test_result[:100] + "..." if len(test_result) > 100 else test_result,
-            "knowledge_loaded": True
+            "knowledge_loaded": has_knowledge and has_documents,
+            "message": "QA Agent is initialized and ready"
         }
     except Exception as e:
         return {

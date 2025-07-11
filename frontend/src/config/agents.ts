@@ -178,6 +178,18 @@ export const agentConfigs: AgentConfig[] = [
     apiHealthCheck: '/api/available-voices',
     features: ['Voice-Over Generation', 'ElevenLabs Integration', 'Auto-Untertitelung', 'Multi-Language Support', 'Video Processing'],
     version: '1.0'
+  },
+  {
+    id: 'mobile-analytics',
+    name: 'Mobile App Analytics',
+    route: '/mobile-analytics',
+    icon: '📊',
+    description: 'Analysiere und optimiere App Store und Play Store Listings, Meta Ads Performance und Google Analytics für mobile Apps',
+    category: 'Mobile Marketing',
+    enabled: true,
+    apiHealthCheck: '/api/mobile-analytics/app-store/health',
+    features: ['App Store ASO Analysis', 'Play Store Optimization', 'Meta Ads Performance', 'Google Analytics Mobile', 'Review Sentiment Analysis', 'Keyword Optimization'],
+    version: '1.0'
   }
 ];
 

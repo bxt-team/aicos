@@ -1,0 +1,71 @@
+analyze_listing:
+  description: |
+    Analyze the App Store listing comprehensively:
+    
+    1. Scrape all listing data including:
+       - Title, subtitle, description
+       - Keywords (if accessible)
+       - Category and subcategory
+       - Current ratings and review count
+       - Price and in-app purchases
+       
+    2. Analyze keyword effectiveness:
+       - Identify primary keywords used
+       - Check keyword density and placement
+       - Suggest missing high-value keywords
+       
+    3. Evaluate metadata quality:
+       - Title optimization (character usage, keyword placement)
+       - Subtitle effectiveness
+       - Description structure and keyword usage
+    
+    Provide a comprehensive analysis with actionable insights.
+  expected_output: "Detailed listing analysis with keyword insights and metadata evaluation"
+
+analyze_reviews:
+  description: |
+    Analyze user reviews and ratings for sentiment and common themes:
+    
+    1. Overall sentiment analysis:
+       - Positive vs negative sentiment ratio
+       - Sentiment trends over time
+       
+    2. Common themes identification:
+       - Most praised features
+       - Most complained about issues
+       - Feature requests
+       
+    3. Rating distribution analysis:
+       - Distribution across 1-5 stars
+       - Recent rating trends
+       
+    4. Competitive insights:
+       - How reviews compare to similar apps
+       - Unique selling points mentioned by users
+  expected_output: "Comprehensive review analysis with sentiment scores and theme identification"
+
+evaluate_visuals:
+  description: |
+    Evaluate the visual assets of the App Store listing:
+    
+    1. App Icon Analysis:
+       - Visual appeal and memorability
+       - Compliance with Apple guidelines
+       - Differentiation from competitors
+       
+    2. Screenshots Evaluation:
+       - Order and flow effectiveness
+       - Text overlay quality and messaging
+       - Visual consistency and branding
+       - Device type optimization
+       
+    3. App Preview Video (if present):
+       - Content quality and pacing
+       - Feature highlighting effectiveness
+       - Call-to-action clarity
+       
+    4. Overall Visual Strategy:
+       - Brand consistency
+       - Target audience appeal
+       - Conversion optimization potential
+  expected_output: "Visual assets assessment with specific improvement recommendations"

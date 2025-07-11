@@ -15,6 +15,10 @@ from app.agents.video_generation_agent import VideoGenerationAgent
 from app.agents.instagram_reel_agent import InstagramReelAgent
 from app.agents.android_testing_agent import AndroidTestingAgent
 from app.agents.voice_over_agent import VoiceOverAgent
+from app.agents.app_store_analyst import AppStoreAnalystAgent
+from app.agents.play_store_analyst import PlayStoreAnalystAgent
+from app.agents.meta_ads_analyst import MetaAdsAnalystAgent
+from app.agents.google_analytics_expert import GoogleAnalyticsExpertAgent
 from .config import settings
 import logging
 
@@ -35,6 +39,10 @@ video_generation_agent: Optional[VideoGenerationAgent] = None
 instagram_reel_agent: Optional[InstagramReelAgent] = None
 android_testing_agent: Optional[AndroidTestingAgent] = None
 voice_over_agent: Optional[VoiceOverAgent] = None
+app_store_analyst_agent: Optional[AppStoreAnalystAgent] = None
+play_store_analyst_agent: Optional[PlayStoreAnalystAgent] = None
+meta_ads_analyst_agent: Optional[MetaAdsAnalystAgent] = None
+google_analytics_expert_agent: Optional[GoogleAnalyticsExpertAgent] = None
 
 # Storage
 content_storage = {}
@@ -45,6 +53,7 @@ def initialize_agents():
     global instagram_ai_prompt_agent, instagram_poster_agent, instagram_analyzer_agent
     global content_wrapper, workflow_agent, post_composition_agent
     global video_generation_agent, instagram_reel_agent, android_testing_agent, voice_over_agent
+    global app_store_analyst_agent, play_store_analyst_agent, meta_ads_analyst_agent, google_analytics_expert_agent
     
     logger.info(f"[INIT] OPENAI_API_KEY present: {bool(settings.OPENAI_API_KEY)}")
     logger.info(f"[INIT] OPENAI_API_KEY length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
@@ -128,6 +137,42 @@ def initialize_agents():
         except Exception as e:
             logger.error(f"[ANDROID_TESTING_AGENT] Failed to initialize: {str(e)}")
             android_testing_agent = None
+        
+        # Initialize App Store Analyst agent
+        logger.info("[APP_STORE_ANALYST] Initializing...")
+        try:
+            app_store_analyst_agent = AppStoreAnalystAgent()
+            logger.info("[APP_STORE_ANALYST] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[APP_STORE_ANALYST] Failed to initialize: {str(e)}")
+            app_store_analyst_agent = None
+        
+        # Initialize Play Store Analyst agent
+        logger.info("[PLAY_STORE_ANALYST] Initializing...")
+        try:
+            play_store_analyst_agent = PlayStoreAnalystAgent()
+            logger.info("[PLAY_STORE_ANALYST] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[PLAY_STORE_ANALYST] Failed to initialize: {str(e)}")
+            play_store_analyst_agent = None
+        
+        # Initialize Meta Ads Analyst agent
+        logger.info("[META_ADS_ANALYST] Initializing...")
+        try:
+            meta_ads_analyst_agent = MetaAdsAnalystAgent()
+            logger.info("[META_ADS_ANALYST] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[META_ADS_ANALYST] Failed to initialize: {str(e)}")
+            meta_ads_analyst_agent = None
+        
+        # Initialize Google Analytics Expert agent
+        logger.info("[GOOGLE_ANALYTICS_EXPERT] Initializing...")
+        try:
+            google_analytics_expert_agent = GoogleAnalyticsExpertAgent()
+            logger.info("[GOOGLE_ANALYTICS_EXPERT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[GOOGLE_ANALYTICS_EXPERT] Failed to initialize: {str(e)}")
+            google_analytics_expert_agent = None
     else:
         logger.warning("OpenAI API key not found. Agents not initialized.")
 
@@ -157,5 +202,9 @@ def get_agent(agent_name: str):
         'instagram_reel_agent': instagram_reel_agent,
         'android_testing_agent': android_testing_agent,
         'voice_over_agent': voice_over_agent,
+        'app_store_analyst': app_store_analyst_agent,
+        'play_store_analyst': play_store_analyst_agent,
+        'meta_ads_analyst': meta_ads_analyst_agent,
+        'google_analytics_expert': google_analytics_expert_agent,
     }
     return agents.get(agent_name)
