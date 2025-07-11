@@ -19,6 +19,12 @@ from app.agents.app_store_analyst import AppStoreAnalystAgent
 from app.agents.play_store_analyst import PlayStoreAnalystAgent
 from app.agents.meta_ads_analyst import MetaAdsAnalystAgent
 from app.agents.google_analytics_expert import GoogleAnalyticsExpertAgent
+from app.agents.threads_analysis_agent import ThreadsAnalysisAgent
+from app.agents.content_strategy_agent import ContentStrategyAgent
+from app.agents.post_generator_agent import PostGeneratorAgent
+from app.agents.approval_agent import ApprovalAgent
+from app.agents.scheduler_agent import SchedulerAgent
+from app.services.supabase_client import SupabaseClient
 from .config import settings
 import logging
 
@@ -43,6 +49,12 @@ app_store_analyst_agent: Optional[AppStoreAnalystAgent] = None
 play_store_analyst_agent: Optional[PlayStoreAnalystAgent] = None
 meta_ads_analyst_agent: Optional[MetaAdsAnalystAgent] = None
 google_analytics_expert_agent: Optional[GoogleAnalyticsExpertAgent] = None
+threads_analysis_agent: Optional[ThreadsAnalysisAgent] = None
+content_strategy_agent: Optional[ContentStrategyAgent] = None
+post_generator_agent: Optional[PostGeneratorAgent] = None
+approval_agent: Optional[ApprovalAgent] = None
+scheduler_agent: Optional[SchedulerAgent] = None
+supabase_client: Optional[SupabaseClient] = None
 
 # Storage
 content_storage = {}
@@ -54,6 +66,7 @@ def initialize_agents():
     global content_wrapper, workflow_agent, post_composition_agent
     global video_generation_agent, instagram_reel_agent, android_testing_agent, voice_over_agent
     global app_store_analyst_agent, play_store_analyst_agent, meta_ads_analyst_agent, google_analytics_expert_agent
+    global threads_analysis_agent, content_strategy_agent, post_generator_agent, approval_agent, scheduler_agent, supabase_client
     
     logger.info(f"[INIT] OPENAI_API_KEY present: {bool(settings.OPENAI_API_KEY)}")
     logger.info(f"[INIT] OPENAI_API_KEY length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
@@ -173,6 +186,59 @@ def initialize_agents():
         except Exception as e:
             logger.error(f"[GOOGLE_ANALYTICS_EXPERT] Failed to initialize: {str(e)}")
             google_analytics_expert_agent = None
+        
+        # Initialize Supabase client
+        logger.info("[SUPABASE_CLIENT] Initializing...")
+        try:
+            supabase_client = SupabaseClient()
+            # Add mock activities if running without real Supabase
+            if not supabase_client.client:
+                supabase_client.add_mock_activities()
+            logger.info("[SUPABASE_CLIENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[SUPABASE_CLIENT] Failed to initialize: {str(e)}")
+            supabase_client = None
+        
+        # Initialize Threads agents
+        logger.info("[THREADS_ANALYSIS_AGENT] Initializing...")
+        try:
+            threads_analysis_agent = ThreadsAnalysisAgent(settings.OPENAI_API_KEY)
+            logger.info("[THREADS_ANALYSIS_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[THREADS_ANALYSIS_AGENT] Failed to initialize: {str(e)}")
+            threads_analysis_agent = None
+        
+        logger.info("[CONTENT_STRATEGY_AGENT] Initializing...")
+        try:
+            content_strategy_agent = ContentStrategyAgent(settings.OPENAI_API_KEY, supabase_client)
+            logger.info("[CONTENT_STRATEGY_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[CONTENT_STRATEGY_AGENT] Failed to initialize: {str(e)}")
+            content_strategy_agent = None
+        
+        logger.info("[POST_GENERATOR_AGENT] Initializing...")
+        try:
+            post_generator_agent = PostGeneratorAgent(settings.OPENAI_API_KEY, supabase_client)
+            logger.info("[POST_GENERATOR_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[POST_GENERATOR_AGENT] Failed to initialize: {str(e)}")
+            post_generator_agent = None
+        
+        logger.info("[APPROVAL_AGENT] Initializing...")
+        try:
+            approval_agent = ApprovalAgent(settings.OPENAI_API_KEY, supabase_client)
+            logger.info("[APPROVAL_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[APPROVAL_AGENT] Failed to initialize: {str(e)}")
+            approval_agent = None
+        
+        logger.info("[SCHEDULER_AGENT] Initializing...")
+        try:
+            scheduler_agent = SchedulerAgent(settings.OPENAI_API_KEY, supabase_client)
+            logger.info("[SCHEDULER_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[SCHEDULER_AGENT] Failed to initialize: {str(e)}")
+            scheduler_agent = None
     else:
         logger.warning("OpenAI API key not found. Agents not initialized.")
 
@@ -206,5 +272,47 @@ def get_agent(agent_name: str):
         'play_store_analyst': play_store_analyst_agent,
         'meta_ads_analyst': meta_ads_analyst_agent,
         'google_analytics_expert': google_analytics_expert_agent,
+        'threads_analysis': threads_analysis_agent,
+        'content_strategy': content_strategy_agent,
+        'post_generator': post_generator_agent,
+        'approval': approval_agent,
+        'scheduler': scheduler_agent,
     }
     return agents.get(agent_name)
+
+# Dependency getters for Threads agents
+def get_threads_analysis_agent():
+    """Get ThreadsAnalysisAgent instance"""
+    if not threads_analysis_agent:
+        raise RuntimeError("ThreadsAnalysisAgent not initialized")
+    return threads_analysis_agent
+
+def get_content_strategy_agent():
+    """Get ContentStrategyAgent instance"""
+    if not content_strategy_agent:
+        raise RuntimeError("ContentStrategyAgent not initialized")
+    return content_strategy_agent
+
+def get_post_generator_agent():
+    """Get PostGeneratorAgent instance"""
+    if not post_generator_agent:
+        raise RuntimeError("PostGeneratorAgent not initialized")
+    return post_generator_agent
+
+def get_approval_agent():
+    """Get ApprovalAgent instance"""
+    if not approval_agent:
+        raise RuntimeError("ApprovalAgent not initialized")
+    return approval_agent
+
+def get_scheduler_agent():
+    """Get SchedulerAgent instance"""
+    if not scheduler_agent:
+        raise RuntimeError("SchedulerAgent not initialized")
+    return scheduler_agent
+
+def get_supabase_client():
+    """Get SupabaseClient instance"""
+    if not supabase_client:
+        raise RuntimeError("SupabaseClient not initialized")
+    return supabase_client

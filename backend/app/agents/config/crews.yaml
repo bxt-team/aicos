@@ -21,3 +21,63 @@ affirmations_crew:
   cache: true
   max_rpm: 10
   share_crew: false
+
+threads_analysis_crew:
+  agents:
+    - threads_analyst
+  process: sequential
+  verbose: true
+  memory: false
+  embedder:
+    provider: openai
+  cache: true
+  max_rpm: 10
+  share_crew: false
+
+threads_strategy_crew:
+  agents:
+    - threads_strategy
+  process: sequential
+  verbose: true
+  memory: false
+  embedder:
+    provider: openai
+  cache: true
+  max_rpm: 10
+  share_crew: false
+
+threads_generation_crew:
+  agents:
+    - threads_generator
+  process: sequential
+  verbose: true
+  memory: false
+  embedder:
+    provider: openai
+  cache: true
+  max_rpm: 10
+  share_crew: false
+
+threads_approval_crew:
+  agents:
+    - threads_approval
+  process: sequential
+  verbose: true
+  memory: false
+  embedder:
+    provider: openai
+  cache: true
+  max_rpm: 10
+  share_crew: false
+
+threads_scheduling_crew:
+  agents:
+    - threads_scheduler
+  process: sequential
+  verbose: true
+  memory: false
+  embedder:
+    provider: openai
+  cache: true
+  max_rpm: 10
+  share_crew: false

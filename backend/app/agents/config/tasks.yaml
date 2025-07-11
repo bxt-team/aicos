@@ -355,3 +355,127 @@ android_accessibility_audit_task:
     - Best-Practice-Beispiele
   expected_output: "Umfassender Accessibility-Bericht mit Score, Barrieren und Verbesserungsvorschlägen"
   agent: android_testing_agent
+
+threads_profile_analysis:
+  description: |
+    Analyze the following Threads profiles to extract content patterns and strategies:
+    
+    Profiles to analyze: {handles}
+    
+    Instructions:
+    - Analyze posting frequency and timing patterns
+    - Identify content themes and formats
+    - Extract hashtag strategies
+    - Understand engagement tactics
+    - Recognize visual and textual patterns
+    - Note community building approaches
+    
+    Use the analyze_threads_profile tool for each handle and synthesize insights.
+    
+    Provide actionable recommendations for 7 Cycles content strategy.
+  expected_output: "Comprehensive analysis of Threads profiles with patterns, strategies, and recommendations"
+  agent: threads_analyst
+
+threads_strategy_creation:
+  description: |
+    Create a comprehensive Threads content strategy based on:
+    
+    Competitive Analysis: {analysis}
+    Brand Values: 7 Cycles methodology - rhythm, spirituality, energy, empowerment
+    Available Resources: Affirmations, activities catalog, knowledge base
+    
+    Instructions:
+    - Define content pillars aligned with 7 Cycles periods
+    - Create posting schedule (frequency, timing, days)
+    - Develop hashtag strategy for discovery
+    - Design engagement tactics
+    - Set growth milestones and KPIs
+    
+    The strategy should:
+    - Build authentic community
+    - Share transformative wisdom
+    - Inspire daily practice
+    - Foster meaningful engagement
+  expected_output: "Complete Threads content strategy with pillars, schedule, tactics, and KPIs"
+  agent: threads_strategy
+
+threads_post_generation:
+  description: |
+    Generate {count} Threads posts based on:
+    
+    Strategy: {strategy}
+    Current Period: {period}
+    Theme: {theme}
+    Include Affirmations: {include_affirmations}
+    Include Activities: {include_activities}
+    
+    Available Resources:
+    - Affirmations: {affirmations}
+    - Activities: {activities}
+    - Knowledge Context: {knowledge_context}
+    
+    Each post must:
+    - Start with attention-grabbing hook
+    - Deliver value in 280-500 characters
+    - Include relevant call-to-action
+    - Use 5-10 strategic hashtags
+    - Align with period energy
+    - Encourage engagement
+    
+    Vary formats: quotes, mini-lessons, activities, questions, stories
+    
+    IMPORTANT: Create posts in German unless specified otherwise!
+  expected_output: "JSON array of Threads posts with content, hashtags, period, and visual prompts"
+  agent: threads_generator
+
+threads_approval_request:
+  description: |
+    Review and prepare the following Threads posts for approval:
+    
+    Posts to review: {posts}
+    
+    For each post, evaluate:
+    - 7 Cycles philosophy alignment
+    - Message clarity and impact
+    - Engagement potential
+    - Community guidelines compliance
+    - Visual element requirements
+    - Hashtag relevance
+    
+    Prepare approval request with:
+    - Post summary
+    - Quality assessment
+    - Recommended changes (if any)
+    - Approval status recommendation
+    
+    Format for easy review and decision making.
+  expected_output: "Structured approval request with assessments and recommendations"
+  agent: threads_approval
+
+threads_scheduling:
+  description: |
+    Schedule the following approved Threads posts:
+    
+    Approved Posts: {posts}
+    Scheduling Window: {start_date} to {end_date}
+    
+    Consider:
+    - Optimal posting times for target audience
+    - Content type and urgency
+    - Period-specific timing
+    - Platform algorithm preferences
+    - Consistent posting rhythm
+    
+    Apply timing strategy:
+    - Morning (7-9 AM): Inspiration and affirmations
+    - Midday (12-1 PM): Quick tips and activities
+    - Evening (6-8 PM): Reflection and community
+    - Weekends: Deeper wisdom and practices
+    
+    Create schedule ensuring:
+    - Even distribution
+    - Peak engagement times
+    - Variety in content types
+    - No overwhelming frequency
+  expected_output: "Detailed posting schedule with dates, times, and content distribution"
+  agent: threads_scheduler
