@@ -6,7 +6,6 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
   Chip,
   CircularProgress,
   Alert,
@@ -17,6 +16,7 @@ import {
   IconButton,
   InputAdornment,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -132,7 +132,7 @@ const ThreadsAnalysis: React.FC = () => {
                 fullWidth
                 label={`Handle ${index + 1}`}
                 value={handle}
-                onChange={(e) => updateHandle(index, e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateHandle(index, e.target.value)}
                 placeholder="@username"
                 InputProps={{
                   startAdornment: (
@@ -186,7 +186,7 @@ const ThreadsAnalysis: React.FC = () => {
         <>
           <Grid container spacing={3}>
             {/* Posting Patterns */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -218,7 +218,7 @@ const ThreadsAnalysis: React.FC = () => {
             </Grid>
 
             {/* Content Strategy */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -249,7 +249,7 @@ const ThreadsAnalysis: React.FC = () => {
             </Grid>
 
             {/* Engagement Tactics */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -286,7 +286,7 @@ const ThreadsAnalysis: React.FC = () => {
             </Grid>
 
             {/* Hashtag Strategy */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -314,7 +314,7 @@ const ThreadsAnalysis: React.FC = () => {
 
           <Grid container spacing={3}>
             {/* Posting Schedule */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -345,7 +345,7 @@ const ThreadsAnalysis: React.FC = () => {
             </Grid>
 
             {/* Content Pillars */}
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
@@ -366,7 +366,7 @@ const ThreadsAnalysis: React.FC = () => {
             </Grid>
 
             {/* Engagement Strategy */}
-            <Grid item xs={12}>
+            <Grid size={12}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>

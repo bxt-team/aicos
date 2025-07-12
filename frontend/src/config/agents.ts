@@ -190,6 +190,30 @@ export const agentConfigs: AgentConfig[] = [
     apiHealthCheck: '/api/mobile-analytics/app-store/health',
     features: ['App Store ASO Analysis', 'Play Store Optimization', 'Meta Ads Performance', 'Google Analytics Mobile', 'Review Sentiment Analysis', 'Keyword Optimization'],
     version: '1.0'
+  },
+  {
+    id: 'threads',
+    name: 'Threads Manager',
+    route: '/threads',
+    icon: '🧵',
+    description: 'Manage Meta Threads content with AI-powered analysis, strategy, and scheduling',
+    category: 'Social Media Marketing',
+    enabled: true,
+    apiHealthCheck: '/api/threads/health',
+    features: ['Profile Analysis', 'Content Strategy', 'Post Generation', 'Approval Workflow', 'Smart Scheduling'],
+    version: '1.0'
+  },
+  {
+    id: 'x-twitter',
+    name: 'X (Twitter) Manager',
+    route: '/x-twitter',
+    icon: '𝕏',
+    description: 'Comprehensive X/Twitter management with viral content creation and engagement optimization',
+    category: 'Social Media Marketing',
+    enabled: true,
+    apiHealthCheck: '/api/x/health',
+    features: ['Tweet Analysis', 'Thread Creation', 'Poll Management', 'Viral Strategies', 'Algorithm Optimization'],
+    version: '1.0'
   }
 ];
 

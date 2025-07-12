@@ -194,3 +194,46 @@ class SupabaseClient:
                     "updated_at": datetime.now()
                 }
             ]
+
+
+# Convenience functions for backward compatibility
+import asyncio
+
+def get_all_activities() -> List[Dict[str, Any]]:
+    """Get all activities from the database (synchronous wrapper)."""
+    client = SupabaseClient()
+    if not client.client:
+        # Return mock data
+        client.add_mock_activities()
+        return client._mock_data["activities"]
+    
+    # Run async function in sync context
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        activities = loop.run_until_complete(client.get_activities())
+        return [activity.dict() for activity in activities]
+    finally:
+        loop.close()
+
+
+def get_activities_by_period(period: int) -> List[Dict[str, Any]]:
+    """Get activities for a specific period (synchronous wrapper)."""
+    client = SupabaseClient()
+    if not client.client:
+        # Return mock data
+        client.add_mock_activities()
+        return [a for a in client._mock_data["activities"] if a.get("period") == period]
+    
+    # Run async function in sync context
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        activities = loop.run_until_complete(client.get_activities(period=period))
+        return [activity.dict() for activity in activities]
+    finally:
+        loop.close()
+
+
+# Global instance for backward compatibility
+supabase = SupabaseClient()

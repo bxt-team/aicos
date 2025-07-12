@@ -5,7 +5,6 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
   Chip,
   CircularProgress,
   Alert,
@@ -28,6 +27,7 @@ import {
   InputLabel,
   Tooltip,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Schedule as ScheduleIcon,
   CalendarMonth as CalendarIcon,
@@ -194,7 +194,7 @@ const ThreadsSchedule: React.FC = () => {
               Schedule Configuration
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <DatePicker
                   label="Start Date"
                   value={startDate}
@@ -202,7 +202,7 @@ const ThreadsSchedule: React.FC = () => {
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <DatePicker
                   label="End Date (Optional)"
                   value={endDate}
@@ -210,13 +210,13 @@ const ThreadsSchedule: React.FC = () => {
                   slotProps={{ textField: { fullWidth: true } }}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
                   fullWidth
                   type="number"
                   label="Posts per Week"
                   value={postsPerWeek}
-                  onChange={(e) => setPostsPerWeek(parseInt(e.target.value))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPostsPerWeek(parseInt(e.target.value))}
                   inputProps={{ min: 1, max: 7 }}
                 />
               </Grid>
@@ -320,7 +320,7 @@ const ThreadsSchedule: React.FC = () => {
       {/* Schedule Summary */}
       {schedule && (
         <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -348,7 +348,7 @@ const ThreadsSchedule: React.FC = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -374,7 +374,7 @@ const ThreadsSchedule: React.FC = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>

@@ -24,6 +24,11 @@ from app.agents.content_strategy_agent import ContentStrategyAgent
 from app.agents.post_generator_agent import PostGeneratorAgent
 from app.agents.approval_agent import ApprovalAgent
 from app.agents.scheduler_agent import SchedulerAgent
+from app.agents.x_analysis_agent import XAnalysisAgent
+from app.agents.x_content_strategy_agent import XContentStrategyAgent
+from app.agents.x_post_generator_agent import XPostGeneratorAgent
+from app.agents.x_approval_agent import XApprovalAgent
+from app.agents.x_scheduler_agent import XSchedulerAgent
 from app.services.supabase_client import SupabaseClient
 from .config import settings
 import logging
@@ -54,6 +59,11 @@ content_strategy_agent: Optional[ContentStrategyAgent] = None
 post_generator_agent: Optional[PostGeneratorAgent] = None
 approval_agent: Optional[ApprovalAgent] = None
 scheduler_agent: Optional[SchedulerAgent] = None
+x_analysis_agent: Optional[XAnalysisAgent] = None
+x_content_strategy_agent: Optional[XContentStrategyAgent] = None
+x_post_generator_agent: Optional[XPostGeneratorAgent] = None
+x_approval_agent: Optional[XApprovalAgent] = None
+x_scheduler_agent: Optional[XSchedulerAgent] = None
 supabase_client: Optional[SupabaseClient] = None
 
 # Storage
@@ -66,7 +76,8 @@ def initialize_agents():
     global content_wrapper, workflow_agent, post_composition_agent
     global video_generation_agent, instagram_reel_agent, android_testing_agent, voice_over_agent
     global app_store_analyst_agent, play_store_analyst_agent, meta_ads_analyst_agent, google_analytics_expert_agent
-    global threads_analysis_agent, content_strategy_agent, post_generator_agent, approval_agent, scheduler_agent, supabase_client
+    global threads_analysis_agent, content_strategy_agent, post_generator_agent, approval_agent, scheduler_agent
+    global x_analysis_agent, x_content_strategy_agent, x_post_generator_agent, x_approval_agent, x_scheduler_agent, supabase_client
     
     logger.info(f"[INIT] OPENAI_API_KEY present: {bool(settings.OPENAI_API_KEY)}")
     logger.info(f"[INIT] OPENAI_API_KEY length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
@@ -239,6 +250,47 @@ def initialize_agents():
         except Exception as e:
             logger.error(f"[SCHEDULER_AGENT] Failed to initialize: {str(e)}")
             scheduler_agent = None
+        
+        # Initialize X (Twitter) agents
+        logger.info("[X_ANALYSIS_AGENT] Initializing...")
+        try:
+            x_analysis_agent = XAnalysisAgent()
+            logger.info("[X_ANALYSIS_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[X_ANALYSIS_AGENT] Failed to initialize: {str(e)}")
+            x_analysis_agent = None
+        
+        logger.info("[X_CONTENT_STRATEGY_AGENT] Initializing...")
+        try:
+            x_content_strategy_agent = XContentStrategyAgent()
+            logger.info("[X_CONTENT_STRATEGY_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[X_CONTENT_STRATEGY_AGENT] Failed to initialize: {str(e)}")
+            x_content_strategy_agent = None
+        
+        logger.info("[X_POST_GENERATOR_AGENT] Initializing...")
+        try:
+            x_post_generator_agent = XPostGeneratorAgent()
+            logger.info("[X_POST_GENERATOR_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[X_POST_GENERATOR_AGENT] Failed to initialize: {str(e)}")
+            x_post_generator_agent = None
+        
+        logger.info("[X_APPROVAL_AGENT] Initializing...")
+        try:
+            x_approval_agent = XApprovalAgent()
+            logger.info("[X_APPROVAL_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[X_APPROVAL_AGENT] Failed to initialize: {str(e)}")
+            x_approval_agent = None
+        
+        logger.info("[X_SCHEDULER_AGENT] Initializing...")
+        try:
+            x_scheduler_agent = XSchedulerAgent()
+            logger.info("[X_SCHEDULER_AGENT] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[X_SCHEDULER_AGENT] Failed to initialize: {str(e)}")
+            x_scheduler_agent = None
     else:
         logger.warning("OpenAI API key not found. Agents not initialized.")
 
@@ -277,6 +329,11 @@ def get_agent(agent_name: str):
         'post_generator': post_generator_agent,
         'approval': approval_agent,
         'scheduler': scheduler_agent,
+        'x_analysis': x_analysis_agent,
+        'x_strategy': x_content_strategy_agent,
+        'x_generator': x_post_generator_agent,
+        'x_approval': x_approval_agent,
+        'x_scheduler': x_scheduler_agent,
     }
     return agents.get(agent_name)
 

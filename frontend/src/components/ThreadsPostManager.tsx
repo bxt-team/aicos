@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   CardActions,
-  Grid,
   Chip,
   CircularProgress,
   Alert,
@@ -27,6 +26,7 @@ import {
   StepLabel,
   Divider,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Create as CreateIcon,
   ThumbUp as ApproveIcon,
@@ -37,6 +37,7 @@ import {
   CheckCircle as CheckIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
+import { SelectChangeEvent } from '@mui/material/Select';
 import axios from 'axios';
 
 interface ThreadsPost {
@@ -197,22 +198,22 @@ const ThreadsPostManager: React.FC = () => {
               Generate New Posts
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   type="number"
                   label="Number of Posts"
                   value={count}
-                  onChange={(e) => setCount(parseInt(e.target.value))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCount(parseInt(e.target.value))}
                   inputProps={{ min: 1, max: 20 }}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <FormControl fullWidth>
                   <InputLabel>Period (Optional)</InputLabel>
                   <Select
                     value={selectedPeriod}
-                    onChange={(e) => setSelectedPeriod(e.target.value as number)}
+                    onChange={(e: SelectChangeEvent<number | ''>) => setSelectedPeriod(e.target.value as number | '')}
                     label="Period (Optional)"
                   >
                     <MenuItem value="">All Periods</MenuItem>
@@ -224,32 +225,32 @@ const ThreadsPostManager: React.FC = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12}>
+              <Grid size={12}>
                 <TextField
                   fullWidth
                   label="Theme (Optional)"
                   value={theme}
-                  onChange={(e) => setTheme(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTheme(e.target.value)}
                   placeholder="e.g., Morning motivation, Weekly reflection"
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <FormControlLabel
                   control={
                     <Switch
                       checked={includeAffirmations}
-                      onChange={(e) => setIncludeAffirmations(e.target.checked)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIncludeAffirmations(e.target.checked)}
                     />
                   }
                   label="Include Affirmations"
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <FormControlLabel
                   control={
                     <Switch
                       checked={includeActivities}
-                      onChange={(e) => setIncludeActivities(e.target.checked)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIncludeActivities(e.target.checked)}
                     />
                   }
                   label="Include Activities"
@@ -279,7 +280,7 @@ const ThreadsPostManager: React.FC = () => {
             {posts.map((post, index) => {
               const period = periods.find(p => p.value === post.period);
               return (
-                <Grid item xs={12} md={6} key={index}>
+                <Grid size={{ xs: 12, md: 6 }} key={index}>
                   <Card>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -429,14 +430,14 @@ const ThreadsPostManager: React.FC = () => {
                 rows={4}
                 label="Content"
                 value={editingPost.content}
-                onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditingPost({ ...editingPost, content: e.target.value })}
                 sx={{ mb: 2 }}
               />
               <TextField
                 fullWidth
                 label="Hashtags (comma separated)"
                 value={editingPost.hashtags.join(', ')}
-                onChange={(e) => setEditingPost({
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingPost({
                   ...editingPost,
                   hashtags: e.target.value.split(',').map(t => t.trim()).filter(t => t)
                 })}
@@ -446,14 +447,14 @@ const ThreadsPostManager: React.FC = () => {
                 fullWidth
                 label="Call to Action"
                 value={editingPost.call_to_action}
-                onChange={(e) => setEditingPost({ ...editingPost, call_to_action: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingPost({ ...editingPost, call_to_action: e.target.value })}
                 sx={{ mb: 2 }}
               />
               <TextField
                 fullWidth
                 label="Visual Prompt"
                 value={editingPost.visual_prompt || ''}
-                onChange={(e) => setEditingPost({ ...editingPost, visual_prompt: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingPost({ ...editingPost, visual_prompt: e.target.value })}
               />
             </Box>
           )}

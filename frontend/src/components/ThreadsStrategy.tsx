@@ -6,7 +6,6 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
   Chip,
   CircularProgress,
   Alert,
@@ -25,9 +24,10 @@ import {
   TableRow,
   Paper,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   ExpandMore as ExpandMoreIcon,
-  Strategy as StrategyIcon,
+  Psychology as StrategyIcon,
   CalendarMonth as CalendarIcon,
   Tag as TagIcon,
   Timeline as TimelineIcon,
@@ -152,7 +152,7 @@ const ThreadsStrategy: React.FC = () => {
             fullWidth
             label="Target Audience (Optional)"
             value={targetAudience}
-            onChange={(e) => setTargetAudience(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTargetAudience(e.target.value)}
             placeholder="e.g., Spiritually curious individuals seeking personal growth"
             sx={{ mb: 2 }}
             multiline
@@ -200,7 +200,7 @@ const ThreadsStrategy: React.FC = () => {
             <AccordionDetails>
               <Grid container spacing={2}>
                 {strategy.content_pillars.map((pillar, index) => (
-                  <Grid item xs={12} md={6} key={index}>
+                  <Grid size={{ xs: 12, md: 6 }} key={index}>
                     <Card variant="outlined">
                       <CardContent>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -288,7 +288,7 @@ const ThreadsStrategy: React.FC = () => {
             </AccordionSummary>
             <AccordionDetails>
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     Frequency
                   </Typography>
@@ -296,7 +296,7 @@ const ThreadsStrategy: React.FC = () => {
                     {strategy.posting_schedule.frequency}
                   </Typography>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     Best Days
                   </Typography>
@@ -306,13 +306,13 @@ const ThreadsStrategy: React.FC = () => {
                     ))}
                   </Box>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={12}>
                   <Typography variant="subtitle1" gutterBottom>
                     Optimal Times
                   </Typography>
                   <Grid container spacing={2}>
                     {Object.entries(strategy.posting_schedule.optimal_times).map(([period, time]) => (
-                      <Grid item xs={12} sm={4} key={period}>
+                      <Grid size={{ xs: 12, sm: 4 }} key={period}>
                         <Card variant="outlined">
                           <CardContent>
                             <Typography variant="subtitle2" color="text.secondary">
@@ -342,7 +342,7 @@ const ThreadsStrategy: React.FC = () => {
                 {strategy.hashtag_strategy.usage_guidelines}
               </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" gutterBottom>
                     Brand Hashtags
                   </Typography>
@@ -352,7 +352,7 @@ const ThreadsStrategy: React.FC = () => {
                     ))}
                   </Box>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle2" gutterBottom>
                     Discovery Hashtags
                   </Typography>
@@ -405,7 +405,7 @@ const ThreadsStrategy: React.FC = () => {
             </AccordionSummary>
             <AccordionDetails>
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     Growth Targets
                   </Typography>
@@ -420,7 +420,7 @@ const ThreadsStrategy: React.FC = () => {
                     ))}
                   </List>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Typography variant="subtitle1" gutterBottom>
                     Milestones
                   </Typography>

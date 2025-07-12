@@ -16,6 +16,8 @@ import InstagramReelInterface from './components/InstagramReelInterface';
 import AndroidTestInterface from './components/AndroidTestInterface';
 import VoiceOverInterface from './components/VoiceOverInterface';
 import MobileAnalyticsInterface from './components/MobileAnalyticsInterface';
+import ThreadsInterface from './components/ThreadsInterface';
+import XInterface from './components/XInterface';
 import AgentManagement from './components/AgentManagement';
 import AgentPromptsDisplay from './components/AgentPromptsDisplay';
 import Header from './components/Header';
@@ -45,6 +47,8 @@ function App() {
             <Route path="/android-test" element={<AndroidTestInterface />} />
             <Route path="/voice-over" element={<VoiceOverInterface apiBaseUrl="http://localhost:8000" />} />
             <Route path="/mobile-analytics" element={<MobileAnalyticsInterface />} />
+            <Route path="/threads" element={<ThreadsInterface />} />
+            <Route path="/x-twitter" element={<XInterface />} />
             <Route path="/agent-prompts" element={<AgentPromptsDisplay />} />
             <Route path="/content-generator" element={<ContentGenerator />} />
             <Route path="/content/:contentId" element={<ContentViewer />} />

@@ -45,14 +45,7 @@ class Settings:
     ADB_PATH: str = os.getenv("ADB_PATH", "adb")
     
     # CORS Settings
-    CORS_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:8000",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001", 
-        "http://127.0.0.1:8000",
-    ]
+    CORS_ORIGINS: list = ["*"]  # Allow all origins
     
     # File Storage Settings
     STORAGE_BASE_PATH: str = "storage"
