@@ -55,6 +55,7 @@
 
 .menu-title {
   margin-top: 0.5rem;
+  position: relative;
 }
 
 .menu-title h3 {
@@ -210,13 +211,97 @@
   background: #555;
 }
 
+/* Mobile overlay */
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
+  .side-menu {
+    transition: transform 0.3s ease, width 0.3s ease;
+  }
+  
+  .side-menu.collapsed {
+    transform: translateX(-100%);
+    width: 280px;
+  }
+  
   .side-menu.expanded {
-    width: 100%;
+    transform: translateX(0);
+    width: 280px;
+    max-width: 85vw;
+  }
+  
+  .side-menu.mobile {
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
   }
   
   .menu-toggle {
-    right: 10px;
+    display: none; /* Hide the toggle button on mobile - we'll use a hamburger menu instead */
+  }
+  
+  .side-menu-header {
+    padding: 1.5rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .menu-title h3 {
+    font-size: 1.25rem;
+  }
+  
+  .agent-name {
+    font-size: 1rem;
+  }
+  
+  .agent-description {
+    font-size: 0.8rem;
+  }
+  
+  .menu-item {
+    padding: 1rem;
+  }
+  
+  .menu-close {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .menu-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  .menu-close:active {
+    background: rgba(255, 255, 255, 0.4);
   }
 }

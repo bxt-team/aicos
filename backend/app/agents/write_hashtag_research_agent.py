@@ -10,51 +10,24 @@ from typing import List, Dict, Any
 from datetime import datetime
 import hashlib
 from app.agents.crews.base_crew import BaseCrew
+from app.services.knowledge_base_manager import knowledge_base_manager
 
 class WriteHashtagResearchAgent(BaseCrew):
     def __init__(self, openai_api_key: str):
         super().__init__()
         self.openai_api_key = openai_api_key
-        self.embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
-        self.vector_store = None
+        # Use shared embeddings and vector store
+        self.embeddings = knowledge_base_manager.get_embeddings()
+        self.vector_store = knowledge_base_manager.get_vector_store()
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
         # Storage for generated content
         self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/write_hashtag_storage.json")
         self.generated_content = self._load_generated_content()
         
-        # Initialize knowledge base
-        self._load_knowledge_base()
-        
         # Create the agent
         self.write_hashtag_agent = self._create_write_hashtag_agent()
     
-    def _load_knowledge_base(self):
-        """Load and process the PDF knowledge base for 7 Cycles"""
-        try:
-            pdf_path = os.path.join(os.path.dirname(__file__), "../../knowledge/20250607_7Cycles of Life_Ebook.pdf")
-            
-            # Load PDF
-            loader = PyPDFLoader(pdf_path)
-            documents = loader.load()
-            
-            # Split documents into chunks
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len,
-            )
-            
-            texts = text_splitter.split_documents(documents)
-            
-            # Create vector store
-            self.vector_store = FAISS.from_documents(texts, self.embeddings)
-            
-            print(f"Successfully loaded {len(texts)} document sections for Write and Hashtag Research")
-            
-        except Exception as e:
-            print(f"Error loading knowledge base: {e}")
-            self.vector_store = None
     
     def _load_generated_content(self) -> Dict[str, Any]:
         """Load previously generated content"""

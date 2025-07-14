@@ -10,6 +10,7 @@ from typing import List, Dict, Any
 from datetime import datetime, timedelta
 import hashlib
 from app.agents.crews.base_crew import BaseCrew
+from app.services.knowledge_base_manager import knowledge_base_manager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,9 +21,9 @@ class AffirmationsAgent(BaseCrew):
         super().__init__()
         self.openai_api_key = openai_api_key
         
-        # Set the API key as environment variable for OpenAIEmbeddings
-        self.embeddings = OpenAIEmbeddings()
-        self.vector_store = None
+        # Use shared embeddings and vector store
+        self.embeddings = knowledge_base_manager.get_embeddings()
+        self.vector_store = knowledge_base_manager.get_vector_store()
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
         # Storage for generated affirmations
@@ -35,9 +36,6 @@ class AffirmationsAgent(BaseCrew):
         
         self.generated_affirmations = self._load_generated_affirmations()
         
-        # Initialize knowledge base
-        self._load_knowledge_base()
-        
         # Create the affirmations agent from YAML config
         try:
             self.affirmations_agent = self.create_agent("affirmations_agent", llm=self.llm)
@@ -46,34 +44,6 @@ class AffirmationsAgent(BaseCrew):
             logger.error(f"[AFFIRMATIONS_AGENT] Error creating agent: {e}")
             raise
     
-    def _load_knowledge_base(self):
-        """Load and process the PDF knowledge base"""
-        try:
-            # Make path relative to the backend directory
-            backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            pdf_path = os.path.join(backend_dir, "knowledge", "20250607_7Cycles of Life_Ebook.pdf")
-            
-            # Load PDF
-            loader = PyPDFLoader(pdf_path)
-            documents = loader.load()
-            
-            # Split documents into chunks
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len,
-            )
-            
-            texts = text_splitter.split_documents(documents)
-            
-            # Create vector store
-            self.vector_store = FAISS.from_documents(texts, self.embeddings)
-            
-            logger.info(f"Erfolgreich {len(texts)} Dokumentenabschnitte für Affirmationen geladen")
-            
-        except Exception as e:
-            logger.error(f"Fehler beim Laden der Wissensdatenbank für Affirmationen: {e}")
-            self.vector_store = None
     
     def _load_generated_affirmations(self) -> Dict[str, Any]:
         """Load previously generated affirmations"""

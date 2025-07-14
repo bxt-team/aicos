@@ -9,47 +9,20 @@ import os
 from typing import List, Dict, Any
 import json
 from app.agents.crews.base_crew import BaseCrew
+from app.services.knowledge_base_manager import knowledge_base_manager
 
 class QAAgent(BaseCrew):
     def __init__(self, openai_api_key: str):
         super().__init__()
         self.openai_api_key = openai_api_key
-        self.embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
-        self.vector_store = None
+        # Use shared embeddings and vector store
+        self.embeddings = knowledge_base_manager.get_embeddings()
+        self.vector_store = knowledge_base_manager.get_vector_store()
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
-        
-        # Initialize knowledge base
-        self._load_knowledge_base()
         
         # Create the Q&A agent from YAML config
         self.qa_agent = self.create_agent("qa_agent", llm=self.llm)
     
-    def _load_knowledge_base(self):
-        """Load and process the PDF knowledge base"""
-        try:
-            pdf_path = os.path.join(os.path.dirname(__file__), "../../knowledge/20250607_7Cycles of Life_Ebook.pdf")
-            
-            # Load PDF
-            loader = PyPDFLoader(pdf_path)
-            documents = loader.load()
-            
-            # Split documents into chunks
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len,
-            )
-            
-            texts = text_splitter.split_documents(documents)
-            
-            # Create vector store
-            self.vector_store = FAISS.from_documents(texts, self.embeddings)
-            
-            print(f"Erfolgreich {len(texts)} Dokumentenabschnitte in den Vektorspeicher geladen")
-            
-        except Exception as e:
-            print(f"Fehler beim Laden der Wissensdatenbank: {e}")
-            self.vector_store = None
     
     def _get_relevant_context(self, question: str, k: int = 5) -> str:
         """Retrieve relevant context for the question"""

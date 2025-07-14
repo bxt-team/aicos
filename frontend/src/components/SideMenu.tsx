@@ -1,11 +1,39 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getEnabledAgents, getAgentsByCategory, getAgentByRoute } from '../config/agents';
+import { useMenu } from '../contexts/MenuContext';
 import './SideMenu.css';
 
 const SideMenu: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const { isMenuOpen: isExpanded, toggleMenu, isMobile } = useMenu();
   const location = useLocation();
+
+  // Close menu on route change for mobile
+  useEffect(() => {
+    if (isMobile && isExpanded) {
+      toggleMenu();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // Prevent body scroll when menu is open on mobile
+  useEffect(() => {
+    if (isMobile && isExpanded) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobile, isExpanded]);
+
+  const handleOverlayClick = () => {
+    if (isMobile && isExpanded) {
+      toggleMenu();
+    }
+  };
 
   const agents = getEnabledAgents();
   const agentsByCategory = getAgentsByCategory();
@@ -17,16 +45,22 @@ const SideMenu: React.FC = () => {
 
   const currentAgent = getCurrentAgent();
 
-  const toggleMenu = () => {
-    setIsExpanded(!isExpanded);
+  const handleToggleClick = () => {
+    toggleMenu();
   };
 
   return (
-    <aside className={`side-menu ${isExpanded ? 'expanded' : 'collapsed'}`}>
+    <>
+      {/* Mobile overlay */}
+      {isMobile && isExpanded && (
+        <div className="menu-overlay" onClick={handleOverlayClick} />
+      )}
+      
+      <aside className={`side-menu ${isExpanded ? 'expanded' : 'collapsed'} ${isMobile ? 'mobile' : ''}`}>
       <div className="side-menu-header">
         <button 
           className="menu-toggle"
-          onClick={toggleMenu}
+          onClick={handleToggleClick}
           aria-label={isExpanded ? 'Menü einklappen' : 'Menü ausklappen'}
         >
           {isExpanded ? '◀' : '▶'}
@@ -35,6 +69,15 @@ const SideMenu: React.FC = () => {
           <div className="menu-title">
             <h3>🤖 AI Agenten</h3>
             <p className="agent-count">{agents.length} verfügbar</p>
+            {isMobile && (
+              <button 
+                className="menu-close"
+                onClick={handleToggleClick}
+                aria-label="Menü schließen"
+              >
+                ✕
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -82,6 +125,7 @@ const SideMenu: React.FC = () => {
         )}
       </nav>
     </aside>
+    </>
   );
 };
 

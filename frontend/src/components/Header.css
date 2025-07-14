@@ -17,6 +17,7 @@
   align-items: center;
   padding: 0 30px;
   height: 70px;
+  position: relative;
 }
 
 .header-title {
@@ -60,12 +61,49 @@
   background-clip: text;
 }
 
+/* Hamburger menu button */
+.hamburger-menu {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.hamburger-menu:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.hamburger-menu:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.hamburger-line {
+  width: 24px;
+  height: 3px;
+  background-color: white;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .header-container {
-    padding: 0 20px;
+    padding: 0 20px 0 70px;
     height: 70px;
+    justify-content: flex-start;
   }
   
   .header-title h1 {

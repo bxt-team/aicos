@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { MenuProvider } from './contexts/MenuContext';
 import './App.css';
 import ContentGenerator from './components/ContentGenerator';
 import ContentViewer from './components/ContentViewer';
@@ -26,10 +27,11 @@ import SideMenu from './components/SideMenu';
 function App() {
   return (
     <Router>
-      <div className="App">
-        <SideMenu />
-        <div className="app-container">
-          <Header />
+      <MenuProvider>
+        <div className="App">
+          <SideMenu />
+          <div className="app-container">
+            <Header />
           <main className="main-content">
             <Routes>
             <Route path="/" element={<AgentManagement />} />
@@ -54,8 +56,9 @@ function App() {
             <Route path="/content/:contentId" element={<ContentViewer />} />
             </Routes>
           </main>
+          </div>
         </div>
-      </div>
+      </MenuProvider>
     </Router>
   );
 }

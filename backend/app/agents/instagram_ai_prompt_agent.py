@@ -11,6 +11,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
+from app.services.knowledge_base_manager import knowledge_base_manager
 
 class InstagramAIPromptAgent(BaseCrew):
     """Agent for creating AI image prompts from complete Instagram post data"""
@@ -27,8 +28,8 @@ class InstagramAIPromptAgent(BaseCrew):
         self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/ai_prompt_storage.json")
         self.generated_content = self._load_generated_content()
         
-        # Initialize knowledge base and vector store
-        self.knowledge_base = self._initialize_knowledge_base()
+        # Use shared knowledge base
+        self.knowledge_base = knowledge_base_manager.get_vector_store()
         
         # Create the prompt generation agent
         self.prompt_agent = self._create_prompt_agent()
@@ -72,38 +73,6 @@ class InstagramAIPromptAgent(BaseCrew):
             }
         }
     
-    def _initialize_knowledge_base(self) -> FAISS:
-        """Initialize the 7 Cycles knowledge base with vector embeddings"""
-        try:
-            # Path to the 7 Cycles ebook
-            ebook_path = os.path.join(os.path.dirname(__file__), "../../knowledge/20250607_7Cycles of Life_Ebook.pdf")
-            
-            if not os.path.exists(ebook_path):
-                print(f"Warning: 7 Cycles ebook not found at {ebook_path}")
-                return None
-            
-            # Load and split the PDF
-            loader = PyPDFLoader(ebook_path)
-            documents = loader.load()
-            
-            # Split documents into chunks
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len,
-            )
-            chunks = text_splitter.split_documents(documents)
-            
-            # Create embeddings and vector store
-            embeddings = OpenAIEmbeddings(openai_api_key=self.openai_api_key)
-            vector_store = FAISS.from_documents(chunks, embeddings)
-            
-            print(f"Successfully loaded 7 Cycles knowledge base with {len(chunks)} chunks")
-            return vector_store
-            
-        except Exception as e:
-            print(f"Error initializing knowledge base: {e}")
-            return None
     
     def _get_period_context(self, period_name: str, period_info: Dict[str, Any]) -> str:
         """Get relevant context for a specific 7 Cycles period from the knowledge base"""

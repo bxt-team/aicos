@@ -30,6 +30,7 @@ from app.agents.x_post_generator_agent import XPostGeneratorAgent
 from app.agents.x_approval_agent import XApprovalAgent
 from app.agents.x_scheduler_agent import XSchedulerAgent
 from app.services.supabase_client import SupabaseClient
+from app.services.knowledge_base_manager import knowledge_base_manager
 from .config import settings
 import logging
 
@@ -83,6 +84,14 @@ def initialize_agents():
     logger.info(f"[INIT] OPENAI_API_KEY length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
     
     if settings.OPENAI_API_KEY:
+        # Initialize shared knowledge base first
+        logger.info("[KNOWLEDGE_BASE] Initializing shared knowledge base...")
+        try:
+            knowledge_base_manager.initialize(settings.OPENAI_API_KEY)
+            logger.info("[KNOWLEDGE_BASE] Shared knowledge base initialized successfully")
+        except Exception as e:
+            logger.error(f"[KNOWLEDGE_BASE] Failed to initialize: {str(e)}")
+            raise
         logger.info("[IMAGE_GENERATOR] Initializing...")
         image_generator = ImageGenerator(settings.OPENAI_API_KEY)
         logger.info("[IMAGE_GENERATOR] Initialized successfully")
