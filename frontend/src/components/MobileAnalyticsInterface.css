@@ -182,6 +182,21 @@
   border: 1px solid #fcc;
 }
 
+/* No Analyses Message */
+.no-analyses-message {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 30px;
+}
+
+.no-analyses-message p {
+  margin: 0;
+}
+
 /* Analysis Results */
 .analysis-results {
   margin-top: 40px;
@@ -548,4 +563,232 @@
   overflow-x: auto;
   font-size: 12px;
   border: 1px solid #e0e0e0;
+}
+
+/* Meta Ads Styles */
+.campaign-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.date-range-group {
+  margin-bottom: 20px;
+}
+
+.date-range-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.date-input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.date-separator {
+  color: #666;
+  font-weight: 500;
+}
+
+.metrics-section {
+  margin-top: 20px;
+}
+
+.metrics-section h5 {
+  margin-bottom: 10px;
+  color: #333;
+}
+
+/* Google Analytics Styles */
+.property-input,
+.app-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.behavior-section {
+  margin-top: 20px;
+}
+
+.behavior-section h5 {
+  margin-bottom: 10px;
+  color: #333;
+}
+
+/* Saved Analyses Section */
+.saved-analyses-section {
+  margin-bottom: 30px;
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.saved-analyses-section h4 {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 18px;
+}
+
+.analyses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.analysis-item {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.analysis-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.analysis-info h5 {
+  margin: 0 0 5px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.analysis-info .package-name {
+  color: #666;
+  font-size: 14px;
+  margin: 0 0 5px 0;
+  font-family: monospace;
+}
+
+.analysis-info .analysis-date {
+  color: #999;
+  font-size: 13px;
+  margin: 0;
+}
+
+.analysis-stats {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.analysis-stats .rating {
+  color: #f39c12;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.analysis-stats .recommendations {
+  color: #666;
+  font-size: 14px;
+}
+
+.view-details-button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.view-details-button:hover {
+  background: #0056b3;
+}
+
+/* Dashboard View */
+.dashboard-view {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.back-button {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-bottom: 20px;
+  transition: background 0.3s ease;
+}
+
+.back-button:hover {
+  background: #5a6268;
+}
+
+/* Help Text Styles */
+.help-text {
+  margin-top: 15px;
+  padding: 15px;
+  background: #e7f3ff;
+  border: 1px solid #b8daff;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #004085;
+}
+
+.help-text p {
+  margin: 0 0 10px 0;
+}
+
+.help-text ol {
+  margin: 0 0 10px 0;
+  padding-left: 20px;
+}
+
+.help-text li {
+  margin-bottom: 5px;
+}
+
+.help-text a {
+  color: #0056b3;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.help-text a:hover {
+  text-decoration: underline;
+}
+
+.example-text {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #b8daff;
+}
+
+.example-text code {
+  display: block;
+  margin-top: 5px;
+  padding: 8px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  color: #495057;
+  overflow-x: auto;
 }

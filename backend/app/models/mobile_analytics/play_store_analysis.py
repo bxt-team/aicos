@@ -98,6 +98,12 @@ class PlayStoreAnalysis(BaseModel):
         default_factory=lambda: datetime.now().isoformat()
     )
     
+    # Cost Tracking
+    cost_estimate: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Estimated cost for this analysis"
+    )
+    
     class Config:
         schema_extra = {
             "example": {

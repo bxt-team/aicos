@@ -1,5 +1,8 @@
 import json
 import logging
+import re
+import os
+import uuid
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
@@ -7,7 +10,7 @@ from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
 
 from app.agents.crews.base_crew import BaseCrew
-from app.tools.mobile_analytics.play_store_scraper_tool import PlayStoreScraperTool
+from app.tools.mobile_analytics.play_store_api_tool import PlayStoreAPITool
 from app.tools.mobile_analytics.keyword_ranking_tool import KeywordRankingTool
 from app.tools.mobile_analytics.sentiment_analysis_tool import SentimentAnalysisTool
 from app.models.mobile_analytics.play_store_analysis import PlayStoreAnalysis
@@ -49,7 +52,7 @@ class PlayStoreAnalystAgent(BaseCrew):
             backstory="""You are an expert in Android App Store Optimization (ASO) with years of experience 
             analyzing successful apps on Google Play. You understand how Google's search algorithm works and can 
             identify opportunities for improvement in app listings.""",
-            tools=[PlayStoreScraperTool(), KeywordRankingTool()],
+            tools=[PlayStoreAPITool(), KeywordRankingTool()],
             llm=llm,
             verbose=True
         )
@@ -163,8 +166,24 @@ class PlayStoreAnalystAgent(BaseCrew):
             
             result = crew.kickoff()
             
+            # Track costs for this analysis
+            cost_info = self.track_crew_costs(
+                crew_result=result,
+                agent_name="PlayStoreAnalystAgent",
+                model="gpt-4",
+                task_description=f"Play Store analysis for {app_info.get('package_name', 'unknown app')}"
+            )
+            
             # Parse and structure the results
             analysis = self._parse_crew_results(result, app_info)
+            
+            # Add cost information to analysis
+            if cost_info:
+                analysis.cost_estimate = cost_info.get("cost_estimate", {})
+                logger.info(f"Analysis cost: ${cost_info['cost_estimate']['estimated_cost']:.4f}")
+            
+            # Save the analysis to storage
+            self._save_analysis(analysis)
             
             logger.info("Play Store analysis completed successfully")
             return analysis
@@ -179,14 +198,26 @@ class PlayStoreAnalystAgent(BaseCrew):
         # Extract results from crew output
         results_text = str(crew_result)
         
+        # Extract package name from URL if not provided directly
+        package_name = app_info.get("package_name")
+        if not package_name and app_info.get("url"):
+            # Extract from Play Store URL pattern: ...id=com.example.app
+            match = re.search(r'id=([a-zA-Z0-9._]+)', app_info.get("url", ""))
+            if match:
+                package_name = match.group(1)
+        
+        # Ensure we have a valid package name
+        if not package_name:
+            package_name = "unknown.package"
+        
         # Create structured analysis
         # Note: In a real implementation, this would parse the actual crew output
         # For now, we'll create a sample structure
         
         analysis = PlayStoreAnalysis(
-            app_id=app_info.get("package_name", "unknown"),
+            app_id=package_name,  # Use package_name as app_id for Play Store
             app_name=app_info.get("app_name", "Unknown App"),
-            package_name=app_info.get("package_name", ""),
+            package_name=package_name,
             developer=app_info.get("developer", "Unknown Developer"),
             category=app_info.get("category", "Unknown"),
             rating=4.2,
@@ -334,3 +365,79 @@ class PlayStoreAnalystAgent(BaseCrew):
         # For now, return the structure
         
         return comparison
+    
+    def _save_analysis(self, analysis: PlayStoreAnalysis) -> str:
+        """Save analysis to storage and return the analysis ID."""
+        analysis_id = str(uuid.uuid4())
+        storage_dir = "storage/mobile_analytics/play_store"
+        os.makedirs(storage_dir, exist_ok=True)
+        
+        # Add analysis ID to the data
+        analysis_data = analysis.dict()
+        analysis_data["analysis_id"] = analysis_id
+        
+        # Save to file
+        file_path = os.path.join(storage_dir, f"{analysis_id}.json")
+        with open(file_path, "w") as f:
+            json.dump(analysis_data, f, indent=2)
+        
+        logger.info(f"Saved Play Store analysis to {file_path}")
+        return analysis_id
+    
+    def get_all_analyses(self) -> List[Dict[str, Any]]:
+        """Get all saved Play Store analyses."""
+        storage_dir = "storage/mobile_analytics/play_store"
+        if not os.path.exists(storage_dir):
+            return []
+        
+        analyses = []
+        for filename in os.listdir(storage_dir):
+            if filename.endswith(".json"):
+                file_path = os.path.join(storage_dir, filename)
+                try:
+                    with open(file_path, "r") as f:
+                        analysis_data = json.load(f)
+                        # Add summary info for list view
+                        analyses.append({
+                            "analysis_id": analysis_data.get("analysis_id"),
+                            "app_name": analysis_data.get("app_name"),
+                            "package_name": analysis_data.get("package_name"),
+                            "rating": analysis_data.get("rating"),
+                            "analysis_timestamp": analysis_data.get("analysis_timestamp"),
+                            "recommendation_count": len(analysis_data.get("recommendations", []))
+                        })
+                except Exception as e:
+                    logger.error(f"Error reading analysis file {filename}: {e}")
+        
+        # Sort by timestamp, newest first
+        analyses.sort(key=lambda x: x.get("analysis_timestamp", ""), reverse=True)
+        return analyses
+    
+    def get_analysis_by_id(self, analysis_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific Play Store analysis by ID."""
+        file_path = f"storage/mobile_analytics/play_store/{analysis_id}.json"
+        if not os.path.exists(file_path):
+            return None
+        
+        try:
+            with open(file_path, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading analysis {analysis_id}: {e}")
+            return None
+    
+    def delete_analysis(self, analysis_id: str) -> bool:
+        """Delete a Play Store analysis by ID."""
+        file_path = f"storage/mobile_analytics/play_store/{analysis_id}.json"
+        
+        if not os.path.exists(file_path):
+            logger.warning(f"Analysis {analysis_id} not found for deletion")
+            return False
+        
+        try:
+            os.remove(file_path)
+            logger.info(f"Deleted Play Store analysis: {analysis_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting analysis {analysis_id}: {e}")
+            return False

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from app.core.dependencies import get_agent
 from app.agents.app_store_analyst import AppStoreAnalystAgent
 from app.models.mobile_analytics import AppStoreAnalysis
+from app.core.cost_tracker import cost_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -427,4 +428,158 @@ async def analyze_google_analytics(
         
     except Exception as e:
         logger.error(f"Error in Google Analytics analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/play-store/analyses")
+async def list_play_store_analyses() -> Dict[str, Any]:
+    """
+    List all saved Play Store analyses.
+    
+    Returns a list of analysis summaries with basic info.
+    """
+    try:
+        # Get the Play Store Analyst agent
+        analyst_agent = get_agent("play_store_analyst")
+        if not analyst_agent:
+            raise HTTPException(
+                status_code=500,
+                detail="Play Store Analyst agent not available"
+            )
+        
+        analyses = analyst_agent.get_all_analyses()
+        
+        return {
+            "analyses": analyses,
+            "total": len(analyses)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing Play Store analyses: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/play-store/analyses/{analysis_id}")
+async def get_play_store_analysis(analysis_id: str) -> Dict[str, Any]:
+    """
+    Get a specific Play Store analysis by ID.
+    
+    Returns the full analysis details.
+    """
+    try:
+        # Get the Play Store Analyst agent
+        analyst_agent = get_agent("play_store_analyst")
+        if not analyst_agent:
+            raise HTTPException(
+                status_code=500,
+                detail="Play Store Analyst agent not available"
+            )
+        
+        analysis = analyst_agent.get_analysis_by_id(analysis_id)
+        if not analysis:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Analysis {analysis_id} not found"
+            )
+        
+        return analysis
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting Play Store analysis {analysis_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/play-store/analyses/{analysis_id}")
+async def delete_play_store_analysis(analysis_id: str) -> Dict[str, Any]:
+    """
+    Delete a specific Play Store analysis by ID.
+    
+    Returns success status.
+    """
+    try:
+        # Get the Play Store Analyst agent
+        analyst_agent = get_agent("play_store_analyst")
+        if not analyst_agent:
+            raise HTTPException(
+                status_code=500,
+                detail="Play Store Analyst agent not available"
+            )
+        
+        success = analyst_agent.delete_analysis(analysis_id)
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Analysis {analysis_id} not found or could not be deleted"
+            )
+        
+        return {
+            "success": True,
+            "message": f"Analysis {analysis_id} deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting Play Store analysis {analysis_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/costs/session")
+async def get_session_costs() -> Dict[str, Any]:
+    """
+    Get cost summary for the current session.
+    
+    Returns breakdown of costs by agent and model.
+    """
+    try:
+        return cost_tracker.get_session_summary()
+    except Exception as e:
+        logger.error(f"Error getting session costs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/costs/daily/{date}")
+async def get_daily_costs(date: str) -> Dict[str, Any]:
+    """
+    Get cost summary for a specific date.
+    
+    Args:
+        date: Date in YYYY-MM-DD format
+        
+    Returns:
+        Daily cost breakdown
+    """
+    try:
+        return cost_tracker.get_daily_costs(date)
+    except Exception as e:
+        logger.error(f"Error getting daily costs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/costs/monthly/{year}/{month}")
+async def get_monthly_costs(year: int, month: int) -> Dict[str, Any]:
+    """
+    Get cost summary for a specific month.
+    
+    Args:
+        year: Year (e.g., 2024)
+        month: Month (1-12)
+        
+    Returns:
+        Monthly cost breakdown
+    """
+    try:
+        if month < 1 or month > 12:
+            raise HTTPException(
+                status_code=400,
+                detail="Month must be between 1 and 12"
+            )
+        
+        return cost_tracker.get_monthly_summary(year, month)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting monthly costs: {e}")
         raise HTTPException(status_code=500, detail=str(e))

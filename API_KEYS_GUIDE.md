@@ -173,7 +173,7 @@ After setting up all keys, you can verify them:
 
 - **Never commit** your `.env` file to version control
 - Keep your API keys secure and rotate them regularly
-- Use environment-specific keys for development/production
+- Use environment-specific keys for developme/exnt/production
 - Monitor API usage to avoid unexpected charges
 - Some APIs have rate limits - implement proper error handling
 

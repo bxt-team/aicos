@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './MobileAnalyticsInterface.css';
 import MobileAnalyticsDashboard from './MobileAnalyticsDashboard';
+import { PlayStoreAnalysis, AppStoreAnalysis as AppStoreAnalysisType } from '../types/mobileAnalytics';
 
 interface AppStoreAnalysis {
   app_id: string;
@@ -53,14 +54,55 @@ const MobileAnalyticsInterface: React.FC = () => {
   // Play Store State
   const [playStoreUrl, setPlayStoreUrl] = useState('');
   const [packageId, setPackageId] = useState('');
+  const [playStoreAnalysis, setPlayStoreAnalysis] = useState<any>(null);
+  const [includePlayStoreReviews, setIncludePlayStoreReviews] = useState(true);
+  const [includePlayStoreVisuals, setIncludePlayStoreVisuals] = useState(true);
+  const [savedPlayStoreAnalyses, setSavedPlayStoreAnalyses] = useState<any[]>([]);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
   
   // Meta Ads State
-  const [adReportFile, setAdReportFile] = useState<File | null>(null);
+  const [campaignId, setCampaignId] = useState('');
+  const [metaDateRange, setMetaDateRange] = useState({ start: '', end: '' });
   const [metaAnalysis, setMetaAnalysis] = useState<any>(null);
   
   // Google Analytics State
-  const [gaDataFile, setGaDataFile] = useState<File | null>(null);
+  const [propertyId, setPropertyId] = useState('');
+  const [appId, setAppId] = useState('');
+  const [gaDateRange, setGaDateRange] = useState({ start: '', end: '' });
   const [gaAnalysis, setGaAnalysis] = useState<any>(null);
+
+  // Fetch saved Play Store analyses on mount and after new analysis
+  useEffect(() => {
+    if (activeTab === 'android') {
+      fetchSavedPlayStoreAnalyses();
+    }
+  }, [activeTab]);
+
+  const fetchSavedPlayStoreAnalyses = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/mobile-analytics/play-store/analyses');
+      setSavedPlayStoreAnalyses(response.data.analyses || []);
+    } catch (err) {
+      console.error('Failed to fetch saved analyses:', err);
+    }
+  };
+
+  const viewAnalysisDetails = async (analysisId: string) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axios.get(`http://localhost:8000/api/mobile-analytics/play-store/analyses/${analysisId}`);
+      setPlayStoreAnalysis(response.data);
+      setSelectedAnalysisId(analysisId);
+      setShowDashboard(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load analysis details');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const analyzeAppStore = async () => {
     if (!appStoreUrl && !bundleId) {
@@ -93,15 +135,100 @@ const MobileAnalyticsInterface: React.FC = () => {
   };
 
   const analyzePlayStore = async () => {
-    setError('Play Store analysis coming soon!');
+    if (!playStoreUrl && !packageId) {
+      setError('Please provide either a Play Store URL or Package ID');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const requestData = {
+        url: playStoreUrl || undefined,
+        package_name: packageId || undefined,
+        include_reviews: includePlayStoreReviews,
+        include_visuals: includePlayStoreVisuals
+      };
+
+      const response = await axios.post(
+        'http://localhost:8000/api/mobile-analytics/play-store/analyze',
+        requestData
+      );
+
+      setPlayStoreAnalysis(response.data);
+      // Refresh the list of saved analyses
+      await fetchSavedPlayStoreAnalyses();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to analyze Play Store listing');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const analyzeMetaAds = async () => {
-    setError('Meta Ads analysis coming soon!');
+    if (!campaignId) {
+      setError('Please provide a Campaign ID');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    
+    try {
+      const requestData: any = {
+        campaign_id: campaignId
+      };
+
+      // Add date range if provided
+      if (metaDateRange.start && metaDateRange.end) {
+        requestData.date_range = metaDateRange;
+      }
+
+      const response = await axios.post(
+        'http://localhost:8000/api/mobile-analytics/meta-ads/analyze',
+        requestData
+      );
+
+      setMetaAnalysis(response.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to analyze Meta Ads');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const analyzeGoogleAnalytics = async () => {
-    setError('Google Analytics analysis coming soon!');
+    if (!propertyId && !appId) {
+      setError('Please provide either a Property ID or App ID');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    
+    try {
+      const requestData: any = {
+        property_id: propertyId || undefined,
+        app_id: appId || undefined
+      };
+
+      // Add date range if provided
+      if (gaDateRange.start && gaDateRange.end) {
+        requestData.date_range = gaDateRange;
+      }
+
+      const response = await axios.post(
+        'http://localhost:8000/api/mobile-analytics/google-analytics/analyze',
+        requestData
+      );
+
+      setGaAnalysis(response.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to analyze Google Analytics');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderAppStoreTab = () => (
@@ -305,6 +432,50 @@ const MobileAnalyticsInterface: React.FC = () => {
     <div className="tab-content">
       <h3>Android Play Store Analysis</h3>
       
+      {/* Saved Analyses List */}
+      {!showDashboard && (
+        <div className="saved-analyses-section">
+          {savedPlayStoreAnalyses.length > 0 ? (
+            <>
+              <h4>Previous Analyses</h4>
+              <div className="analyses-list">
+                {savedPlayStoreAnalyses.map((analysis) => (
+                  <div key={analysis.analysis_id} className="analysis-item">
+                    <div className="analysis-info">
+                      <h5>{analysis.app_name || 'Unknown App'}</h5>
+                      <p className="package-name">{analysis.package_name}</p>
+                      <p className="analysis-date">
+                        {new Date(analysis.analysis_timestamp).toLocaleDateString()} 
+                        {' at '}
+                        {new Date(analysis.analysis_timestamp).toLocaleTimeString()}
+                      </p>
+                    </div>
+                    <div className="analysis-stats">
+                      <span className="rating">⭐ {analysis.rating?.toFixed(1)}</span>
+                      <span className="recommendations">
+                        {analysis.recommendation_count} recommendations
+                      </span>
+                    </div>
+                    <button 
+                      onClick={() => viewAnalysisDetails(analysis.analysis_id)}
+                      className="view-details-button"
+                    >
+                      View Dashboard
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="no-analyses-message">
+              <p>No previous Play Store analyses found. Analyze your first app below!</p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* New Analysis Form */}
+      {!showDashboard && (
       <div className="input-section">
         <div className="input-group">
           <label>Play Store URL</label>
@@ -330,84 +501,355 @@ const MobileAnalyticsInterface: React.FC = () => {
           />
         </div>
 
+        <div className="options-group">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={includePlayStoreReviews}
+              onChange={(e) => setIncludePlayStoreReviews(e.target.checked)}
+            />
+            Include Review Analysis
+          </label>
+          
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={includePlayStoreVisuals}
+              onChange={(e) => setIncludePlayStoreVisuals(e.target.checked)}
+            />
+            Include Visual Assessment
+          </label>
+        </div>
+
         <button 
           onClick={analyzePlayStore} 
           disabled={loading}
           className="analyze-button"
         >
-          Analyze Play Store Listing
+          {loading ? 'Analyzing...' : 'Analyze Play Store Listing'}
         </button>
       </div>
+      )}
 
-      <div className="coming-soon">
-        <p>Play Store analysis functionality coming soon!</p>
-      </div>
+      {/* Dashboard View */}
+      {showDashboard && playStoreAnalysis && (
+        <div className="dashboard-view">
+          <button 
+            onClick={() => {
+              setShowDashboard(false);
+              setPlayStoreAnalysis(null);
+              setSelectedAnalysisId(null);
+            }}
+            className="back-button"
+          >
+            ← Back to List
+          </button>
+          
+          <MobileAnalyticsDashboard 
+            analysisData={playStoreAnalysis} 
+            analysisType="play-store" 
+          />
+        </div>
+      )}
+      
+      {/* Inline Analysis Results */}
+      {!showDashboard && playStoreAnalysis && (
+        <div className="analysis-results">
+          <h4>Analysis Results</h4>
+          
+          {/* Dashboard View */}
+          <MobileAnalyticsDashboard 
+            analysisData={playStoreAnalysis} 
+            analysisType="play-store" 
+          />
+          
+          {/* Optimization Score */}
+          {playStoreAnalysis.optimization_score && (
+            <div className="score-section">
+              <div className="score-display">
+                <div className="score-circle">
+                  <span className="score-number">{playStoreAnalysis.optimization_score.score}</span>
+                  <span className="score-grade">{playStoreAnalysis.optimization_score.grade}</span>
+                </div>
+                <div className="score-details">
+                  <h5>Optimization Score</h5>
+                  <div className="issues">
+                    <strong>Issues:</strong>
+                    <ul>
+                      {playStoreAnalysis.optimization_score.issues.map((issue: string, idx: number) => (
+                        <li key={idx}>{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="strengths">
+                    <strong>Strengths:</strong>
+                    <ul>
+                      {playStoreAnalysis.optimization_score.strengths.map((strength: string, idx: number) => (
+                        <li key={idx}>{strength}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Recommendations */}
+          {playStoreAnalysis.recommendations && playStoreAnalysis.recommendations.length > 0 && (
+            <div className="recommendations-section">
+              <h5>Optimization Recommendations</h5>
+              <div className="recommendations-grid">
+                {playStoreAnalysis.recommendations.map((rec: any, idx: number) => (
+                  <div key={idx} className={`recommendation-card priority-${rec.priority}`}>
+                    <div className="rec-header">
+                      <span className="rec-category">{rec.category}</span>
+                      <span className="rec-priority">{rec.priority} priority</span>
+                    </div>
+                    <p className="rec-text">{rec.recommendation}</p>
+                    <div className="rec-footer">
+                      <span className="rec-impact">Impact: {rec.expected_impact}</span>
+                      <span className="rec-difficulty">Difficulty: {rec.implementation_difficulty}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Raw Analysis Data (Collapsible) */}
+          <details className="raw-data-section">
+            <summary>View Raw Analysis Data</summary>
+            <pre>{JSON.stringify(playStoreAnalysis, null, 2)}</pre>
+          </details>
+        </div>
+      )}
     </div>
   );
 
-  const renderMetaAdsTab = () => (
+  const renderMetaAdsTab = () => {
+    // Function to extract campaign ID from Meta Ads Manager URL
+    const extractCampaignIdFromUrl = (url: string): string | null => {
+      try {
+        // Match patterns like selected_campaign_ids=120227656917790066
+        const campaignIdMatch = url.match(/selected_campaign_ids=(\d+)/);
+        if (campaignIdMatch && campaignIdMatch[1]) {
+          return campaignIdMatch[1];
+        }
+        return null;
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const handleCampaignInputChange = (value: string) => {
+      // Check if it's a URL
+      if (value.includes('adsmanager.facebook.com') || value.includes('business.facebook.com')) {
+        const extractedId = extractCampaignIdFromUrl(value);
+        if (extractedId) {
+          setCampaignId(extractedId);
+          setError(null);
+        } else {
+          setError('Could not extract Campaign ID from the URL. Please check the URL or enter the ID manually.');
+        }
+      } else {
+        setCampaignId(value);
+      }
+    };
+
+    return (
     <div className="tab-content">
       <h3>Meta Ads Performance Analysis</h3>
       
       <div className="input-section">
-        <div className="file-upload-group">
-          <label>Upload Ad Report (CSV/Excel)</label>
+        <div className="input-group">
+          <label>Campaign ID or Meta Ads Manager URL</label>
           <input
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            onChange={(e) => setAdReportFile(e.target.files?.[0] || null)}
-            className="file-input"
+            type="text"
+            value={campaignId}
+            onChange={(e) => handleCampaignInputChange(e.target.value)}
+            placeholder="Enter campaign ID or paste Meta Ads Manager URL"
+            className="campaign-input"
           />
-          {adReportFile && (
-            <p className="file-name">Selected: {adReportFile.name}</p>
-          )}
+          <div className="help-text">
+            <p><strong>How to get your Campaign ID:</strong></p>
+            <ol>
+              <li>Go to <a href="https://adsmanager.facebook.com" target="_blank" rel="noopener noreferrer">Meta Ads Manager</a></li>
+              <li>Navigate to your campaign</li>
+              <li>Copy the URL from your browser's address bar and paste it here</li>
+              <li>Or find the Campaign ID in the campaign details (usually a long number like 120227656917790066)</li>
+            </ol>
+            <p className="example-text">
+              <strong>Example URL:</strong><br />
+              <code style={{ fontSize: '0.85em', wordBreak: 'break-all' }}>
+                https://adsmanager.facebook.com/adsmanager/manage/campaigns?selected_campaign_ids=120227656917790066
+              </code>
+            </p>
+          </div>
+        </div>
+
+        <div className="date-range-group">
+          <label>Date Range (Optional)</label>
+          <div className="date-inputs">
+            <input
+              type="date"
+              value={metaDateRange.start}
+              onChange={(e) => setMetaDateRange({ ...metaDateRange, start: e.target.value })}
+              placeholder="Start date"
+              className="date-input"
+            />
+            <span className="date-separator">to</span>
+            <input
+              type="date"
+              value={metaDateRange.end}
+              onChange={(e) => setMetaDateRange({ ...metaDateRange, end: e.target.value })}
+              placeholder="End date"
+              className="date-input"
+            />
+          </div>
         </div>
 
         <button 
           onClick={analyzeMetaAds} 
-          disabled={loading || !adReportFile}
+          disabled={loading || !campaignId}
           className="analyze-button"
         >
-          Analyze Meta Ads Performance
+          {loading ? 'Analyzing...' : 'Analyze Meta Ads Performance'}
         </button>
       </div>
 
-      <div className="coming-soon">
-        <p>Meta Ads analysis functionality coming soon!</p>
-      </div>
+      {metaAnalysis && (
+        <div className="analysis-results">
+          <h4>Analysis Results</h4>
+          
+          {/* Dashboard View */}
+          <MobileAnalyticsDashboard 
+            analysisData={metaAnalysis} 
+            analysisType="meta-ads" 
+          />
+          
+          {/* Performance Metrics */}
+          {metaAnalysis.performance_metrics && (
+            <div className="metrics-section">
+              <h5>Performance Metrics</h5>
+              <pre>{JSON.stringify(metaAnalysis.performance_metrics, null, 2)}</pre>
+            </div>
+          )}
+          
+          {/* Recommendations */}
+          {metaAnalysis.recommendations && (
+            <div className="recommendations-section">
+              <h5>Recommendations</h5>
+              <ul>
+                {metaAnalysis.recommendations.map((rec: any, idx: number) => (
+                  <li key={idx}>{rec}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
+  };
 
   const renderGoogleAnalyticsTab = () => (
     <div className="tab-content">
       <h3>Google Analytics Mobile Analysis</h3>
       
       <div className="input-section">
-        <div className="file-upload-group">
-          <label>Upload GA4 Export (CSV/JSON)</label>
+        <div className="input-group">
+          <label>GA4 Property ID</label>
           <input
-            type="file"
-            accept=".csv,.json"
-            onChange={(e) => setGaDataFile(e.target.files?.[0] || null)}
-            className="file-input"
+            type="text"
+            value={propertyId}
+            onChange={(e) => setPropertyId(e.target.value)}
+            placeholder="e.g., 123456789"
+            className="property-input"
           />
-          {gaDataFile && (
-            <p className="file-name">Selected: {gaDataFile.name}</p>
-          )}
+        </div>
+        
+        <div className="divider">OR</div>
+        
+        <div className="input-group">
+          <label>Mobile App ID</label>
+          <input
+            type="text"
+            value={appId}
+            onChange={(e) => setAppId(e.target.value)}
+            placeholder="e.g., com.example.app"
+            className="app-input"
+          />
+        </div>
+
+        <div className="date-range-group">
+          <label>Date Range (Optional)</label>
+          <div className="date-inputs">
+            <input
+              type="date"
+              value={gaDateRange.start}
+              onChange={(e) => setGaDateRange({ ...gaDateRange, start: e.target.value })}
+              placeholder="Start date"
+              className="date-input"
+            />
+            <span className="date-separator">to</span>
+            <input
+              type="date"
+              value={gaDateRange.end}
+              onChange={(e) => setGaDateRange({ ...gaDateRange, end: e.target.value })}
+              placeholder="End date"
+              className="date-input"
+            />
+          </div>
         </div>
 
         <button 
           onClick={analyzeGoogleAnalytics} 
-          disabled={loading || !gaDataFile}
+          disabled={loading || (!propertyId && !appId)}
           className="analyze-button"
         >
-          Analyze Mobile App Data
+          {loading ? 'Analyzing...' : 'Analyze Mobile App Data'}
         </button>
       </div>
 
-      <div className="coming-soon">
-        <p>Google Analytics analysis functionality coming soon!</p>
-      </div>
+      {gaAnalysis && (
+        <div className="analysis-results">
+          <h4>Analysis Results</h4>
+          
+          {/* Dashboard View */}
+          <MobileAnalyticsDashboard 
+            analysisData={gaAnalysis} 
+            analysisType="google-analytics" 
+          />
+          
+          {/* User Behavior */}
+          {gaAnalysis.user_behavior && (
+            <div className="behavior-section">
+              <h5>User Behavior Insights</h5>
+              <pre>{JSON.stringify(gaAnalysis.user_behavior, null, 2)}</pre>
+            </div>
+          )}
+          
+          {/* Performance Metrics */}
+          {gaAnalysis.performance_metrics && (
+            <div className="metrics-section">
+              <h5>App Performance Metrics</h5>
+              <pre>{JSON.stringify(gaAnalysis.performance_metrics, null, 2)}</pre>
+            </div>
+          )}
+          
+          {/* Recommendations */}
+          {gaAnalysis.recommendations && (
+            <div className="recommendations-section">
+              <h5>Recommendations</h5>
+              <ul>
+                {gaAnalysis.recommendations.map((rec: any, idx: number) => (
+                  <li key={idx}>{rec}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 

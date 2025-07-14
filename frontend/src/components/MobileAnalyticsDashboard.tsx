@@ -1,8 +1,9 @@
 import React from 'react';
 import './MobileAnalyticsDashboard.css';
+import { PlayStoreAnalysis, AppStoreAnalysis } from '../types/mobileAnalytics';
 
 interface DashboardProps {
-  analysisData: any;
+  analysisData: PlayStoreAnalysis | AppStoreAnalysis | any;
   analysisType: 'app-store' | 'play-store' | 'meta-ads' | 'google-analytics';
 }
 
@@ -121,18 +122,216 @@ const MobileAnalyticsDashboard: React.FC<DashboardProps> = ({ analysisData, anal
     );
   };
 
-  const renderPlayStoreDashboard = () => (
-    <div className="coming-soon-dashboard">
-      <h3>Play Store Analytics Dashboard</h3>
-      <p>Coming soon! This dashboard will show:</p>
-      <ul>
-        <li>Play Store listing optimization metrics</li>
-        <li>Android-specific performance indicators</li>
-        <li>User acquisition funnel analysis</li>
-        <li>Technical performance warnings (ANRs, crashes)</li>
-      </ul>
-    </div>
-  );
+  const renderPlayStoreDashboard = () => {
+    if (!analysisData) return null;
+
+    const { 
+      app_name, rating, total_reviews, downloads, category,
+      keyword_analysis, review_sentiment, visual_analysis, 
+      recommendations, competitor_analysis 
+    } = analysisData;
+
+    return (
+      <div className="dashboard-grid">
+        {/* Key Metrics Row */}
+        <div className="metrics-row">
+          <div className="metric-card">
+            <h3>App Rating</h3>
+            <div className="metric-value">
+              <span className="big-number">{rating || 0}</span>
+              <span className="metric-label">★ ({total_reviews?.toLocaleString() || 0} reviews)</span>
+            </div>
+          </div>
+          
+          <div className="metric-card">
+            <h3>Downloads</h3>
+            <div className="metric-value">
+              <span className="download-number">{downloads || 'N/A'}</span>
+              <span className="metric-label">{category || 'Unknown'}</span>
+            </div>
+          </div>
+          
+          <div className="metric-card">
+            <h3>Keyword Density</h3>
+            <div className="density-bars">
+              <div className="density-item">
+                <span>Title</span>
+                <div className="bar-container">
+                  <div 
+                    className="bar-fill"
+                    style={{ width: `${(keyword_analysis?.keyword_density?.title || 0) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div className="density-item">
+                <span>Short</span>
+                <div className="bar-container">
+                  <div 
+                    className="bar-fill"
+                    style={{ width: `${(keyword_analysis?.keyword_density?.short_description || 0) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div className="density-item">
+                <span>Desc</span>
+                <div className="bar-container">
+                  <div 
+                    className="bar-fill"
+                    style={{ width: `${(keyword_analysis?.keyword_density?.description || 0) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Analysis Sections */}
+        <div className="charts-section">
+          <div className="chart-card">
+            <h3>Review Sentiment Analysis</h3>
+            {review_sentiment && (
+              <div className="sentiment-details">
+                <div className="sentiment-overview">
+                  <span className={`sentiment-badge ${review_sentiment.sentiment_label?.toLowerCase().replace(' ', '-')}`}>
+                    {review_sentiment.sentiment_label || 'Unknown'}
+                  </span>
+                  <span className="sentiment-score">
+                    Score: {review_sentiment.sentiment_score?.toFixed(2) || 'N/A'}
+                  </span>
+                </div>
+                
+                {review_sentiment.pain_points && review_sentiment.pain_points.length > 0 && (
+                  <div className="pain-points">
+                    <h4>Top Pain Points</h4>
+                    <ul>
+                      {review_sentiment.pain_points.slice(0, 3).map((point: any, idx: number) => (
+                        <li key={idx}>
+                          <span className="severity-badge">{point.severity}</span>
+                          {point.issue} ({point.frequency} mentions)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {review_sentiment.positive_highlights && review_sentiment.positive_highlights.length > 0 && (
+                  <div className="positive-highlights">
+                    <h4>Positive Highlights</h4>
+                    <ul>
+                      {review_sentiment.positive_highlights.slice(0, 3).map((highlight: any, idx: number) => (
+                        <li key={idx}>
+                          ✓ {highlight.aspect} ({highlight.mentions} mentions)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="chart-card">
+            <h3>Visual Quality Assessment</h3>
+            {visual_analysis && (
+              <div className="visual-assessment">
+                <div className="visual-scores">
+                  <div className="score-item">
+                    <span>Icon</span>
+                    <span className="score">{visual_analysis.icon_quality?.score || 0}/10</span>
+                  </div>
+                  <div className="score-item">
+                    <span>Screenshots</span>
+                    <span className="score">{visual_analysis.screenshots?.quality_score || 0}/10</span>
+                  </div>
+                  <div className="score-item">
+                    <span>Video</span>
+                    <span className="score">{visual_analysis.video?.present ? '✓' : '✗'}</span>
+                  </div>
+                </div>
+                
+                {visual_analysis.screenshots?.recommendations && (
+                  <div className="visual-recommendations">
+                    <h4>Visual Improvements</h4>
+                    <ul>
+                      {visual_analysis.screenshots.recommendations.slice(0, 3).map((rec: string, idx: number) => (
+                        <li key={idx}>{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Keywords and Competitors */}
+        <div className="insights-section">
+          <div className="insight-card">
+            <h3>Keyword Opportunities</h3>
+            {keyword_analysis?.keyword_opportunities && (
+              <div className="keyword-list">
+                {keyword_analysis.keyword_opportunities.slice(0, 5).map((kw: any, idx: number) => (
+                  <div key={idx} className="keyword-item">
+                    <span className="keyword">{kw.keyword}</span>
+                    <div className="keyword-meta">
+                      <span className="volume">Vol: {kw.search_volume}</span>
+                      <span className="competition">Comp: {kw.competition}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <div className="insight-card">
+            <h3>Top Recommendations</h3>
+            <ul className="recommendations-list">
+              {recommendations?.filter((r: any) => r.priority === 'high')
+                .slice(0, 4)
+                .map((rec: any, idx: number) => (
+                  <li key={idx} className="recommendation-item">
+                    <span className={`priority-badge ${rec.priority}`}>{rec.priority}</span>
+                    <div>
+                      <strong>{rec.category}</strong>
+                      <p>{rec.recommendation}</p>
+                      <span className="impact">Impact: {rec.expected_impact}</span>
+                    </div>
+                  </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Competitor Analysis */}
+        {competitor_analysis && competitor_analysis.competitors && (
+          <div className="competitor-section">
+            <h3>Competitor Analysis</h3>
+            <div className="competitor-grid">
+              {competitor_analysis.competitors.slice(0, 3).map((comp: any, idx: number) => (
+                <div key={idx} className="competitor-card">
+                  <h4>{comp.name}</h4>
+                  <div className="comp-stats">
+                    <span>Rating: {comp.rating}★</span>
+                    <span>Downloads: {comp.downloads}</span>
+                  </div>
+                  {comp.advantages && (
+                    <div className="comp-advantages">
+                      <strong>Their advantages:</strong>
+                      <ul>
+                        {comp.advantages.slice(0, 2).map((adv: string, i: number) => (
+                          <li key={i}>{adv}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderMetaAdsDashboard = () => (
     <div className="coming-soon-dashboard">
