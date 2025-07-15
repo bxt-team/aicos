@@ -86,11 +86,24 @@ class MetaAdsAnalystAgent(BaseCrew):
         audience_analyst = agents[1]
         creative_analyst = agents[2]
         
+        # Prepare tool input with access token if available
+        tool_input = {
+            "campaign_id": campaign_info.get("campaign_id"),
+            "access_token": campaign_info.get("access_token"),
+            "date_range": campaign_info.get("date_range")
+        }
+        
         # Task 1: Analyze campaign performance
         campaign_task = Task(
             description=f"""
-            Analyze the Meta Ads campaign performance data:
-            {json.dumps(campaign_info, indent=2)}
+            Analyze the Meta Ads campaign performance data.
+            
+            Campaign details:
+            - Campaign ID: {campaign_info.get('campaign_id', 'Unknown')}
+            - Date Range: {json.dumps(campaign_info.get('date_range', {}), indent=2)}
+            
+            Use the Meta Ads Analytics Tool with the following input:
+            {json.dumps(tool_input, indent=2)}
             
             Evaluate:
             1. Overall campaign metrics (impressions, clicks, CTR, CPC, CPM)
@@ -176,6 +189,11 @@ class MetaAdsAnalystAgent(BaseCrew):
         
         # Extract results from crew output
         results_text = str(crew_result)
+        
+        # Check if the tool returned an error
+        if "NO_ACCESS_TOKEN" in results_text or "API_NOT_CONFIGURED" in results_text or "error_code" in results_text:
+            logger.error(f"Meta Ads Tool returned an error: {results_text}")
+            raise Exception("Failed to analyze campaign: Authentication required or API not configured")
         
         # Create structured analysis
         analysis = MetaAdsAnalysis(

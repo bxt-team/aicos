@@ -37,3 +37,6 @@ loguru==0.7.2
 
 # Database
 supabase==2.1.0
+
+# Meta Marketing API
+facebook-business==18.0.4

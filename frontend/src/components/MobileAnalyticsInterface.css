@@ -704,6 +704,12 @@
   font-size: 14px;
 }
 
+.analysis-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .view-details-button {
   background: #007bff;
   color: white;
@@ -717,6 +723,27 @@
 
 .view-details-button:hover {
   background: #0056b3;
+}
+
+.delete-button {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.delete-button:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.delete-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* Dashboard View */
@@ -791,4 +818,43 @@
   border-radius: 4px;
   color: #495057;
   overflow-x: auto;
+}
+
+/* Access Token Input */
+.access-token-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: monospace;
+  background-color: #f9f9f9;
+}
+
+.access-token-input:focus {
+  outline: none;
+  border-color: #007bff;
+  background-color: #fff;
+}
+
+/* Mode Indicator */
+.mode-indicator {
+  font-size: 14px;
+  font-weight: normal;
+  margin-left: 10px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.mode-indicator.production {
+  background-color: #fee;
+  color: #d00;
+  border: 1px solid #fcc;
+}
+
+.mode-indicator.mock {
+  background-color: #e8f4ff;
+  color: #0066cc;
+  border: 1px solid #cce5ff;
 }

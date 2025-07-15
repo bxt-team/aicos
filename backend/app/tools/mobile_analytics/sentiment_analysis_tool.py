@@ -14,19 +14,45 @@ class SentimentAnalysisTool(BaseTool):
     name: str = "Review Sentiment Analyzer"
     description: str = "Analyzes user reviews for sentiment, themes, and insights"
     
-    def _run(self, reviews: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _run(self, reviews: Any) -> Dict[str, Any]:
         """
         Analyze reviews for sentiment and extract insights.
         
         Args:
             reviews: List of review dictionaries with 'text', 'rating', 'date' fields
+                    OR a dict/string that needs to be processed first
             
         Returns:
             Dictionary containing sentiment analysis and insights
         """
         try:
+            # Handle different input types
+            if isinstance(reviews, str):
+                return {"error": "String input not supported. Please provide a list of reviews or use ReviewExtractorTool."}
+            
+            if isinstance(reviews, dict):
+                # Check if it's a single review
+                if "text" in reviews and "rating" in reviews:
+                    reviews = [reviews]
+                else:
+                    return {"error": "Invalid input format. Expected list of reviews but got dict. Use ReviewExtractorTool for app data."}
+            
+            if not isinstance(reviews, list):
+                return {"error": f"Invalid input type: {type(reviews)}. Expected list of reviews."}
+            
             if not reviews:
                 return {"error": "No reviews provided for analysis"}
+            
+            # Validate review format
+            valid_reviews = []
+            for review in reviews:
+                if isinstance(review, dict) and "text" in review:
+                    valid_reviews.append(review)
+            
+            if not valid_reviews:
+                return {"error": "No valid reviews found. Each review must be a dict with at least a 'text' field."}
+            
+            reviews = valid_reviews
             
             # Perform comprehensive analysis
             analysis = {

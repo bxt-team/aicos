@@ -276,7 +276,8 @@ async def analyze_play_store_listing(
 class MetaAdsAnalysisRequest(BaseModel):
     """Request model for Meta Ads analysis."""
     campaign_id: Optional[str] = Field(None, description="Meta campaign ID")
-    campaign_data: Optional[Dict[str, Any]] = Field(None, description="Campaign performance data")
+    access_token: Optional[str] = Field(None, description="Meta user access token for API authentication")
+    campaign_data: Optional[Dict[str, Any]] = Field(None, description="Campaign performance data (for mock/testing)")
     date_range: Optional[Dict[str, str]] = Field(
         None, 
         description="Date range for analysis",
@@ -327,11 +328,12 @@ async def analyze_meta_ads_performance(
         # Prepare campaign info
         campaign_info = {
             "campaign_id": request.campaign_id,
+            "access_token": request.access_token,
             "campaign_data": request.campaign_data,
             "date_range": request.date_range
         }
         
-        # Add campaign data if provided
+        # Add campaign data if provided (for mock testing)
         if request.campaign_data:
             campaign_info.update(request.campaign_data)
         

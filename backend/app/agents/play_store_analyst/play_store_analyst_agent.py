@@ -12,7 +12,7 @@ from langchain_openai import ChatOpenAI
 from app.agents.crews.base_crew import BaseCrew
 from app.tools.mobile_analytics.play_store_api_tool import PlayStoreAPITool
 from app.tools.mobile_analytics.keyword_ranking_tool import KeywordRankingTool
-from app.tools.mobile_analytics.sentiment_analysis_tool import SentimentAnalysisTool
+from app.tools.mobile_analytics.review_extractor_tool import ReviewExtractorTool
 from app.models.mobile_analytics.play_store_analysis import PlayStoreAnalysis
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ class PlayStoreAnalystAgent(BaseCrew):
             goal="Analyze user reviews to identify sentiment, pain points, and feature requests",
             backstory="""You specialize in analyzing Play Store reviews to extract actionable insights. 
             You can identify patterns in user feedback and prioritize issues based on their impact.""",
-            tools=[SentimentAnalysisTool()],
+            tools=[ReviewExtractorTool()],
             llm=llm,
             verbose=True
         )
@@ -113,14 +113,17 @@ class PlayStoreAnalystAgent(BaseCrew):
         # Task 2: Analyze reviews
         review_task = Task(
             description=f"""
-            Analyze user reviews for sentiment and insights:
+            Extract and analyze user reviews for the app using the app information:
+            {json.dumps(app_info, indent=2)}
             
-            1. Overall sentiment distribution
-            2. Most common complaints and pain points
-            3. Most praised features
-            4. Feature requests from users
-            5. Version-specific issues
-            6. Competitor mentions
+            Use the Review Extractor and Analyzer tool to:
+            1. Fetch reviews for the app
+            2. Analyze overall sentiment distribution
+            3. Identify most common complaints and pain points
+            4. Find most praised features
+            5. Extract feature requests from users
+            6. Look for version-specific issues
+            7. Find competitor mentions
             
             Focus on actionable insights that can improve the app and its listing.
             """,

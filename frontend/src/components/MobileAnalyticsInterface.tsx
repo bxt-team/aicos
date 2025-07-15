@@ -63,6 +63,7 @@ const MobileAnalyticsInterface: React.FC = () => {
   
   // Meta Ads State
   const [campaignId, setCampaignId] = useState('');
+  const [accessToken, setAccessToken] = useState('');
   const [metaDateRange, setMetaDateRange] = useState({ start: '', end: '' });
   const [metaAnalysis, setMetaAnalysis] = useState<any>(null);
   
@@ -99,6 +100,31 @@ const MobileAnalyticsInterface: React.FC = () => {
       setShowDashboard(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load analysis details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteAnalysis = async (analysisId: string) => {
+    if (!window.confirm('Are you sure you want to delete this analysis?')) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await axios.delete(`http://localhost:8000/api/mobile-analytics/play-store/analyses/${analysisId}`);
+      // Refresh the list after deletion
+      await fetchSavedPlayStoreAnalyses();
+      // If we were viewing the deleted analysis, go back to list
+      if (selectedAnalysisId === analysisId) {
+        setShowDashboard(false);
+        setPlayStoreAnalysis(null);
+        setSelectedAnalysisId(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete analysis');
     } finally {
       setLoading(false);
     }
@@ -179,6 +205,11 @@ const MobileAnalyticsInterface: React.FC = () => {
       const requestData: any = {
         campaign_id: campaignId
       };
+
+      // Add access token if provided (for production mode)
+      if (accessToken) {
+        requestData.access_token = accessToken;
+      }
 
       // Add date range if provided
       if (metaDateRange.start && metaDateRange.end) {
@@ -456,12 +487,21 @@ const MobileAnalyticsInterface: React.FC = () => {
                         {analysis.recommendation_count} recommendations
                       </span>
                     </div>
-                    <button 
-                      onClick={() => viewAnalysisDetails(analysis.analysis_id)}
-                      className="view-details-button"
-                    >
-                      View Dashboard
-                    </button>
+                    <div className="analysis-actions">
+                      <button 
+                        onClick={() => viewAnalysisDetails(analysis.analysis_id)}
+                        className="view-details-button"
+                      >
+                        View Dashboard
+                      </button>
+                      <button 
+                        onClick={() => deleteAnalysis(analysis.analysis_id)}
+                        className="delete-button"
+                        disabled={loading}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -687,6 +727,20 @@ const MobileAnalyticsInterface: React.FC = () => {
           </div>
         </div>
 
+        <div className="input-group">
+          <label>Access Token (Required)</label>
+          <input
+            type="password"
+            value={accessToken}
+            onChange={(e) => setAccessToken(e.target.value)}
+            placeholder="Enter your Meta access token"
+            className="access-token-input"
+          />
+          <div className="help-text">
+            <p>A valid Meta access token is required to analyze campaigns. See documentation for how to generate one.</p>
+          </div>
+        </div>
+
         <div className="date-range-group">
           <label>Date Range (Optional)</label>
           <div className="date-inputs">
@@ -710,7 +764,7 @@ const MobileAnalyticsInterface: React.FC = () => {
 
         <button 
           onClick={analyzeMetaAds} 
-          disabled={loading || !campaignId}
+          disabled={loading || !campaignId || !accessToken}
           className="analyze-button"
         >
           {loading ? 'Analyzing...' : 'Analyze Meta Ads Performance'}

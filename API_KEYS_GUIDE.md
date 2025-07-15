@@ -191,3 +191,76 @@ After setting up all keys, you can verify them:
 - ElevenLabs: https://docs.elevenlabs.io/
 - Instagram API: https://developers.facebook.com/docs/instagram-api
 - Runway: https://docs.runwayml.com/
+
+## Additional Integrations
+
+### 8. Threads (Meta) Integration
+**Used for:** Posting content to Threads
+
+**Note:** Threads API access is currently limited. Check the latest requirements at [developers.facebook.com](https://developers.facebook.com).
+
+**Steps to obtain:**
+1. **Create a Meta App**
+   - Go to [Meta for Developers](https://developers.facebook.com/)
+   - Create a new app or use existing
+   - Add Threads API product
+
+2. **Get Access Token**
+   - Navigate to Tools → Access Token Debugger
+   - Generate a user access token with required permissions
+
+3. **Add to .env**
+   ```
+   THREADS_ACCESS_TOKEN=your_threads_access_token_here
+   ```
+
+### 9. Meta Ads (Facebook/Instagram) Analytics
+**Used for:** Real-time Meta Ads campaign analytics
+
+**Steps to obtain:**
+1. **Create/Configure Meta App**
+   - Go to [Meta for Developers](https://developers.facebook.com/)
+   - Create a new app (type: Business)
+   - Add "Marketing API" product
+   - Request permissions: `ads_read`, `ads_management`, `business_management`
+
+2. **Get Credentials**
+   - **App ID**: Found in Basic Settings
+   - **App Secret**: Found in Basic Settings (click "Show")
+   - **Ad Account ID**: From Meta Ads Manager (format: act_123456789)
+   - **Access Token**: Generate a system user token (recommended) or user token
+
+3. **Add to .env**
+   ```
+   META_APP_ID=your_app_id_here
+   META_APP_SECRET=your_app_secret_here
+   META_AD_ACCOUNT_ID=act_123456789
+   ```
+
+4. **Usage**
+   - For production data: Provide access token with each API request
+   - For testing: Leave access token empty to use mock data
+   - See `META_ADS_PRODUCTION_SETUP.md` for detailed instructions
+
+### 10. X (Twitter) API
+**Used for:** Posting content to X (formerly Twitter)
+
+**Steps to obtain:**
+1. **Create X Developer Account**
+   - Go to https://developer.twitter.com/
+   - Apply for developer access
+   - Create a new app
+
+2. **Get Credentials**
+   - API Key (Consumer Key)
+   - API Secret (Consumer Secret)
+   - Access Token
+   - Access Token Secret
+
+3. **Add to .env**
+   ```
+   X_API_KEY=your_api_key_here
+   X_API_SECRET=your_api_secret_here
+   X_ACCESS_TOKEN=your_access_token_here
+   X_ACCESS_TOKEN_SECRET=your_access_token_secret_here
+   ```
