@@ -6,12 +6,14 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import hashlib
 from app.agents.crews.base_crew import BaseCrew
 from app.services.knowledge_base_manager import knowledge_base_manager
+from app.core.storage import StorageFactory
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -26,15 +28,9 @@ class AffirmationsAgent(BaseCrew):
         self.vector_store = knowledge_base_manager.get_vector_store()
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Storage for generated affirmations
-        # Make path relative to the backend directory
-        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        self.storage_file = os.path.join(backend_dir, "static", "affirmations_storage.json")
-        
-        # Ensure the static directory exists
-        os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
-        
-        self.generated_affirmations = self._load_generated_affirmations()
+        # Initialize storage adapter
+        self.storage = StorageFactory.get_adapter()
+        self.collection = "affirmations"
         
         # Create the affirmations agent from YAML config
         try:
@@ -44,26 +40,9 @@ class AffirmationsAgent(BaseCrew):
             logger.error(f"[AFFIRMATIONS_AGENT] Error creating agent: {e}")
             raise
     
-    
-    def _load_generated_affirmations(self) -> Dict[str, Any]:
-        """Load previously generated affirmations"""
-        try:
-            if os.path.exists(self.storage_file):
-                with open(self.storage_file, 'r') as f:
-                    return json.load(f)
-        except Exception as e:
-            print(f"Error loading affirmations storage: {e}")
-        
-        return {"affirmations": [], "by_period": {}}
-    
-    def _save_generated_affirmations(self):
-        """Save generated affirmations to storage"""
-        try:
-            os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
-            with open(self.storage_file, 'w') as f:
-                json.dump(self.generated_affirmations, f, indent=2)
-        except Exception as e:
-            print(f"Error saving affirmations: {e}")
+    async def _run_async(self, coro):
+        """Helper to await async coroutines"""
+        return await coro
     
     def _get_period_context(self, period_name: str, period_info: Dict[str, Any]) -> str:
         """Get relevant context for a specific 7 Cycles period"""
@@ -101,11 +80,20 @@ class AffirmationsAgent(BaseCrew):
         period_key = f"{period_type}_{json.dumps(period_info, sort_keys=True)}"
         return hashlib.md5(period_key.encode()).hexdigest()
     
-    def _check_existing_affirmations(self, period_hash: str) -> List[Dict[str, Any]]:
-        """Check if affirmations already exist for this period"""
-        return self.generated_affirmations.get("by_period", {}).get(period_hash, [])
+    def _map_period_to_number(self, period_name: str) -> int:
+        """Map period name to number (1-7)"""
+        period_mapping = {
+            "Image": 1,
+            "Veränderung": 2,
+            "Energie": 3,
+            "Kreativität": 4,
+            "Erfolg": 5,
+            "Entspannung": 6,
+            "Umsicht": 7
+        }
+        return period_mapping.get(period_name, 1)
     
-    def generate_affirmations(self, period_name: str, period_info: Dict[str, Any], count: int = 5) -> Dict[str, Any]:
+    async def generate_affirmations(self, period_name: str, period_info: Dict[str, Any], count: int = 5) -> Dict[str, Any]:
         """Generate affirmations for a specific 7 Cycles period"""
         try:
             # Define the 7 Cycles periods with their colors
@@ -128,15 +116,21 @@ class AffirmationsAgent(BaseCrew):
                 }
             
             period_color = cycles_periods[period_name]
+            period_number = self._map_period_to_number(period_name)
             
             # Check for existing affirmations
-            period_hash = self._generate_affirmation_hash(period_name, period_info)
-            existing = self._check_existing_affirmations(period_hash)
+            existing_affirmations = await self._run_async(
+                self.storage.list(
+                    self.collection,
+                    filters={"period": period_number, "theme": period_name},
+                    limit=count
+                )
+            )
             
-            if existing:
+            if existing_affirmations and len(existing_affirmations) >= count:
                 return {
                     "success": True,
-                    "affirmations": existing,
+                    "affirmations": existing_affirmations[:count],
                     "period_name": period_name,
                     "period_color": period_color,
                     "period_info": period_info,
@@ -246,58 +240,112 @@ class AffirmationsAgent(BaseCrew):
                     "affirmations": affirmations_list[:count]
                 }
             
-            # Add metadata
+            # Save new affirmations to storage
+            saved_affirmations = []
             for affirmation in affirmations_data["affirmations"]:
-                affirmation["created_at"] = datetime.now().isoformat()
-                affirmation["period_name"] = period_name
-                affirmation["period_color"] = period_color
-                affirmation["period_info"] = period_info
-                affirmation["id"] = hashlib.md5(f"{affirmation['text']}_{period_hash}".encode()).hexdigest()
-                # Ensure period_color is set
-                if "period_color" not in affirmation:
-                    affirmation["period_color"] = period_color
-            
-            # Store the affirmations
-            self.generated_affirmations["affirmations"].extend(affirmations_data["affirmations"])
-            self.generated_affirmations["by_period"][period_hash] = affirmations_data["affirmations"]
-            self._save_generated_affirmations()
+                # Prepare data for storage
+                storage_data = {
+                    "theme": period_name,
+                    "period": period_number,
+                    "affirmation": affirmation["text"],
+                    "language": "de",
+                    "metadata": {
+                        "focus": affirmation.get("focus", f"{period_name} Stärkung"),
+                        "period_color": period_color,
+                        "period_info": period_info,
+                        "generated_at": datetime.now().isoformat()
+                    }
+                }
+                
+                # Save to storage
+                affirmation_id = await self._run_async(
+                    self.storage.save(self.collection, storage_data)
+                )
+                
+                # Add to result list
+                saved_affirmation = storage_data.copy()
+                saved_affirmation["id"] = affirmation_id
+                saved_affirmation["created_at"] = storage_data["metadata"]["generated_at"]
+                saved_affirmation["period_name"] = period_name
+                saved_affirmation["period_color"] = period_color
+                saved_affirmation["text"] = storage_data["affirmation"]
+                saved_affirmations.append(saved_affirmation)
             
             return {
                 "success": True,
-                "affirmations": affirmations_data["affirmations"],
+                "affirmations": saved_affirmations,
                 "period_name": period_name,
                 "period_color": period_color,
                 "period_info": period_info,
                 "source": "generated",
-                "message": f"{len(affirmations_data['affirmations'])} neue Affirmationen für {period_name} generiert"
+                "message": f"{len(saved_affirmations)} neue Affirmationen für {period_name} generiert"
             }
             
         except Exception as e:
+            logger.error(f"[AFFIRMATIONS_AGENT] Error generating affirmations: {e}")
             return {
                 "success": False,
                 "error": str(e),
                 "message": "Fehler beim Generieren der Affirmationen"
             }
     
-    def get_affirmations_by_period(self, period_name: str = None) -> Dict[str, Any]:
+    async def get_affirmations_by_period(self, period_name: str = None) -> Dict[str, Any]:
         """Get all affirmations, optionally filtered by 7 Cycles period"""
         try:
+            filters = None
             if period_name:
-                filtered_affirmations = [
-                    aff for aff in self.generated_affirmations.get("affirmations", [])
-                    if aff.get("period_name") == period_name or aff.get("period_type") == period_name
-                ]
-            else:
-                filtered_affirmations = self.generated_affirmations.get("affirmations", [])
+                period_number = self._map_period_to_number(period_name)
+                filters = {"period": period_number}
+            
+            affirmations = await self._run_async(
+                self.storage.list(
+                    self.collection,
+                    filters=filters,
+                    order_by="created_at",
+                    order_desc=True
+                )
+            )
+            
+            logger.info(f"[AFFIRMATIONS_AGENT] Retrieved {len(affirmations) if isinstance(affirmations, list) else 'unknown'} affirmations")
+            logger.debug(f"[AFFIRMATIONS_AGENT] Affirmations type: {type(affirmations)}")
+            if affirmations and isinstance(affirmations, list) and len(affirmations) > 0:
+                logger.debug(f"[AFFIRMATIONS_AGENT] First affirmation type: {type(affirmations[0])}")
+            
+            # Transform storage format to expected format
+            formatted_affirmations = []
+            for aff in affirmations:
+                # Handle case where aff might not be a dict
+                if not isinstance(aff, dict):
+                    logger.warning(f"[AFFIRMATIONS_AGENT] Unexpected affirmation format: {type(aff)} - {aff}")
+                    continue
+                    
+                formatted = {
+                    "id": aff.get("id"),
+                    "text": aff.get("affirmation"),
+                    "theme": aff.get("theme"),
+                    "period_name": aff.get("theme"),
+                    "period": aff.get("period"),
+                    "created_at": aff.get("created_at"),
+                    "language": aff.get("language", "de")
+                }
+                
+                # Add metadata fields if present
+                if "metadata" in aff and isinstance(aff["metadata"], dict):
+                    formatted["focus"] = aff["metadata"].get("focus")
+                    formatted["period_color"] = aff["metadata"].get("period_color")
+                    formatted["period_info"] = aff["metadata"].get("period_info")
+                
+                formatted_affirmations.append(formatted)
             
             return {
                 "success": True,
-                "affirmations": filtered_affirmations,
-                "count": len(filtered_affirmations),
+                "affirmations": formatted_affirmations,
+                "count": len(formatted_affirmations),
                 "period_name": period_name
             }
             
         except Exception as e:
+            logger.error(f"[AFFIRMATIONS_AGENT] Error getting affirmations: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -312,43 +360,74 @@ class AffirmationsAgent(BaseCrew):
                     "description": "Selbstbild, Identität und persönliche Ausstrahlung",
                     "color": "#DAA520",
                     "focus": "Selbstvertrauen, Authentizität, Selbstliebe",
-                    "keywords": ["Ich bin", "Mein wahres Selbst", "Meine Ausstrahlung", "Meine Identität"]
+                    "keywords": ["Ich bin", "Mein wahres Selbst", "Meine Ausstrahlung", "Meine Identität"],
+                    "number": 1
                 },
                 "Veränderung": {
                     "description": "Transformation, Wandel und Anpassung",
                     "color": "#2196F3",
                     "focus": "Mut zur Veränderung, Flexibilität, Wachstum",
-                    "keywords": ["Ich verändere", "Ich wachse", "Neue Wege", "Transformation"]
+                    "keywords": ["Ich verändere", "Ich wachse", "Neue Wege", "Transformation"],
+                    "number": 2
                 },
                 "Energie": {
                     "description": "Vitalität, Schwung und dynamische Kraft",
                     "color": "#F44336",
                     "focus": "Lebenskraft, Motivation, Ausdauer",
-                    "keywords": ["Meine Energie", "Ich bin kraftvoll", "Vitalität", "Schwung"]
+                    "keywords": ["Meine Energie", "Ich bin kraftvoll", "Vitalität", "Schwung"],
+                    "number": 3
                 },
                 "Kreativität": {
                     "description": "Innovation, Inspiration und schöpferischer Ausdruck",
                     "color": "#FFD700",
                     "focus": "Kreative Entfaltung, Inspiration, Innovation",
-                    "keywords": ["Ich erschaffe", "Meine Kreativität", "Innovation", "Inspiration"]
+                    "keywords": ["Ich erschaffe", "Meine Kreativität", "Innovation", "Inspiration"],
+                    "number": 4
                 },
                 "Erfolg": {
                     "description": "Zielerreichung, Leistung und Manifestation",
                     "color": "#CC0066",
                     "focus": "Ziele erreichen, Erfolg manifestieren, Leistung",
-                    "keywords": ["Ich erreiche", "Mein Erfolg", "Ziele verwirklichen", "Erfolgreiche Umsetzung"]
+                    "keywords": ["Ich erreiche", "Mein Erfolg", "Ziele verwirklichen", "Erfolgreiche Umsetzung"],
+                    "number": 5
                 },
                 "Entspannung": {
                     "description": "Ruhe, Regeneration und innere Balance",
                     "color": "#4CAF50",
                     "focus": "Gelassenheit, Erholung, innere Ruhe",
-                    "keywords": ["Ich entspanne", "Innere Ruhe", "Balance", "Gelassenheit"]
+                    "keywords": ["Ich entspanne", "Innere Ruhe", "Balance", "Gelassenheit"],
+                    "number": 6
                 },
                 "Umsicht": {
                     "description": "Weisheit, Besonnenheit und durchdachte Planung",
                     "color": "#9C27B0",
                     "focus": "Weisheit, kluge Entscheidungen, strategisches Denken",
-                    "keywords": ["Ich entscheide weise", "Meine Weisheit", "Besonnenheit", "Klare Sicht"]
+                    "keywords": ["Ich entscheide weise", "Meine Weisheit", "Besonnenheit", "Klare Sicht"],
+                    "number": 7
                 }
             }
         }
+    
+    # Backward compatibility methods
+    async def _load_generated_affirmations(self) -> Dict[str, Any]:
+        """Legacy method - now uses storage adapter"""
+        affirmations = await self._run_async(
+            self.storage.list(self.collection)
+        )
+        
+        # Convert to legacy format
+        by_period = {}
+        for aff in affirmations:
+            period_hash = self._generate_affirmation_hash(
+                aff.get("theme", ""),
+                aff.get("metadata", {}).get("period_info", {})
+            )
+            if period_hash not in by_period:
+                by_period[period_hash] = []
+            by_period[period_hash].append(aff)
+        
+        return {"affirmations": affirmations, "by_period": by_period}
+    
+    def _save_generated_affirmations(self):
+        """Legacy method - no longer needed with storage adapter"""
+        pass  # Storage adapter handles persistence automatically

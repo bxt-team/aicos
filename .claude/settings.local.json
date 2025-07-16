@@ -28,8 +28,15 @@
       "Bash(rg:*)",
       "Bash(ls:*)",
       "Bash(grep:*)",
-      "Bash(export PATH=\"$ANDROID_HOME/build-tools/35.0.0:$PATH\")"
+      "Bash(export PATH=\"$ANDROID_HOME/build-tools/35.0.0:$PATH\")",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__list_tables"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
 }

@@ -30,7 +30,7 @@ async def generate_affirmations(request: AffirmationRequest):
     try:
         period_info = PERIODS.get(request.period_name, request.period_info)
         
-        result = affirmations_agent.generate_affirmations(
+        result = await affirmations_agent.generate_affirmations(
             period_name=request.period_name,
             period_info=period_info,
             count=request.count
@@ -59,7 +59,7 @@ async def get_all_affirmations(period_name: str = None):
         raise HTTPException(status_code=503, detail="Affirmations Agent not initialized")
     
     try:
-        result = affirmations_agent.get_affirmations_by_period(period_name)
+        result = await affirmations_agent.get_affirmations_by_period(period_name)
         
         if not result.get("success", False):
             raise HTTPException(status_code=500, detail=result.get("error", "Failed to retrieve affirmations"))

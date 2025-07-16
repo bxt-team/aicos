@@ -27,6 +27,8 @@ pyvenv.cfg
 .env
 .env.local
 .env.*.local
+.env.development
+.env.production
 
 # IDE
 .vscode/
@@ -76,6 +78,8 @@ coverage/
 .coverage
 .pytest_cache/
 htmlcov/
+test_*.py
+!backend/tests/**/*.py
 
 # Misc
 *.bak
@@ -84,3 +88,6 @@ htmlcov/
 /.claude/
 /static/
 /backend/static/
+/backend/storage/
+*_storage.json
+*.backup

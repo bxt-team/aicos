@@ -47,6 +47,13 @@ class Settings:
     # CORS Settings
     CORS_ORIGINS: list = ["*"]  # Allow all origins
     
+    # Storage Configuration
+    STORAGE_ADAPTER: str = os.getenv("STORAGE_ADAPTER", "json")  # json, supabase, or dual
+    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
+    SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY")
+    SUPABASE_SERVICE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_KEY")
+    DUAL_WRITE_READ_FROM: str = os.getenv("DUAL_WRITE_READ_FROM", "json")  # json or supabase
+    
     # File Storage Settings
     STORAGE_BASE_PATH: str = "storage"
     GENERATED_DIR: str = "generated"
