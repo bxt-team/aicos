@@ -1,11 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { agentConfigs, AgentConfig } from '../config/agents';
+import axios from 'axios';
 import './AgentManagement.css';
+
+interface AgentPrompt {
+  name: string;
+  role: string;
+  goal: string;
+  backstory: string;
+  settings: {
+    verbose: boolean;
+    allow_delegation: boolean;
+    max_iter: number;
+    max_execution_time: number;
+  };
+}
 
 const AgentManagement: React.FC = () => {
   const [agents] = useState<AgentConfig[]>(agentConfigs);
   const [healthStatus, setHealthStatus] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState(false);
+  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
+  const [agentPrompts, setAgentPrompts] = useState<{ [key: string]: AgentPrompt }>({});
+  const [loadingPrompts, setLoadingPrompts] = useState<Set<string>>(new Set());
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -66,6 +83,76 @@ const AgentManagement: React.FC = () => {
     return colors[category] || '#718096';
   };
 
+  const loadAgentPrompt = async (agentId: string) => {
+    // Map frontend agent IDs to backend agent IDs
+    const agentIdMap: { [key: string]: string } = {
+      'qa': 'qa_agent',
+      'affirmations': 'affirmations_agent',
+      'instagram-posts': 'instagram_ai_prompt_agent',
+      'visual-posts': 'visual_post_creator_agent',
+      'instagram-poster': 'instagram_poster_agent',
+      'instagram-analyzer': 'instagram_analyzer_agent',
+      'workflows': 'content_workflow_agent',
+      'post-composition': 'post_composition_agent',
+      'video-generation': 'video_generation_agent',
+      'instagram-reel': 'instagram_reel_agent',
+      'android-test': 'android_testing_agent',
+      'voice-over': 'voice_over_agent',
+      'mobile-analytics': 'mobile_analytics_agent',
+      'threads': 'threads_analysis_agent',
+      'x-twitter': 'x_analysis_agent'
+    };
+
+    const backendAgentId = agentIdMap[agentId];
+    if (!backendAgentId) return;
+
+    setLoadingPrompts(prev => new Set(prev).add(agentId));
+    
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/agent-prompts/${backendAgentId}`);
+      if (response.data.success) {
+        setAgentPrompts(prev => ({
+          ...prev,
+          [agentId]: response.data.agent
+        }));
+      }
+    } catch (error) {
+      console.error(`Error loading prompt for agent ${agentId}:`, error);
+    } finally {
+      setLoadingPrompts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(agentId);
+        return newSet;
+      });
+    }
+  };
+
+  const toggleAgentExpansion = async (agentId: string) => {
+    const newExpanded = new Set(expandedAgents);
+    if (newExpanded.has(agentId)) {
+      newExpanded.delete(agentId);
+    } else {
+      newExpanded.add(agentId);
+      // Load prompts if not already loaded
+      if (!agentPrompts[agentId] && !loadingPrompts.has(agentId)) {
+        await loadAgentPrompt(agentId);
+      }
+    }
+    setExpandedAgents(newExpanded);
+  };
+
+  const formatBackstory = (backstory: string) => {
+    return backstory.split('\n').map((line, index) => {
+      if (line.trim().startsWith('-')) {
+        return <li key={index}>{line.trim().substring(1).trim()}</li>;
+      }
+      if (line.trim() === '') {
+        return <br key={index} />;
+      }
+      return <p key={index}>{line}</p>;
+    });
+  };
+
   return (
     <div className="agent-management">
       <div className="management-header">
@@ -79,9 +166,6 @@ const AgentManagement: React.FC = () => {
           >
             {loading ? '🔄 Überprüfung...' : '🔄 Status aktualisieren'}
           </button>
-          <a href="/agent-prompts" className="view-prompts-button">
-            📋 Agent-Prompts anzeigen
-          </a>
         </div>
       </div>
 
@@ -152,6 +236,13 @@ const AgentManagement: React.FC = () => {
                   >
                     🚀 Agent öffnen
                   </a>
+                  <button 
+                    className="action-button secondary"
+                    onClick={() => toggleAgentExpansion(agent.id)}
+                    disabled={loadingPrompts.has(agent.id)}
+                  >
+                    {loadingPrompts.has(agent.id) ? '⏳' : expandedAgents.has(agent.id) ? '📖 Prompts ausblenden' : '📋 Prompts anzeigen'}
+                  </button>
                   {agent.apiHealthCheck && (
                     <button 
                       className="action-button secondary"
@@ -161,6 +252,56 @@ const AgentManagement: React.FC = () => {
                     </button>
                   )}
                 </div>
+
+                {expandedAgents.has(agent.id) && agentPrompts[agent.id] && (
+                  <div className="agent-prompt-section">
+                    <div className="prompt-divider"></div>
+                    <h5>🤖 Agent Konfiguration</h5>
+                    
+                    <div className="prompt-item">
+                      <h6>Rolle:</h6>
+                      <p>{agentPrompts[agent.id].role}</p>
+                    </div>
+
+                    <div className="prompt-item">
+                      <h6>Ziel:</h6>
+                      <p>{agentPrompts[agent.id].goal}</p>
+                    </div>
+
+                    <div className="prompt-item">
+                      <h6>Hintergrund & Anweisungen:</h6>
+                      <div className="backstory-content">
+                        {formatBackstory(agentPrompts[agent.id].backstory)}
+                      </div>
+                    </div>
+
+                    <div className="prompt-item">
+                      <h6>Einstellungen:</h6>
+                      <div className="settings-grid">
+                        <div className="setting-item">
+                          <span className="setting-label">Verbose:</span>
+                          <span className={`setting-value ${agentPrompts[agent.id].settings.verbose ? 'true' : 'false'}`}>
+                            {agentPrompts[agent.id].settings.verbose ? 'Ja' : 'Nein'}
+                          </span>
+                        </div>
+                        <div className="setting-item">
+                          <span className="setting-label">Delegation erlaubt:</span>
+                          <span className={`setting-value ${agentPrompts[agent.id].settings.allow_delegation ? 'true' : 'false'}`}>
+                            {agentPrompts[agent.id].settings.allow_delegation ? 'Ja' : 'Nein'}
+                          </span>
+                        </div>
+                        <div className="setting-item">
+                          <span className="setting-label">Max. Iterationen:</span>
+                          <span className="setting-value">{agentPrompts[agent.id].settings.max_iter}</span>
+                        </div>
+                        <div className="setting-item">
+                          <span className="setting-label">Max. Ausführungszeit:</span>
+                          <span className="setting-value">{agentPrompts[agent.id].settings.max_execution_time}s</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}

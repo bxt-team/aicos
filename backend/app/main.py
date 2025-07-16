@@ -16,7 +16,7 @@ from app.core.dependencies import initialize_agents, cleanup_agents
 # Import routers
 from app.api.routers import (
     health, content, affirmations, visual_posts, instagram,
-    media, workflows, android_testing, feedback, qa, images, mobile_analytics, threads, x
+    media, workflows, android_testing, feedback, qa, images, mobile_analytics, threads, x, agent_prompts
 )
 
 # Configure logging
@@ -118,6 +118,7 @@ app.include_router(images.router)
 app.include_router(mobile_analytics.router)
 app.include_router(threads.router)
 app.include_router(x.router)
+app.include_router(agent_prompts.router)
 
 if __name__ == "__main__":
     import uvicorn

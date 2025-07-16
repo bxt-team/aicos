@@ -8,8 +8,8 @@ import logging
 import asyncio
 
 from crewai import Agent, Task, Crew
+from crewai.tools import BaseTool
 from langchain_community.llms import OpenAI
-from langchain.tools import Tool
 
 from .crews.base_crew import BaseCrew
 from ..core.storage import StorageFactory
@@ -17,45 +17,12 @@ from ..core.storage import StorageFactory
 logger = logging.getLogger(__name__)
 
 
-class ThreadsAnalysisAgent(BaseCrew):
-    """Agent that analyzes Threads profiles to extract content patterns and strategies."""
+class ThreadsProfileAnalyzerTool(BaseTool):
+    """Tool for analyzing Threads profiles."""
+    name: str = "Threads Profile Analyzer"
+    description: str = "Analyze a Threads profile to extract content patterns, engagement metrics, and posting strategies"
     
-    def __init__(self, openai_api_key: str):
-        """Initialize the Threads Analysis Agent."""
-        super().__init__()
-        
-        # Initialize LLM
-        self.llm = OpenAI(
-            model="gpt-4o-mini",
-            openai_api_key=openai_api_key,
-            temperature=0.3
-        )
-        
-        # Initialize storage adapter
-        self.storage = StorageFactory.get_adapter()
-        self.collection = "threads_analyses"
-        
-        # Legacy storage for backward compatibility
-        self.storage_dir = os.path.join(os.path.dirname(__file__), "../../static/threads_analysis")
-        os.makedirs(self.storage_dir, exist_ok=True)
-        
-        # Create agent
-        self.agent = self.create_agent("threads_analyst", llm=self.llm)
-        
-        # Create mock Threads scraping tool
-        self.threads_tool = Tool(
-            name="analyze_threads_profile",
-            description="Analyze a Threads profile to extract content patterns",
-            func=self._analyze_threads_profile
-        )
-        
-        # Add tool to agent
-        if hasattr(self.agent, 'tools'):
-            self.agent.tools.append(self.threads_tool)
-        else:
-            self.agent.tools = [self.threads_tool]
-    
-    def _analyze_threads_profile(self, handle: str) -> str:
+    def _run(self, handle: str) -> str:
         """Mock function to simulate Threads profile analysis."""
         # In production, this would use web scraping or Threads API
         mock_data = {
@@ -97,6 +64,39 @@ class ThreadsAnalysisAgent(BaseCrew):
         }
         
         return json.dumps(mock_data, indent=2)
+
+
+class ThreadsAnalysisAgent(BaseCrew):
+    """Agent that analyzes Threads profiles to extract content patterns and strategies."""
+    
+    def __init__(self, openai_api_key: str):
+        """Initialize the Threads Analysis Agent."""
+        super().__init__()
+        
+        # Initialize LLM
+        self.llm = OpenAI(
+            model="gpt-4o-mini",
+            openai_api_key=openai_api_key,
+            temperature=0.3
+        )
+        
+        # Initialize storage adapter
+        self.storage = StorageFactory.get_adapter()
+        self.collection = "threads_analyses"
+        
+        # Legacy storage for backward compatibility
+        self.storage_dir = os.path.join(os.path.dirname(__file__), "../../static/threads_analysis")
+        os.makedirs(self.storage_dir, exist_ok=True)
+        
+        # Create tool instance
+        self.threads_tool = ThreadsProfileAnalyzerTool()
+        
+        # Create agent
+        self.agent = self.create_agent("threads_analyst", llm=self.llm)
+        
+        # Add tools to agent
+        self.agent.tools = [self.threads_tool]
+    
     
     async def analyze_profiles(self, handles: List[str]) -> Dict[str, Any]:
         """Analyze multiple Threads profiles and extract insights."""

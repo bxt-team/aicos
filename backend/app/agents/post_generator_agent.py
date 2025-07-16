@@ -8,8 +8,8 @@ import logging
 import random
 
 from crewai import Agent, Task, Crew
+from crewai.tools import BaseTool
 from langchain_community.llms import OpenAI
-from langchain.tools import Tool
 
 from .crews.base_crew import BaseCrew
 from .affirmations_agent import AffirmationsAgent
@@ -17,6 +17,104 @@ from .qa_agent import QAAgent
 from ..services.supabase_client import SupabaseClient, Activity
 
 logger = logging.getLogger(__name__)
+
+
+class AffirmationsTool(BaseTool):
+    """Tool for getting affirmations for a specific period."""
+    name: str = "Get Affirmations"
+    description: str = "Get affirmations for a specific period (1-7 or period name)"
+    affirmations_agent: AffirmationsAgent = None
+    
+    def _run(self, period: str) -> str:
+        """Get affirmations for a specific period."""
+        try:
+            # Map period names
+            period_map = {
+                "1": "IMAGE", "IMAGE": "IMAGE",
+                "2": "VERÄNDERUNG", "VERÄNDERUNG": "VERÄNDERUNG", "CHANGE": "VERÄNDERUNG",
+                "3": "ENERGIE", "ENERGIE": "ENERGIE", "ENERGY": "ENERGIE",
+                "4": "KREATIVITÄT", "KREATIVITÄT": "KREATIVITÄT", "CREATIVITY": "KREATIVITÄT",
+                "5": "ERFOLG", "ERFOLG": "ERFOLG", "SUCCESS": "ERFOLG",
+                "6": "ENTSPANNUNG", "ENTSPANNUNG": "ENTSPANNUNG", "RELAXATION": "ENTSPANNUNG",
+                "7": "UMSICHT", "UMSICHT": "UMSICHT", "PRUDENCE": "UMSICHT"
+            }
+            
+            period_name = period_map.get(period.upper(), "IMAGE")
+            affirmations = self.affirmations_agent.get_affirmations_by_period(period_name)
+            
+            if affirmations:
+                return json.dumps([a["affirmation"] for a in affirmations[:3]], ensure_ascii=False)
+            return "[]"
+        except Exception as e:
+            logger.error(f"Error getting affirmations: {str(e)}")
+            return "[]"
+
+
+class ActivitiesTool(BaseTool):
+    """Tool for getting activities for a specific period or theme."""
+    name: str = "Get Activities"
+    description: str = "Get activities for a specific period (1-7) or theme"
+    supabase: SupabaseClient = None
+    
+    def _run(self, period_or_theme: str) -> str:
+        """Get activities for a specific period or theme."""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(self._get_activities_async(period_or_theme))
+            return result
+        finally:
+            loop.close()
+    
+    async def _get_activities_async(self, period_or_theme: str) -> str:
+        """Async helper for getting activities."""
+        try:
+            # Check if it's a period number
+            if period_or_theme.isdigit():
+                activities = await self.supabase.get_activities(period=int(period_or_theme))
+            else:
+                # Search by tag
+                activities = await self.supabase.get_activities(tags=[period_or_theme.lower()])
+            
+            if activities:
+                return json.dumps([{
+                    "title": a.title,
+                    "description": a.description,
+                    "period": a.period
+                } for a in activities[:3]], ensure_ascii=False)
+            
+            # Return mock activities if no real ones found
+            return json.dumps([{
+                "title": "Morgenmeditation",
+                "description": "Beginne den Tag mit einer 10-minütigen Meditation",
+                "period": 1
+            }], ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"Error getting activities: {str(e)}")
+            return json.dumps([{
+                "title": "Atemübung",
+                "description": "Praktiziere bewusstes Atmen für innere Ruhe",
+                "period": 1
+            }], ensure_ascii=False)
+
+
+class KnowledgeTool(BaseTool):
+    """Tool for getting 7 Cycles knowledge on a specific topic."""
+    name: str = "Get 7 Cycles Knowledge"
+    description: str = "Get 7 Cycles knowledge and wisdom on a specific topic or question"
+    qa_agent: QAAgent = None
+    
+    def _run(self, topic: str) -> str:
+        """Get 7 Cycles knowledge on a topic."""
+        try:
+            result = self.qa_agent.ask_question(topic)
+            if result["success"]:
+                return result["answer"]
+            return "No specific knowledge found on this topic."
+        except Exception as e:
+            logger.error(f"Error getting knowledge: {str(e)}")
+            return "Unable to retrieve knowledge at this time."
 
 
 class PostGeneratorAgent(BaseCrew):
@@ -42,97 +140,21 @@ class PostGeneratorAgent(BaseCrew):
         self.storage_dir = os.path.join(os.path.dirname(__file__), "../../static/threads_posts")
         os.makedirs(self.storage_dir, exist_ok=True)
         
+        # Create tool instances
+        self.affirmation_tool = AffirmationsTool()
+        self.affirmation_tool.affirmations_agent = self.affirmations_agent
+        
+        self.activity_tool = ActivitiesTool()
+        self.activity_tool.supabase = self.supabase
+        
+        self.knowledge_tool = KnowledgeTool()
+        self.knowledge_tool.qa_agent = self.qa_agent
+        
         # Create agent
         self.agent = self.create_agent("threads_generator", llm=self.llm)
         
-        # Create content tools
-        self.affirmation_tool = Tool(
-            name="get_affirmations",
-            description="Get affirmations for a specific period",
-            func=self._get_affirmations
-        )
-        
-        self.activity_tool = Tool(
-            name="get_activities",
-            description="Get activities for a specific period or theme",
-            func=self._get_activities
-        )
-        
-        self.knowledge_tool = Tool(
-            name="get_knowledge",
-            description="Get 7 Cycles knowledge on a specific topic",
-            func=self._get_knowledge
-        )
-        
         # Add tools to agent
-        if hasattr(self.agent, 'tools'):
-            self.agent.tools.extend([self.affirmation_tool, self.activity_tool, self.knowledge_tool])
-        else:
-            self.agent.tools = [self.affirmation_tool, self.activity_tool, self.knowledge_tool]
-    
-    def _get_affirmations(self, period: str) -> str:
-        """Get affirmations for a specific period."""
-        try:
-            # Map period names
-            period_map = {
-                "1": "IMAGE", "IMAGE": "IMAGE",
-                "2": "VERÄNDERUNG", "VERÄNDERUNG": "VERÄNDERUNG", "CHANGE": "VERÄNDERUNG",
-                "3": "ENERGIE", "ENERGIE": "ENERGIE", "ENERGY": "ENERGIE",
-                "4": "KREATIVITÄT", "KREATIVITÄT": "KREATIVITÄT", "CREATIVITY": "KREATIVITÄT",
-                "5": "ERFOLG", "ERFOLG": "ERFOLG", "SUCCESS": "ERFOLG",
-                "6": "ENTSPANNUNG", "ENTSPANNUNG": "ENTSPANNUNG", "RELAXATION": "ENTSPANNUNG",
-                "7": "UMSICHT", "UMSICHT": "UMSICHT", "PRUDENCE": "UMSICHT"
-            }
-            
-            period_name = period_map.get(period.upper(), "IMAGE")
-            affirmations = self.affirmations_agent.get_affirmations_by_period(period_name)
-            
-            if affirmations:
-                return json.dumps([a["affirmation"] for a in affirmations[:3]], ensure_ascii=False)
-            return "[]"
-        except Exception as e:
-            logger.error(f"Error getting affirmations: {str(e)}")
-            return "[]"
-    
-    async def _get_activities(self, period_or_theme: str) -> str:
-        """Get activities for a specific period or theme."""
-        try:
-            # Check if it's a period number
-            if period_or_theme.isdigit():
-                activities = await self.supabase.get_activities(period=int(period_or_theme))
-            else:
-                # Search by tag
-                activities = await self.supabase.get_activities(tags=[period_or_theme.lower()])
-            
-            if activities:
-                return json.dumps([{
-                    "title": a.title,
-                    "description": a.description,
-                    "period": a.period
-                } for a in activities[:3]], ensure_ascii=False)
-            
-            # Return mock activities if no real ones found
-            return json.dumps([{
-                "title": "Morgenmeditation",
-                "description": "Beginne den Tag mit einer 10-minütigen Meditation",
-                "period": 1
-            }], ensure_ascii=False)
-            
-        except Exception as e:
-            logger.error(f"Error getting activities: {str(e)}")
-            return "[]"
-    
-    def _get_knowledge(self, topic: str) -> str:
-        """Get 7 Cycles knowledge on a specific topic."""
-        try:
-            # Use QA agent to get knowledge
-            response = self.qa_agent.answer_question(topic)
-            if response and "answer" in response:
-                return response["answer"][:500]  # Limit length for posts
-            return "7 Cycles wisdom teaches us about the natural rhythm of life."
-        except Exception as e:
-            logger.error(f"Error getting knowledge: {str(e)}")
-            return "7 Cycles wisdom teaches us about the natural rhythm of life."
+        self.agent.tools = [self.affirmation_tool, self.activity_tool, self.knowledge_tool]
     
     async def generate_posts(
         self,
