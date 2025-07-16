@@ -5,12 +5,14 @@ import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import logging
+import asyncio
 
 from crewai import Agent, Task, Crew
 from langchain_community.llms import OpenAI
 from langchain.tools import Tool
 
 from .crews.base_crew import BaseCrew
+from ..core.storage import StorageFactory
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,11 @@ class ThreadsAnalysisAgent(BaseCrew):
             temperature=0.3
         )
         
-        # Storage for analysis results
+        # Initialize storage adapter
+        self.storage = StorageFactory.get_adapter()
+        self.collection = "threads_analyses"
+        
+        # Legacy storage for backward compatibility
         self.storage_dir = os.path.join(os.path.dirname(__file__), "../../static/threads_analysis")
         os.makedirs(self.storage_dir, exist_ok=True)
         
@@ -115,12 +121,13 @@ class ThreadsAnalysisAgent(BaseCrew):
             # Parse and structure the result
             analysis_result = self._parse_analysis_result(result)
             
-            # Save analysis
-            self._save_analysis(analysis_result)
+            # Save analysis to Supabase
+            storage_id = await self._save_analysis_to_storage(handles, analysis_result)
             
             return {
                 "success": True,
                 "analysis": analysis_result,
+                "storage_id": storage_id,
                 "timestamp": datetime.now().isoformat()
             }
             
@@ -218,28 +225,99 @@ class ThreadsAnalysisAgent(BaseCrew):
             logger.error(f"Error parsing analysis result: {str(e)}")
             return {"error": "Failed to parse analysis"}
     
-    def _save_analysis(self, analysis: Dict[str, Any]):
-        """Save analysis results to storage."""
-        filename = f"analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        filepath = os.path.join(self.storage_dir, filename)
-        
-        with open(filepath, 'w') as f:
-            json.dump(analysis, f, indent=2)
-        
-        # Also save as latest
-        latest_path = os.path.join(self.storage_dir, "latest_analysis.json")
-        with open(latest_path, 'w') as f:
-            json.dump(analysis, f, indent=2)
+    async def _save_analysis_to_storage(self, handles: List[str], analysis_data: Dict[str, Any]) -> str:
+        """Save analysis to Supabase storage."""
+        try:
+            # Prepare data for storage
+            storage_data = {
+                "account_username": ", ".join(handles) if handles else "multiple",
+                "analysis_data": analysis_data,
+                "content_strategy": analysis_data.get("recommendations", {}),
+                "analyzed_at": datetime.now().isoformat()
+            }
+            
+            # Save to storage
+            analysis_id = await self.storage.save(self.collection, storage_data)
+            
+            # Also save to legacy file storage for backward compatibility
+            filename = f"analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filepath = os.path.join(self.storage_dir, filename)
+            with open(filepath, 'w') as f:
+                json.dump(analysis_data, f, indent=2)
+            
+            # Save as latest
+            latest_path = os.path.join(self.storage_dir, "latest_analysis.json")
+            with open(latest_path, 'w') as f:
+                json.dump(analysis_data, f, indent=2)
+            
+            return analysis_id
+        except Exception as e:
+            logger.error(f"Error saving analysis to storage: {e}")
+            return ""
     
     def get_latest_analysis(self) -> Optional[Dict[str, Any]]:
         """Retrieve the latest analysis results."""
-        latest_path = os.path.join(self.storage_dir, "latest_analysis.json")
-        
-        if os.path.exists(latest_path):
-            with open(latest_path, 'r') as f:
-                return json.load(f)
-        
-        return None
+        try:
+            # Try to get from Supabase first
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                analyses = loop.run_until_complete(
+                    self.storage.list(
+                        self.collection,
+                        order_by="analyzed_at",
+                        order_desc=True,
+                        limit=1
+                    )
+                )
+                
+                if analyses and len(analyses) > 0:
+                    return analyses[0].get("analysis_data", {})
+            finally:
+                loop.close()
+            
+            # Fallback to file storage
+            latest_path = os.path.join(self.storage_dir, "latest_analysis.json")
+            if os.path.exists(latest_path):
+                with open(latest_path, 'r') as f:
+                    return json.load(f)
+            
+            return None
+        except Exception as e:
+            logger.error(f"Error getting latest analysis: {e}")
+            return None
+    
+    async def get_analysis_by_account(self, account_username: str) -> Optional[Dict[str, Any]]:
+        """Get analysis for a specific account."""
+        try:
+            analyses = await self.storage.list(
+                self.collection,
+                filters={"account_username": account_username},
+                order_by="analyzed_at",
+                order_desc=True,
+                limit=1
+            )
+            
+            if analyses and len(analyses) > 0:
+                return analyses[0]
+            return None
+        except Exception as e:
+            logger.error(f"Error getting analysis by account: {e}")
+            return None
+    
+    async def get_all_analyses(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get all stored analyses."""
+        try:
+            analyses = await self.storage.list(
+                self.collection,
+                order_by="analyzed_at",
+                order_desc=True,
+                limit=limit
+            )
+            return analyses
+        except Exception as e:
+            logger.error(f"Error getting all analyses: {e}")
+            return []
     
     def health_check(self) -> Dict[str, Any]:
         """Check agent health status."""
@@ -247,5 +325,6 @@ class ThreadsAnalysisAgent(BaseCrew):
             "status": "healthy",
             "agent": "ThreadsAnalysisAgent",
             "storage_available": os.path.exists(self.storage_dir),
-            "latest_analysis": self.get_latest_analysis() is not None
+            "latest_analysis": self.get_latest_analysis() is not None,
+            "supabase_connected": self.storage is not None
         }

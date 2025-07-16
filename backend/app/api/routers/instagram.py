@@ -26,7 +26,7 @@ async def generate_instagram_post(request: InstagramPostRequest):
     
     try:
         # Generate Instagram post
-        result = write_hashtag_agent.generate_instagram_post(
+        result = await write_hashtag_agent.generate_instagram_post(
             affirmation=request.affirmation,
             period_name=request.period_name,
             style=request.style
@@ -55,7 +55,7 @@ async def get_instagram_posts(period_name: str = None):
         return {"success": True, "status": "success", "posts": []}
     
     try:
-        result = write_hashtag_agent.get_generated_posts(period_name)
+        result = await write_hashtag_agent.get_generated_posts(period_name)
         
         if not result.get("success", False):
             return {"success": True, "status": "success", "posts": []}
@@ -87,7 +87,7 @@ async def post_to_instagram(request: InstagramPostingRequest):
         if not write_hashtag_agent:
             raise HTTPException(status_code=503, detail="Write Hashtag Agent not initialized")
         
-        result = write_hashtag_agent.get_generated_posts()
+        result = await write_hashtag_agent.get_generated_posts()
         posts = result.get("posts", [])
         
         # Find the specific post by ID
@@ -181,7 +181,7 @@ async def prepare_instagram_content(request: InstagramContentPrepareRequest):
         if not write_hashtag_agent:
             raise HTTPException(status_code=503, detail="Write Hashtag Agent not initialized")
         
-        result = write_hashtag_agent.get_generated_posts()
+        result = await write_hashtag_agent.get_generated_posts()
         posts = result.get("posts", [])
         
         # Find the specific post by ID
@@ -241,7 +241,7 @@ async def create_visual_from_instagram_post(request: dict):
         if not write_hashtag_agent:
             raise HTTPException(status_code=503, detail="Write Hashtag Agent not initialized")
         
-        result = write_hashtag_agent.get_generated_posts()
+        result = await write_hashtag_agent.get_generated_posts()
         posts = result.get("posts", [])
         
         # Find the specific post by ID

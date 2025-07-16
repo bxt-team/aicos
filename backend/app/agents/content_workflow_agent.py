@@ -6,6 +6,8 @@ import hashlib
 from app.agents.crews.base_crew import BaseCrew
 from crewai import Agent, Task, Crew
 from crewai.llm import LLM
+from app.core.storage import StorageFactory
+import asyncio
 
 # Import all the agents we'll be using
 from app.agents.affirmations_agent import AffirmationsAgent
@@ -37,15 +39,52 @@ class ContentWorkflowAgent(BaseCrew):
         if instagram_access_token:
             self.instagram_poster = InstagramPosterAgent(openai_api_key, instagram_access_token)
         
-        # Storage for workflows
+        # Initialize storage adapter
+        self.storage = StorageFactory.get_adapter()
+        self.collection = "workflows"
+        
+        # Legacy storage for backward compatibility
         self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/workflows_storage.json")
-        self.workflows_storage = self._load_workflows_storage()
         
         # Create the workflow orchestration agent
         self.workflow_agent = self.create_agent("content_workflow_agent", llm=self.llm)
+    
+    async def _save_workflow_to_storage(self, workflow_data: Dict[str, Any]) -> str:
+        """Save workflow to Supabase storage"""
+        try:
+            # Prepare data for storage
+            storage_data = {
+                "workflow_type": workflow_data.get("workflow_type", "content_generation"),
+                "workflow_config": {
+                    "period": workflow_data.get("period"),
+                    "options": workflow_data.get("options", {}),
+                    "workflow_id": workflow_data.get("id")
+                },
+                "status": workflow_data.get("status", "pending"),
+                "result": workflow_data.get("results", {}),
+                "error_message": workflow_data.get("error"),
+                "started_at": workflow_data.get("started_at"),
+                "completed_at": workflow_data.get("completed_at")
+            }
+            
+            # Save to storage
+            workflow_id = await self.storage.save(self.collection, storage_data)
+            return workflow_id
+        except Exception as e:
+            print(f"Error saving workflow to storage: {e}")
+            return ""
+    
+    async def _get_workflow_from_storage(self, workflow_id: str) -> Optional[Dict[str, Any]]:
+        """Get workflow from Supabase storage"""
+        try:
+            workflow = await self.storage.load(self.collection, workflow_id)
+            return workflow
+        except Exception as e:
+            print(f"Error loading workflow from storage: {e}")
+            return None
         
     def _load_workflows_storage(self) -> Dict[str, Any]:
-        """Load previously created workflows"""
+        """Load previously created workflows from legacy storage"""
         try:
             if os.path.exists(self.storage_file):
                 with open(self.storage_file, 'r') as f:
@@ -54,12 +93,12 @@ class ContentWorkflowAgent(BaseCrew):
             print(f"Error loading workflows storage: {e}")
         return {"workflows": [], "by_hash": {}}
     
-    def _save_workflows_storage(self):
-        """Save workflows to storage"""
+    def _save_workflows_storage(self, workflows_storage: Dict[str, Any]):
+        """Save workflows to legacy storage"""
         try:
             os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
             with open(self.storage_file, 'w') as f:
-                json.dump(self.workflows_storage, f, indent=2)
+                json.dump(workflows_storage, f, indent=2)
         except Exception as e:
             print(f"Error saving workflows storage: {e}")
     
@@ -160,10 +199,16 @@ class ContentWorkflowAgent(BaseCrew):
             workflow_result["completed_at"] = datetime.now().isoformat()
             workflow_result["success"] = True
             
-            # Save workflow
-            self.workflows_storage["workflows"].append(workflow_result)
-            self.workflows_storage["by_hash"][workflow_hash] = workflow_result
-            self._save_workflows_storage()
+            # Save workflow to Supabase
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                storage_id = loop.run_until_complete(
+                    self._save_workflow_to_storage(workflow_result)
+                )
+                workflow_result["storage_id"] = storage_id
+            finally:
+                loop.close()
             
             return workflow_result
             
@@ -214,15 +259,13 @@ class ContentWorkflowAgent(BaseCrew):
         try:
             print(f"Step 2: Finding background images for period {period}")
             
-            # Generate search tags based on period
+            # Define search tags based on period
             search_tags = self._generate_search_tags(period)
-            image_count = options.get("image_count", 3)
             
-            # Find background images
-            image_result = self.visual_post_creator.find_background_image(
+            # Find suitable background images
+            image_result = self.visual_post_creator.find_background_images(
                 tags=search_tags,
-                period=period,
-                count=image_count
+                count=options.get("image_count", 5)
             )
             
             if not image_result["success"]:
@@ -251,58 +294,44 @@ class ContentWorkflowAgent(BaseCrew):
     def _execute_post_composition_step(self, period: str, workflow_results: Dict[str, Any], options: Dict[str, Any]) -> Dict[str, Any]:
         """Execute post composition step"""
         try:
-            print(f"Step 3: Composing visual posts for period {period}")
+            print(f"Step 3: Creating visual posts for period {period}")
             
+            # Get affirmations and images from previous steps
             affirmations = workflow_results.get("affirmations", [])
-            background_images = workflow_results.get("background_images", [])
+            images = workflow_results.get("background_images", [])
             
-            if not affirmations or not background_images:
+            if not affirmations or not images:
                 return {
                     "step": "post_composition",
                     "success": False,
-                    "error": "Missing affirmations or background images",
-                    "message": "Affirmationen oder Hintergrundbilder fehlen"
+                    "error": "Keine Affirmationen oder Bilder verfügbar",
+                    "message": "Vorherige Schritte müssen erfolgreich sein"
                 }
             
-            composed_posts = []
-            template_name = options.get("template_name", "default")
-            post_format = options.get("post_format", "story")
-            
-            # Create posts by combining affirmations with background images
-            for i, affirmation in enumerate(affirmations[:3]):  # Limit to first 3
-                # Use different background images or cycle through them
-                background_image = background_images[i % len(background_images)]
-                
-                # Compose the post
-                composition_result = self.post_composition_agent.compose_post(
-                    background_path=background_image["local_path"],
-                    text=affirmation["text"],
+            # Create visual posts
+            visual_posts = []
+            for i, affirmation in enumerate(affirmations[:min(len(affirmations), len(images))]):
+                # Use post composition agent to create post
+                composition_result = self.post_composition_agent.create_visual_post(
+                    affirmation_text=affirmation["text"],
+                    background_image_url=images[i]["urls"]["large"],
                     period=period,
-                    template_name=template_name,
-                    post_format=post_format,
-                    custom_options=options.get("composition_options", {})
+                    theme=affirmation.get("theme", period)
                 )
                 
                 if composition_result["success"]:
-                    composed_posts.append({
+                    visual_posts.append({
                         "affirmation": affirmation,
-                        "background_image": background_image,
-                        "composition": composition_result["post"]
+                        "image": images[i],
+                        "post_data": composition_result["post_data"],
+                        "created_at": datetime.now().isoformat()
                     })
-            
-            if not composed_posts:
-                return {
-                    "step": "post_composition",
-                    "success": False,
-                    "error": "No posts could be composed",
-                    "message": "Keine Posts konnten komponiert werden"
-                }
             
             return {
                 "step": "post_composition",
                 "success": True,
-                "data": composed_posts,
-                "message": f"{len(composed_posts)} visuelle Posts komponiert"
+                "data": visual_posts,
+                "message": f"{len(visual_posts)} visuelle Posts erstellt"
             }
             
         except Exception as e:
@@ -310,7 +339,7 @@ class ContentWorkflowAgent(BaseCrew):
                 "step": "post_composition",
                 "success": False,
                 "error": str(e),
-                "message": "Fehler beim Komponieren der Posts"
+                "message": "Fehler beim Erstellen der visuellen Posts"
             }
     
     def _execute_video_generation_step(self, period: str, workflow_results: Dict[str, Any], options: Dict[str, Any]) -> Dict[str, Any]:
@@ -318,69 +347,41 @@ class ContentWorkflowAgent(BaseCrew):
         try:
             print(f"Step 4: Creating Instagram reels for period {period}")
             
-            visual_posts = workflow_results.get("visual_posts", [])
+            # Get affirmations from previous steps
+            affirmations = workflow_results.get("affirmations", [])
             
-            if not visual_posts:
+            if not affirmations:
                 return {
                     "step": "video_generation",
                     "success": False,
-                    "error": "No visual posts available for video creation",
-                    "message": "Keine visuellen Posts für Video-Erstellung verfügbar"
+                    "error": "Keine Affirmationen verfügbar",
+                    "message": "Affirmationen müssen zuerst generiert werden"
                 }
             
-            created_reels = []
-            video_type = options.get("video_type", "slideshow")
-            video_duration = options.get("video_duration", 15)
-            
-            # Create videos from composed posts
-            if video_type == "slideshow" and len(visual_posts) > 1:
-                # Create slideshow from multiple posts
-                image_paths = [post["composition"]["file_path"] for post in visual_posts]
-                
-                video_result = self.video_generation_agent.create_video(
-                    image_paths=image_paths,
-                    video_type=video_type,
-                    duration=video_duration,
-                    options=options.get("video_options", {})
+            # Create reels
+            reels = []
+            for affirmation in affirmations[:options.get("reel_count", 2)]:
+                # Generate reel using video generation agent
+                reel_result = self.video_generation_agent.generate_instagram_reel(
+                    theme=affirmation.get("theme", period),
+                    content_type="affirmation",
+                    text_content=affirmation["text"],
+                    duration=options.get("reel_duration", 15),
+                    include_voiceover=options.get("include_voiceover", True)
                 )
                 
-                if video_result["success"]:
-                    created_reels.append({
-                        "type": "slideshow",
-                        "posts_used": visual_posts,
-                        "video": video_result["video"]
+                if reel_result["success"]:
+                    reels.append({
+                        "affirmation": affirmation,
+                        "reel_data": reel_result["reel"],
+                        "created_at": datetime.now().isoformat()
                     })
-            
-            else:
-                # Create individual videos for each post
-                for i, post in enumerate(visual_posts[:2]):  # Limit to first 2 posts
-                    video_result = self.video_generation_agent.create_video(
-                        image_paths=[post["composition"]["file_path"]],
-                        video_type=options.get("individual_video_type", "ken_burns"),
-                        duration=video_duration,
-                        options=options.get("video_options", {})
-                    )
-                    
-                    if video_result["success"]:
-                        created_reels.append({
-                            "type": "individual",
-                            "post_used": post,
-                            "video": video_result["video"]
-                        })
-            
-            if not created_reels:
-                return {
-                    "step": "video_generation",
-                    "success": False,
-                    "error": "No reels could be created",
-                    "message": "Keine Reels konnten erstellt werden"
-                }
             
             return {
                 "step": "video_generation",
                 "success": True,
-                "data": created_reels,
-                "message": f"{len(created_reels)} Instagram Reels erstellt"
+                "data": reels,
+                "message": f"{len(reels)} Instagram Reels erstellt"
             }
             
         except Exception as e:
@@ -388,7 +389,7 @@ class ContentWorkflowAgent(BaseCrew):
                 "step": "video_generation",
                 "success": False,
                 "error": str(e),
-                "message": "Fehler beim Erstellen der Videos"
+                "message": "Fehler beim Erstellen der Instagram Reels"
             }
     
     def _execute_hashtag_research_step(self, period: str, workflow_results: Dict[str, Any], options: Dict[str, Any]) -> Dict[str, Any]:
@@ -396,60 +397,53 @@ class ContentWorkflowAgent(BaseCrew):
         try:
             print(f"Step 5: Generating hashtags and captions for period {period}")
             
-            social_content = []
-            
-            # Generate hashtags and captions for visual posts
+            # Get content from previous steps
             visual_posts = workflow_results.get("visual_posts", [])
-            for post in visual_posts:
-                hashtag_result = self.hashtag_research_agent.generate_instagram_post(
-                    content=post["affirmation"]["text"],
-                    period=period,
-                    topic=post["affirmation"].get("topic", "")
-                )
-                
-                if hashtag_result["success"]:
-                    social_content.append({
-                        "type": "visual_post",
-                        "post": post,
-                        "social_data": hashtag_result["post"]
-                    })
-            
-            # Generate hashtags and captions for reels
             reels = workflow_results.get("reels", [])
-            for reel in reels:
-                # Use the first affirmation from the reel's posts
-                if reel["type"] == "slideshow":
-                    base_affirmation = reel["posts_used"][0]["affirmation"]
-                else:
-                    base_affirmation = reel["post_used"]["affirmation"]
-                
-                hashtag_result = self.hashtag_research_agent.generate_instagram_post(
-                    content=base_affirmation["text"],
-                    period=period,
-                    topic=base_affirmation.get("topic", ""),
-                    post_type="reel"
+            
+            # Generate hashtags and captions for posts
+            social_content = {
+                "posts": [],
+                "reels": []
+            }
+            
+            # Process visual posts
+            for post in visual_posts:
+                hashtag_result = self.hashtag_research_agent.generate_hashtags_and_caption(
+                    content_type="visual_post",
+                    theme=period,
+                    affirmation_text=post["affirmation"]["text"]
                 )
                 
                 if hashtag_result["success"]:
-                    social_content.append({
-                        "type": "reel",
-                        "reel": reel,
-                        "social_data": hashtag_result["post"]
+                    social_content["posts"].append({
+                        "post": post,
+                        "caption": hashtag_result["caption"],
+                        "hashtags": hashtag_result["hashtags"],
+                        "engagement_tips": hashtag_result.get("engagement_tips", [])
                     })
             
-            if not social_content:
-                return {
-                    "step": "hashtag_research",
-                    "success": False,
-                    "error": "No social content could be generated",
-                    "message": "Keine Social-Media-Inhalte konnten generiert werden"
-                }
+            # Process reels
+            for reel in reels:
+                hashtag_result = self.hashtag_research_agent.generate_hashtags_and_caption(
+                    content_type="reel",
+                    theme=period,
+                    affirmation_text=reel["affirmation"]["text"]
+                )
+                
+                if hashtag_result["success"]:
+                    social_content["reels"].append({
+                        "reel": reel,
+                        "caption": hashtag_result["caption"],
+                        "hashtags": hashtag_result["hashtags"],
+                        "engagement_tips": hashtag_result.get("engagement_tips", [])
+                    })
             
             return {
                 "step": "hashtag_research",
                 "success": True,
                 "data": social_content,
-                "message": f"Hashtags und Captions für {len(social_content)} Inhalte generiert"
+                "message": f"Hashtags und Captions für {len(social_content['posts'])} Posts und {len(social_content['reels'])} Reels generiert"
             }
             
         except Exception as e:
@@ -461,49 +455,64 @@ class ContentWorkflowAgent(BaseCrew):
             }
     
     def _execute_scheduling_step(self, period: str, workflow_results: Dict[str, Any], options: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute scheduling step"""
+        """Execute post scheduling step"""
         try:
             print(f"Step 6: Scheduling posts for period {period}")
             
-            if not self.instagram_poster:
-                return {
-                    "step": "scheduling",
-                    "success": False,
-                    "error": "Instagram poster not configured",
-                    "message": "Instagram-Poster nicht konfiguriert"
-                }
-            
-            social_content = workflow_results.get("social_content", [])
-            
-            if not social_content:
-                return {
-                    "step": "scheduling",
-                    "success": False,
-                    "error": "No social content available for scheduling",
-                    "message": "Keine Social-Media-Inhalte zum Planen verfügbar"
-                }
+            # Get social content from previous step
+            social_content = workflow_results.get("social_content", {})
             
             scheduled_posts = []
-            schedule_start = options.get("schedule_start_date", datetime.now())
-            schedule_interval = options.get("schedule_interval_hours", 24)
             
-            for i, content in enumerate(social_content):
-                # Calculate posting time
-                posting_time = schedule_start + timedelta(hours=i * schedule_interval)
+            # Schedule visual posts
+            for i, post_data in enumerate(social_content.get("posts", [])):
+                # Calculate schedule time
+                base_time = datetime.now() + timedelta(days=options.get("start_delay_days", 1))
+                schedule_time = base_time + timedelta(hours=i * options.get("post_interval_hours", 24))
                 
-                # For now, we'll just prepare the scheduling data
-                # Actual scheduling would require Instagram Business API
-                scheduled_posts.append({
-                    "content": content,
-                    "scheduled_time": posting_time.isoformat(),
-                    "status": "prepared"
-                })
+                # Schedule the post
+                schedule_result = self.instagram_poster.schedule_post(
+                    image_url=post_data["post"]["image"]["urls"]["large"],
+                    caption=post_data["caption"],
+                    hashtags=post_data["hashtags"],
+                    schedule_time=schedule_time
+                )
+                
+                if schedule_result["success"]:
+                    scheduled_posts.append({
+                        "type": "visual_post",
+                        "content": post_data,
+                        "scheduled_time": schedule_time.isoformat(),
+                        "schedule_result": schedule_result
+                    })
+            
+            # Schedule reels
+            for i, reel_data in enumerate(social_content.get("reels", [])):
+                # Calculate schedule time (offset from posts)
+                base_time = datetime.now() + timedelta(days=options.get("start_delay_days", 1) + 1)
+                schedule_time = base_time + timedelta(hours=i * options.get("reel_interval_hours", 48))
+                
+                # Schedule the reel
+                schedule_result = self.instagram_poster.schedule_reel(
+                    video_url=reel_data["reel"]["reel_data"]["video_url"],
+                    caption=reel_data["caption"],
+                    hashtags=reel_data["hashtags"],
+                    schedule_time=schedule_time
+                )
+                
+                if schedule_result["success"]:
+                    scheduled_posts.append({
+                        "type": "reel",
+                        "content": reel_data,
+                        "scheduled_time": schedule_time.isoformat(),
+                        "schedule_result": schedule_result
+                    })
             
             return {
                 "step": "scheduling",
                 "success": True,
                 "data": scheduled_posts,
-                "message": f"{len(scheduled_posts)} Posts zum Planen vorbereitet"
+                "message": f"{len(scheduled_posts)} Posts geplant"
             }
             
         except Exception as e:
@@ -517,103 +526,97 @@ class ContentWorkflowAgent(BaseCrew):
     def _generate_search_tags(self, period: str) -> List[str]:
         """Generate search tags based on period"""
         period_tags = {
-            "Image": ["self-image", "confidence", "mirror", "reflection", "beauty"],
-            "Veränderung": ["change", "transformation", "growth", "new beginning", "butterfly"],
-            "Energie": ["energy", "power", "vitality", "dynamic", "strength"],
-            "Kreativität": ["creativity", "art", "inspiration", "colorful", "artistic"],
-            "Erfolg": ["success", "achievement", "victory", "goal", "mountain"],
-            "Entspannung": ["relaxation", "calm", "peace", "meditation", "zen"],
-            "Umsicht": ["wisdom", "contemplation", "mindfulness", "strategy", "planning"]
+            "Image": ["identity", "self-confidence", "personal-style", "authentic-self"],
+            "Veränderung": ["transformation", "change", "growth", "adaptation"],
+            "Energie": ["energy", "vitality", "power", "motivation"],
+            "Kreativität": ["creativity", "innovation", "artistic", "inspiration"],
+            "Erfolg": ["success", "achievement", "goals", "manifestation"],
+            "Entspannung": ["relaxation", "calm", "balance", "peace"],
+            "Umsicht": ["wisdom", "planning", "reflection", "strategy"]
         }
         
-        base_tags = ["lifestyle", "wellness", "inspiration"]
-        period_specific = period_tags.get(period, ["general", "motivation"])
-        
-        return base_tags + period_specific[:3]  # Limit to 6 tags total
+        return period_tags.get(period, ["inspiration", "motivation", "spiritual"])
     
     def get_workflows(self, period: str = None, status: str = None) -> Dict[str, Any]:
-        """Get all workflows, optionally filtered by period or status"""
+        """Get all workflows, optionally filtered by period and status"""
         try:
-            workflows = self.workflows_storage.get("workflows", [])
-            
-            if period:
-                workflows = [w for w in workflows if w.get("period") == period]
-            
+            # Build filters
+            filters = {}
             if status:
-                workflows = [w for w in workflows if w.get("status") == status]
+                filters["status"] = status
+            
+            # Get workflows from storage
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                workflows = loop.run_until_complete(
+                    self.storage.list(
+                        self.collection,
+                        filters=filters,
+                        order_by="created_at",
+                        order_desc=True
+                    )
+                )
+            finally:
+                loop.close()
+            
+            # Additional filtering for period (if needed)
+            if period and workflows:
+                workflows = [
+                    w for w in workflows 
+                    if w.get("workflow_config", {}).get("period") == period
+                ]
             
             return {
                 "success": True,
                 "workflows": workflows,
-                "count": len(workflows),
-                "filters": {"period": period, "status": status}
+                "count": len(workflows)
             }
-            
         except Exception as e:
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Fehler beim Abrufen der Workflows"
+                "workflows": []
             }
     
     def get_workflow_by_id(self, workflow_id: str) -> Dict[str, Any]:
         """Get a specific workflow by ID"""
         try:
-            workflow = self.workflows_storage.get("by_hash", {}).get(workflow_id)
+            # Get workflow from storage
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                workflow = loop.run_until_complete(
+                    self._get_workflow_from_storage(workflow_id)
+                )
+            finally:
+                loop.close()
             
-            if not workflow:
+            if workflow:
+                return {
+                    "success": True,
+                    "workflow": workflow
+                }
+            else:
                 return {
                     "success": False,
-                    "error": "Workflow not found",
-                    "message": "Workflow nicht gefunden"
+                    "error": "Workflow nicht gefunden"
                 }
-            
-            return {
-                "success": True,
-                "workflow": workflow
-            }
-            
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e),
-                "message": "Fehler beim Abrufen des Workflows"
+                "error": str(e)
             }
     
     def delete_workflow(self, workflow_id: str) -> Dict[str, Any]:
-        """Delete a workflow and associated files"""
+        """Delete a workflow"""
         try:
-            # Find and remove from storage
-            workflows = self.workflows_storage.get("workflows", [])
-            workflow_to_delete = None
-            
-            for i, workflow in enumerate(workflows):
-                if workflow["id"] == workflow_id:
-                    workflow_to_delete = workflows.pop(i)
-                    break
-            
-            if not workflow_to_delete:
-                return {
-                    "success": False,
-                    "error": "Workflow not found",
-                    "message": "Workflow nicht gefunden"
-                }
-            
-            # Remove from hash index
-            if workflow_id in self.workflows_storage.get("by_hash", {}):
-                del self.workflows_storage["by_hash"][workflow_id]
-            
-            # Clean up associated files (optional, as they might be used by other workflows)
-            # This could be implemented based on reference counting
-            
-            # Save updated storage
-            self._save_workflows_storage()
-            
+            # For now, we can't delete from Supabase through the storage adapter
+            # This would need to be implemented in the storage adapter
             return {
-                "success": True,
-                "message": "Workflow erfolgreich gelöscht"
+                "success": False,
+                "error": "Delete operation not yet implemented for Supabase storage"
             }
-            
         except Exception as e:
             return {
                 "success": False,
@@ -623,71 +626,56 @@ class ContentWorkflowAgent(BaseCrew):
     
     def get_workflow_templates(self) -> Dict[str, Any]:
         """Get available workflow templates"""
-        templates = {
-            "full": {
-                "name": "Vollständiger Workflow",
-                "description": "Kompletter Workflow von Affirmationen bis zu geplanten Posts und Reels",
-                "steps": [
-                    "affirmation_generation",
-                    "image_finding",
-                    "post_composition",
-                    "video_generation",
-                    "hashtag_research",
-                    "scheduling"
-                ],
-                "default_options": {
-                    "affirmation_count": 5,
-                    "image_count": 3,
-                    "template_name": "default",
-                    "post_format": "story",
-                    "create_reels": True,
-                    "video_type": "slideshow",
-                    "video_duration": 15,
-                    "schedule_posts": False
-                }
-            },
-            "posts_only": {
-                "name": "Nur Posts",
-                "description": "Erstellt nur visuelle Posts ohne Reels",
-                "steps": [
-                    "affirmation_generation",
-                    "image_finding",
-                    "post_composition",
-                    "hashtag_research"
-                ],
-                "default_options": {
-                    "affirmation_count": 3,
-                    "image_count": 2,
-                    "template_name": "minimal",
-                    "post_format": "post",
-                    "create_reels": False,
-                    "schedule_posts": False
-                }
-            },
-            "reels_only": {
-                "name": "Nur Reels",
-                "description": "Erstellt nur Instagram Reels",
-                "steps": [
-                    "affirmation_generation",
-                    "image_finding",
-                    "post_composition",
-                    "video_generation",
-                    "hashtag_research"
-                ],
-                "default_options": {
-                    "affirmation_count": 2,
-                    "image_count": 3,
-                    "template_name": "dramatic",
-                    "post_format": "story",
-                    "create_reels": True,
-                    "video_type": "ken_burns",
-                    "video_duration": 15,
-                    "schedule_posts": False
-                }
-            }
-        }
-        
         return {
             "success": True,
-            "templates": templates
+            "templates": {
+                "full": {
+                    "name": "Vollständiger Content-Workflow",
+                    "description": "Generiert Affirmationen, erstellt visuelle Posts und Reels, fügt Hashtags hinzu und plant Posts",
+                    "default_options": {
+                        "affirmation_count": 5,
+                        "image_count": 5,
+                        "reel_count": 2,
+                        "reel_duration": 15,
+                        "include_voiceover": True,
+                        "create_reels": True,
+                        "schedule_posts": False,
+                        "start_delay_days": 1,
+                        "post_interval_hours": 24,
+                        "reel_interval_hours": 48
+                    }
+                },
+                "posts_only": {
+                    "name": "Nur visuelle Posts",
+                    "description": "Generiert Affirmationen und erstellt visuelle Posts mit Hashtags",
+                    "default_options": {
+                        "affirmation_count": 5,
+                        "image_count": 5,
+                        "create_reels": False,
+                        "schedule_posts": False
+                    }
+                },
+                "reels_only": {
+                    "name": "Nur Instagram Reels",
+                    "description": "Generiert Affirmationen und erstellt Instagram Reels mit Hashtags",
+                    "default_options": {
+                        "affirmation_count": 3,
+                        "reel_count": 3,
+                        "reel_duration": 15,
+                        "include_voiceover": True,
+                        "create_reels": True,
+                        "schedule_posts": False
+                    }
+                },
+                "minimal": {
+                    "name": "Minimaler Workflow",
+                    "description": "Generiert nur Affirmationen für die Periode",
+                    "default_options": {
+                        "affirmation_count": 5,
+                        "image_count": 0,
+                        "create_reels": False,
+                        "schedule_posts": False
+                    }
+                }
+            }
         }

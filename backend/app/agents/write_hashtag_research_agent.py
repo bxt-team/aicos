@@ -6,11 +6,16 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 import hashlib
+import uuid
 from app.agents.crews.base_crew import BaseCrew
 from app.services.knowledge_base_manager import knowledge_base_manager
+from app.services.supabase_client import SupabaseClient
+import logging
+
+logger = logging.getLogger(__name__)
 
 class WriteHashtagResearchAgent(BaseCrew):
     def __init__(self, openai_api_key: str):
@@ -21,33 +26,87 @@ class WriteHashtagResearchAgent(BaseCrew):
         self.vector_store = knowledge_base_manager.get_vector_store()
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Storage for generated content
-        self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/write_hashtag_storage.json")
-        self.generated_content = self._load_generated_content()
+        # Initialize Supabase client
+        self.supabase = SupabaseClient()
         
         # Create the agent
         self.write_hashtag_agent = self._create_write_hashtag_agent()
     
-    
-    def _load_generated_content(self) -> Dict[str, Any]:
-        """Load previously generated content"""
+    async def _save_to_database(self, post_data: Dict[str, Any]) -> Optional[str]:
+        """Save Instagram post to Supabase database"""
         try:
-            if os.path.exists(self.storage_file):
-                with open(self.storage_file, 'r') as f:
-                    return json.load(f)
+            # Prepare data for database
+            db_data = {
+                "id": str(uuid.uuid4()),
+                "content": post_data.get("post_text", ""),
+                "hashtags": post_data.get("hashtags", []),
+                "post_type": "feed",  # default to feed post
+                "status": "draft",
+                "metadata": {
+                    "call_to_action": post_data.get("call_to_action", ""),
+                    "engagement_strategies": post_data.get("engagement_strategies", []),
+                    "optimal_posting_time": post_data.get("optimal_posting_time", ""),
+                    "period_name": post_data.get("period_name", ""),
+                    "period_color": post_data.get("period_color", ""),
+                    "affirmation": post_data.get("affirmation", ""),
+                    "style": post_data.get("style", ""),
+                    "content_hash": post_data.get("id", "")
+                }
+            }
+            
+            # Insert into database
+            response = self.supabase.client.table("agent_instagram_posts").insert(db_data).execute()
+            
+            if response.data:
+                return response.data[0].get("id")
+            return None
+            
         except Exception as e:
-            print(f"Error loading content storage: {e}")
-        
-        return {"posts": [], "by_affirmation": {}}
+            logger.error(f"Error saving to database: {e}")
+            return None
     
-    def _save_generated_content(self):
-        """Save generated content to storage"""
+    async def _get_from_database(self, content_hash: str = None) -> List[Dict[str, Any]]:
+        """Get Instagram posts from Supabase database"""
         try:
-            os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
-            with open(self.storage_file, 'w') as f:
-                json.dump(self.generated_content, f, indent=2)
+            if not self.supabase.client:
+                return []
+            
+            query = self.supabase.client.table("agent_instagram_posts").select("*")
+            
+            if content_hash:
+                # Search for specific content by hash in metadata
+                query = query.eq("metadata->>content_hash", content_hash)
+            
+            # Order by created_at descending
+            query = query.order("created_at", desc=True)
+            
+            response = query.execute()
+            
+            # Transform database format to expected format
+            posts = []
+            for item in response.data:
+                metadata = item.get("metadata", {})
+                post = {
+                    "id": metadata.get("content_hash", item.get("id")),
+                    "post_text": item.get("content", ""),
+                    "hashtags": item.get("hashtags", []),
+                    "call_to_action": metadata.get("call_to_action", ""),
+                    "engagement_strategies": metadata.get("engagement_strategies", []),
+                    "optimal_posting_time": metadata.get("optimal_posting_time", ""),
+                    "period_name": metadata.get("period_name", ""),
+                    "period_color": metadata.get("period_color", ""),
+                    "affirmation": metadata.get("affirmation", ""),
+                    "style": metadata.get("style", ""),
+                    "created_at": item.get("created_at", ""),
+                    "db_id": item.get("id")
+                }
+                posts.append(post)
+            
+            return posts
+            
         except Exception as e:
-            print(f"Error saving content: {e}")
+            logger.error(f"Error loading from database: {e}")
+            return []
     
     def _create_write_hashtag_agent(self) -> Agent:
         """Create the Write and Hashtag Research agent"""
@@ -162,7 +221,7 @@ class WriteHashtagResearchAgent(BaseCrew):
         
         return periods_info.get(period_name, {})
     
-    def generate_instagram_post(self, affirmation: str, period_name: str, style: str = "inspirational") -> Dict[str, Any]:
+    async def generate_instagram_post(self, affirmation: str, period_name: str, style: str = "inspirational") -> Dict[str, Any]:
         """Generate an Instagram post with affirmation, hashtags, and call-to-action"""
         try:
             # Validate period name
@@ -178,14 +237,14 @@ class WriteHashtagResearchAgent(BaseCrew):
             period_info = self._get_period_info(period_name)
             context = self._get_period_context(period_name)
             
-            # Check for existing content
+            # Check for existing content in database
             content_hash = hashlib.md5(f"{affirmation}_{period_name}_{style}".encode()).hexdigest()
-            existing = self.generated_content.get("by_affirmation", {}).get(content_hash)
+            existing_posts = await self._get_from_database(content_hash)
             
-            if existing:
+            if existing_posts:
                 return {
                     "success": True,
-                    "post": existing,
+                    "post": existing_posts[0],
                     "source": "existing",
                     "message": f"Existing Instagram post for {period_name} retrieved"
                 }
@@ -286,10 +345,13 @@ class WriteHashtagResearchAgent(BaseCrew):
             post_data["created_at"] = datetime.now().isoformat()
             post_data["id"] = content_hash
             
-            # Store the generated content
-            self.generated_content["posts"].append(post_data)
-            self.generated_content["by_affirmation"][content_hash] = post_data
-            self._save_generated_content()
+            # Save to database
+            db_id = await self._save_to_database(post_data)
+            if db_id:
+                post_data["db_id"] = db_id
+                logger.info(f"Instagram post saved to database with ID: {db_id}")
+            else:
+                logger.warning("Failed to save Instagram post to database")
             
             return {
                 "success": True,
@@ -386,16 +448,20 @@ class WriteHashtagResearchAgent(BaseCrew):
             "Teile den Post in relevanten Wellness-Communities"
         ]
     
-    def get_generated_posts(self, period_name: str = None) -> Dict[str, Any]:
+    async def get_generated_posts(self, period_name: str = None) -> Dict[str, Any]:
         """Get all generated posts, optionally filtered by period"""
         try:
+            # Get all posts from database
+            posts = await self._get_from_database()
+            
+            # Filter by period if specified
             if period_name:
                 filtered_posts = [
-                    post for post in self.generated_content.get("posts", [])
+                    post for post in posts
                     if post.get("period_name") == period_name
                 ]
             else:
-                filtered_posts = self.generated_content.get("posts", [])
+                filtered_posts = posts
             
             return {
                 "success": True,
@@ -405,7 +471,9 @@ class WriteHashtagResearchAgent(BaseCrew):
             }
             
         except Exception as e:
+            logger.error(f"Error getting posts: {e}")
             return {
                 "success": False,
-                "error": str(e)
+                "error": str(e),
+                "posts": []
             }

@@ -9,6 +9,8 @@ import hashlib
 import re
 from urllib.parse import urlparse
 from app.agents.crews.base_crew import BaseCrew
+from app.core.storage import StorageFactory
+import asyncio
 
 class InstagramAnalyzerAgent(BaseCrew):
     """Agent for analyzing successful Instagram accounts and generating actionable posting strategies"""
@@ -18,9 +20,12 @@ class InstagramAnalyzerAgent(BaseCrew):
         self.openai_api_key = openai_api_key
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Storage for analyses
+        # Initialize storage adapter
+        self.storage = StorageFactory.get_adapter()
+        self.collection = "instagram_analyses"
+        
+        # Legacy storage for backward compatibility
         self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/instagram_analysis_storage.json")
-        self.analysis_storage = self._load_analysis_storage()
         
         # Create specialized agents
         self.analyzer_agent = self._create_analyzer_agent()
@@ -41,24 +46,43 @@ class InstagramAnalyzerAgent(BaseCrew):
             "visual_branding", "hashtag_strategy", "posting_timing"
         ]
     
-    def _load_analysis_storage(self) -> Dict[str, Any]:
-        """Load previously analyzed accounts"""
+    async def _save_analysis_to_storage(self, analysis_data: Dict[str, Any]) -> str:
+        """Save analysis to Supabase storage"""
         try:
-            if os.path.exists(self.storage_file):
-                with open(self.storage_file, 'r') as f:
-                    return json.load(f)
+            # Prepare data for storage
+            storage_data = {
+                "account_username": analysis_data.get("account_username", ""),
+                "analysis_type": analysis_data.get("analysis_focus", "comprehensive"),
+                "analysis_data": analysis_data,
+                "recommendations": analysis_data.get("success_factors", {}),
+                "analyzed_at": analysis_data.get("analyzed_at", datetime.now().isoformat())
+            }
+            
+            # Save to storage
+            analysis_id = await self.storage.save(self.collection, storage_data)
+            return analysis_id
         except Exception as e:
-            print(f"Error loading analysis storage: {e}")
-        return {"analyses": [], "strategies": [], "by_account": {}}
+            print(f"Error saving analysis to storage: {e}")
+            return ""
     
-    def _save_analysis_storage(self):
-        """Save analysis data to storage"""
+    async def _get_analysis_from_storage(self, account_username: str) -> Optional[Dict[str, Any]]:
+        """Get analysis from Supabase storage"""
         try:
-            os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
-            with open(self.storage_file, 'w') as f:
-                json.dump(self.analysis_storage, f, indent=2)
+            # Query by account username
+            analyses = await self.storage.list(
+                self.collection,
+                filters={"account_username": account_username},
+                order_by="analyzed_at",
+                order_desc=True,
+                limit=1
+            )
+            
+            if analyses and len(analyses) > 0:
+                return analyses[0]
+            return None
         except Exception as e:
-            print(f"Error saving analysis: {e}")
+            print(f"Error getting analysis from storage: {e}")
+            return None
     
     def _create_analyzer_agent(self) -> Agent:
         """Create the Instagram account analyzer agent"""
@@ -143,14 +167,20 @@ class InstagramAnalyzerAgent(BaseCrew):
             # Normalize the account identifier
             username = self._normalize_instagram_url(account_url_or_username)
             
-            # Check for existing analysis
-            analysis_hash = hashlib.md5(f"{username}_{analysis_focus}".encode()).hexdigest()
-            existing = self.analysis_storage.get("by_account", {}).get(analysis_hash)
+            # Check for existing analysis in Supabase
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                existing = loop.run_until_complete(
+                    self._get_analysis_from_storage(f"@{username}")
+                )
+            finally:
+                loop.close()
             
             if existing:
                 return {
                     "success": True,
-                    "analysis": existing,
+                    "analysis": existing.get("analysis_data", {}),
                     "source": "existing",
                     "message": f"Existing analysis for @{username} retrieved"
                 }
@@ -302,14 +332,20 @@ class InstagramAnalyzerAgent(BaseCrew):
                 }
             
             # Add metadata
-            analysis_data["analysis_id"] = analysis_hash
+            analysis_data["analysis_id"] = hashlib.md5(f"{username}_{analysis_focus}".encode()).hexdigest()
             analysis_data["analyzed_at"] = datetime.now().isoformat()
             analysis_data["analysis_focus"] = analysis_focus
             
-            # Store the analysis
-            self.analysis_storage["analyses"].append(analysis_data)
-            self.analysis_storage["by_account"][analysis_hash] = analysis_data
-            self._save_analysis_storage()
+            # Store the analysis in Supabase
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                storage_id = loop.run_until_complete(
+                    self._save_analysis_to_storage(analysis_data)
+                )
+                analysis_data["storage_id"] = storage_id
+            finally:
+                loop.close()
             
             return {
                 "success": True,
@@ -330,12 +366,28 @@ class InstagramAnalyzerAgent(BaseCrew):
                                       account_stage: str = "starting") -> Dict[str, Any]:
         """Generate an actionable Instagram strategy based on analysis"""
         try:
-            # Find the analysis
-            analysis = None
-            for stored_analysis in self.analysis_storage.get("analyses", []):
-                if stored_analysis.get("analysis_id") == analysis_id:
-                    analysis = stored_analysis
-                    break
+            # Find the analysis in Supabase
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                # Try to load by ID first
+                analysis_data = loop.run_until_complete(
+                    self.storage.load(self.collection, analysis_id)
+                )
+                if analysis_data:
+                    analysis = analysis_data.get("analysis_data", {})
+                else:
+                    # Search by analysis_id in the data
+                    analyses = loop.run_until_complete(
+                        self.storage.list(self.collection)
+                    )
+                    analysis = None
+                    for a in analyses:
+                        if a.get("analysis_data", {}).get("analysis_id") == analysis_id:
+                            analysis = a.get("analysis_data", {})
+                            break
+            finally:
+                loop.close()
             
             if not analysis:
                 return {
@@ -517,9 +569,20 @@ class InstagramAnalyzerAgent(BaseCrew):
             strategy_data["based_on_analysis"] = analysis_id
             strategy_data["analyzed_account"] = analysis.get("account_username", "unknown")
             
-            # Store the strategy
-            self.analysis_storage["strategies"].append(strategy_data)
-            self._save_analysis_storage()
+            # Store the strategy in generic storage
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                storage_result = loop.run_until_complete(
+                    self.storage.save("generic_storage", {
+                        "storage_key": f"instagram_strategy_{strategy_data['strategy_id']}",
+                        "storage_type": "instagram_strategy",
+                        "data": strategy_data
+                    })
+                )
+                strategy_data["storage_id"] = storage_result
+            finally:
+                loop.close()
             
             return {
                 "success": True,
@@ -675,20 +738,49 @@ class InstagramAnalyzerAgent(BaseCrew):
     def get_stored_analyses(self, account_username: str = None) -> Dict[str, Any]:
         """Get stored analyses, optionally filtered by account"""
         try:
-            if account_username:
-                username = self._normalize_instagram_url(account_username)
-                filtered_analyses = [
-                    analysis for analysis in self.analysis_storage.get("analyses", [])
-                    if analysis.get("account_username", "").lower() == f"@{username}".lower()
-                ]
-            else:
-                filtered_analyses = self.analysis_storage.get("analyses", [])
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                if account_username:
+                    username = self._normalize_instagram_url(account_username)
+                    analyses = loop.run_until_complete(
+                        self.storage.list(
+                            self.collection,
+                            filters={"account_username": f"@{username}"},
+                            order_by="analyzed_at",
+                            order_desc=True
+                        )
+                    )
+                else:
+                    analyses = loop.run_until_complete(
+                        self.storage.list(
+                            self.collection,
+                            order_by="analyzed_at",
+                            order_desc=True
+                        )
+                    )
+                
+                # Get strategies from generic storage
+                strategies = loop.run_until_complete(
+                    self.storage.list(
+                        "generic_storage",
+                        filters={"storage_type": "instagram_strategy"},
+                        order_by="created_at",
+                        order_desc=True
+                    )
+                )
+                
+                # Extract strategy data
+                strategy_list = [s.get("data", {}) for s in strategies]
+                
+            finally:
+                loop.close()
             
             return {
                 "success": True,
-                "analyses": filtered_analyses,
-                "strategies": self.analysis_storage.get("strategies", []),
-                "count": len(filtered_analyses),
+                "analyses": analyses,
+                "strategies": strategy_list,
+                "count": len(analyses),
                 "account_filter": account_username
             }
             
@@ -702,13 +794,29 @@ class InstagramAnalyzerAgent(BaseCrew):
     def get_strategy_by_id(self, strategy_id: str) -> Dict[str, Any]:
         """Get a specific strategy by ID"""
         try:
-            for strategy in self.analysis_storage.get("strategies", []):
-                if strategy.get("strategy_id") == strategy_id:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                # Search in generic storage
+                strategies = loop.run_until_complete(
+                    self.storage.list(
+                        "generic_storage",
+                        filters={
+                            "storage_type": "instagram_strategy",
+                            "storage_key": f"instagram_strategy_{strategy_id}"
+                        },
+                        limit=1
+                    )
+                )
+                
+                if strategies and len(strategies) > 0:
                     return {
                         "success": True,
-                        "strategy": strategy,
+                        "strategy": strategies[0].get("data", {}),
                         "message": "Strategy found"
                     }
+            finally:
+                loop.close()
             
             return {
                 "success": False,

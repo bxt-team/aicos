@@ -7,6 +7,8 @@ import hashlib
 from app.agents.crews.base_crew import BaseCrew
 from crewai import Agent, Task, Crew
 from crewai.llm import LLM
+from app.core.storage import StorageFactory
+import asyncio
 
 class ImageSearchAgent(BaseCrew):
     """Agent for searching and retrieving background images from Pexels API"""
@@ -17,9 +19,12 @@ class ImageSearchAgent(BaseCrew):
         self.pexels_api_key = pexels_api_key or os.getenv('PEXELS_API_KEY')
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Storage for image cache
+        # Initialize storage adapter for caching
+        self.storage = StorageFactory.get_adapter()
+        self.collection = "generic_storage"  # Use generic storage for image cache
+        
+        # Legacy file cache for backward compatibility
         self.cache_file = os.path.join(os.path.dirname(__file__), "../../static/image_cache.json")
-        self.image_cache = self._load_image_cache()
         
         # Create the image search agent
         self.search_agent = self.create_agent("image_search_agent", llm=self.llm)
@@ -27,24 +32,44 @@ class ImageSearchAgent(BaseCrew):
         # Pexels API base URL
         self.pexels_api_base = "https://api.pexels.com/v1"
         
-    def _load_image_cache(self) -> Dict[str, Any]:
-        """Load cached image search results"""
+    async def _get_cached_search(self, search_hash: str) -> Optional[Dict[str, Any]]:
+        """Get cached search results from Supabase"""
         try:
-            if os.path.exists(self.cache_file):
-                with open(self.cache_file, 'r') as f:
-                    return json.load(f)
+            results = await self.storage.list(
+                self.collection,
+                filters={
+                    "storage_type": "image_search_cache",
+                    "storage_key": f"image_search_{search_hash}"
+                },
+                limit=1
+            )
+            
+            if results and len(results) > 0:
+                cached_data = results[0].get("data", {})
+                # Check if cache is still valid (24 hours)
+                cache_time = datetime.fromisoformat(cached_data.get("cached_at", ""))
+                if (datetime.now() - cache_time).total_seconds() < 86400:  # 24 hours
+                    return cached_data
+            return None
         except Exception as e:
-            print(f"Error loading image cache: {e}")
-        return {"searches": {}}
+            print(f"Error getting cached search: {e}")
+            return None
     
-    def _save_image_cache(self):
-        """Save image search results to cache"""
+    async def _save_search_cache(self, search_hash: str, cache_data: Dict[str, Any]) -> str:
+        """Save search results to Supabase cache"""
         try:
-            os.makedirs(os.path.dirname(self.cache_file), exist_ok=True)
-            with open(self.cache_file, 'w') as f:
-                json.dump(self.image_cache, f, indent=2)
+            storage_data = {
+                "storage_key": f"image_search_{search_hash}",
+                "storage_type": "image_search_cache",
+                "data": cache_data
+            }
+            
+            # Save to storage
+            cache_id = await self.storage.save(self.collection, storage_data)
+            return cache_id
         except Exception as e:
-            print(f"Error saving image cache: {e}")
+            print(f"Error saving search cache: {e}")
+            return ""
     
     def _generate_search_hash(self, tags: List[str], period: str) -> str:
         """Generate a hash for search parameters to check cache"""
@@ -56,17 +81,24 @@ class ImageSearchAgent(BaseCrew):
         try:
             # Check cache first
             search_hash = self._generate_search_hash(tags, period)
-            if search_hash in self.image_cache["searches"]:
-                cached_result = self.image_cache["searches"][search_hash]
-                # Check if cache is still valid (24 hours)
-                cache_time = datetime.fromisoformat(cached_result["cached_at"])
-                if (datetime.now() - cache_time).total_seconds() < 86400:  # 24 hours
+            
+            # Try to get from Supabase cache
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                cached_result = loop.run_until_complete(
+                    self._get_cached_search(search_hash)
+                )
+                
+                if cached_result:
                     return {
                         "success": True,
                         "images": cached_result["images"],
                         "source": "cache",
                         "search_hash": search_hash
                     }
+            finally:
+                loop.close()
             
             if not self.pexels_api_key:
                 return {
@@ -129,7 +161,7 @@ class ImageSearchAgent(BaseCrew):
                 }
                 images.append(image_info)
             
-            # Cache the results
+            # Cache the results in Supabase
             cache_entry = {
                 "images": images,
                 "cached_at": datetime.now().isoformat(),
@@ -138,8 +170,14 @@ class ImageSearchAgent(BaseCrew):
                 "period": period
             }
             
-            self.image_cache["searches"][search_hash] = cache_entry
-            self._save_image_cache()
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(
+                    self._save_search_cache(search_hash, cache_entry)
+                )
+            finally:
+                loop.close()
             
             return {
                 "success": True,
@@ -215,19 +253,49 @@ class ImageSearchAgent(BaseCrew):
     
     def get_cached_searches(self) -> Dict[str, Any]:
         """Get all cached search results"""
-        return {
-            "success": True,
-            "cached_searches": self.image_cache["searches"]
-        }
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                cached_searches = loop.run_until_complete(
+                    self.storage.list(
+                        self.collection,
+                        filters={"storage_type": "image_search_cache"},
+                        order_by="created_at",
+                        order_desc=True
+                    )
+                )
+                
+                # Extract the cache data
+                searches = {}
+                for item in cached_searches:
+                    key = item.get("storage_key", "").replace("image_search_", "")
+                    if key:
+                        searches[key] = item.get("data", {})
+                
+                return {
+                    "success": True,
+                    "cached_searches": searches
+                }
+            finally:
+                loop.close()
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "cached_searches": {}
+            }
     
     def clear_cache(self) -> Dict[str, Any]:
         """Clear the image cache"""
         try:
-            self.image_cache = {"searches": {}}
-            self._save_image_cache()
+            # Note: We can't delete from Supabase through the storage adapter
+            # This would need to be implemented in the storage adapter
+            # For now, cache entries will expire after 24 hours
             return {
                 "success": True,
-                "message": "Cache erfolgreich geleert"
+                "message": "Cache entries will expire after 24 hours",
+                "note": "Manual cache clearing not yet implemented for Supabase storage"
             }
         except Exception as e:
             return {

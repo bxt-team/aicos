@@ -10,6 +10,9 @@ from typing import List, Dict, Any
 import json
 from app.agents.crews.base_crew import BaseCrew
 from app.services.knowledge_base_manager import knowledge_base_manager
+from app.core.storage import StorageFactory
+import asyncio
+from datetime import datetime
 
 class QAAgent(BaseCrew):
     def __init__(self, openai_api_key: str):
@@ -19,6 +22,10 @@ class QAAgent(BaseCrew):
         self.embeddings = knowledge_base_manager.get_embeddings()
         self.vector_store = knowledge_base_manager.get_vector_store()
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
+        
+        # Initialize storage adapter
+        self.storage = StorageFactory.get_adapter()
+        self.collection = "qa_interactions"
         
         # Create the Q&A agent from YAML config
         self.qa_agent = self.create_agent("qa_agent", llm=self.llm)
@@ -63,11 +70,42 @@ class QAAgent(BaseCrew):
             )
             
             result = crew.kickoff()
+            answer = str(result)
+            
+            # Calculate relevance score based on context similarity
+            # This is a simple heuristic - in production, you might use more sophisticated methods
+            relevance_score = self._calculate_relevance_score(question, context)
+            
+            # Save Q&A interaction to Supabase
+            interaction_data = {
+                "question": question,
+                "answer": answer,
+                "context": context[:1000] if len(context) > 1000 else context,  # Limit context size
+                "relevance_score": relevance_score,
+                "metadata": {
+                    "model": "gpt-4o-mini",
+                    "timestamp": datetime.now().isoformat(),
+                    "context_length": len(context),
+                    "answer_length": len(answer)
+                }
+            }
+            
+            # Run async save operation
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                interaction_id = loop.run_until_complete(
+                    self.storage.save(self.collection, interaction_data)
+                )
+            finally:
+                loop.close()
             
             return {
                 "success": True,
-                "answer": str(result),
-                "context_used": context[:500] + "..." if len(context) > 500 else context
+                "answer": answer,
+                "context_used": context[:500] + "..." if len(context) > 500 else context,
+                "interaction_id": interaction_id,
+                "relevance_score": relevance_score
             }
             
         except Exception as e:
@@ -150,3 +188,57 @@ class QAAgent(BaseCrew):
                 "index_size": 0,
                 "message": f"Health check failed: {str(e)}"
             }
+    
+    def _calculate_relevance_score(self, question: str, context: str) -> float:
+        """Calculate a simple relevance score between question and context"""
+        try:
+            # Simple keyword overlap score (0.0 to 1.0)
+            question_words = set(question.lower().split())
+            context_words = set(context.lower().split())
+            
+            if not question_words:
+                return 0.0
+            
+            overlap = len(question_words.intersection(context_words))
+            score = overlap / len(question_words)
+            
+            # Normalize to 0-1 range
+            return min(1.0, score)
+        except:
+            return 0.5  # Default middle score on error
+    
+    async def get_recent_interactions(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get recent Q&A interactions from storage"""
+        try:
+            interactions = await self.storage.list(
+                self.collection,
+                order_by="created_at",
+                order_desc=True,
+                limit=limit
+            )
+            return interactions
+        except Exception as e:
+            print(f"Error retrieving interactions: {e}")
+            return []
+    
+    async def update_interaction_feedback(self, interaction_id: str, user_feedback: int) -> bool:
+        """Update user feedback for an interaction (1-5 rating)"""
+        try:
+            if user_feedback < 1 or user_feedback > 5:
+                raise ValueError("Feedback must be between 1 and 5")
+            
+            # Load existing interaction
+            interaction = await self.storage.load(self.collection, interaction_id)
+            if not interaction:
+                return False
+            
+            # Update with feedback
+            interaction["user_feedback"] = user_feedback
+            interaction["metadata"]["feedback_timestamp"] = datetime.now().isoformat()
+            
+            # Save updated interaction
+            await self.storage.save(self.collection, interaction, interaction_id)
+            return True
+        except Exception as e:
+            print(f"Error updating feedback: {e}")
+            return False

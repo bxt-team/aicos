@@ -43,7 +43,7 @@ class SupabaseClient:
     def __init__(self, url: Optional[str] = None, key: Optional[str] = None):
         """Initialize Supabase client."""
         self.url = url or os.getenv("SUPABASE_URL")
-        self.key = key or os.getenv("SUPABASE_KEY")
+        self.key = key or os.getenv("SUPABASE_ANON_KEY")
         
         if not self.url or not self.key:
             logger.warning("Supabase credentials not found. Running in mock mode.")
