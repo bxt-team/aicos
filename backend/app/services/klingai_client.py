@@ -30,7 +30,7 @@ class KlingAIClient:
                     "x-api-key": api_key,
                     "Content-Type": "application/json"
                 },
-                "models": ["kling-2.1", "kling-2.0", "kling-1.6", "kling-1.5", "kling-1.0"],
+                "models": ["kling"],  # Simple model name as per API docs
                 "max_duration": 10,
                 "supports_image_to_video": True,
                 "supports_text_to_video": True,
@@ -97,6 +97,8 @@ class KlingAIClient:
         
         if model is None:
             model = self.config["models"][0]
+        
+        print(f"[KlingAIClient] Using model: {model}, provider: {self.provider}")
         
         try:
             if self.provider == "piapi":
@@ -241,18 +243,24 @@ class KlingAIClient:
         """PiAPI text-to-video implementation"""
         payload = {
             "model": model,
-            "task_type": "text_to_video",
+            "task_type": "video_generation",  # Correct task type per API docs
             "input": {
                 "prompt": prompt,
-                "negative_prompt": negative_prompt or "",
-                "cfg_scale": cfg_scale,
-                "duration": f"{duration}s",
+                "duration": duration,  # API expects integer, not string
                 "aspect_ratio": aspect_ratio
             }
         }
         
+        # Only add optional fields if they have values
+        if negative_prompt:
+            payload["input"]["negative_prompt"] = negative_prompt
+        if cfg_scale is not None:
+            payload["input"]["cfg_scale"] = cfg_scale
+        
         if camera_control:
             payload["input"]["camera_control"] = camera_control
+        
+        print(f"[KlingAIClient] Sending payload to piapi: {payload}")
         
         response = requests.post(
             f"{self.config['base_url']}/task",
@@ -262,9 +270,14 @@ class KlingAIClient:
         
         if response.status_code == 200:
             result = response.json()
+            print(f"[KlingAIClient] API Response: {result}")
+            
+            # Extract task_id from the response - it might be in data.task_id
+            task_id = result.get("task_id") or result.get("data", {}).get("task_id")
+            
             return {
                 "success": True,
-                "task_id": result.get("task_id"),
+                "task_id": task_id,
                 "status": "processing",
                 "provider": "piapi"
             }
@@ -284,7 +297,7 @@ class KlingAIClient:
                 "image": f"data:image/jpeg;base64,{image_data}",
                 "prompt": prompt or "",
                 "cfg_scale": cfg_scale,
-                "duration": f"{duration}s",
+                "duration": duration,  # API expects integer, not string
                 "aspect_ratio": aspect_ratio
             }
         }

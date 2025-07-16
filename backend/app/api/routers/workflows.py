@@ -31,6 +31,10 @@ class IntegratedPostCompositionRequest(BaseModel):
     post_format: Optional[str] = "story"
     custom_options: Optional[Dict[str, Any]] = None
 
+class VideoReelRequest(BaseModel):
+    template_id: str
+    content_data: Dict[str, Any]
+
 # Workflow endpoints
 @router.post("/workflows")
 async def create_workflow(request: WorkflowCreateRequest):
@@ -155,39 +159,33 @@ async def get_post_composition_storage():
 @router.get("/composition-templates")
 async def get_composition_templates():
     """Get available composition templates"""
+    post_composition_agent = get_agent('post_composition_agent')
+    if not post_composition_agent:
+        raise HTTPException(status_code=503, detail="Post composition agent not available")
+    
+    # Get templates from the agent
+    result = post_composition_agent.get_available_templates()
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail="Failed to get templates")
+    
+    # Format templates for frontend
+    formatted_templates = []
+    for template_id, template_data in result.get("templates", {}).items():
+        # Skip video templates for this endpoint
+        if template_data.get("type") == "video":
+            continue
+            
+        formatted_templates.append({
+            "id": template_id,
+            "name": template_data.get("name", template_id),
+            "description": template_data.get("description", ""),
+            "supports": ["post", "story"],  # All PIL templates support both formats
+            "type": template_data.get("type", "pil")
+        })
+    
     return {
-        "templates": [
-            {
-                "id": "default",
-                "name": "Default",
-                "description": "Standard text overlay",
-                "supports": ["post", "story"]
-            },
-            {
-                "id": "quote",
-                "name": "Quote Style",
-                "description": "Elegant quote formatting",
-                "supports": ["post", "story"]
-            },
-            {
-                "id": "minimal",
-                "name": "Minimal",
-                "description": "Clean, minimal text",
-                "supports": ["post", "story"]
-            },
-            {
-                "id": "bold",
-                "name": "Bold Impact",
-                "description": "Large, impactful text",
-                "supports": ["post", "story"]
-            },
-            {
-                "id": "gradient",
-                "name": "Gradient",
-                "description": "Colorful gradient text",
-                "supports": ["post", "story"]
-            }
-        ]
+        "templates": formatted_templates
     }
 
 @router.delete("/composed-posts/{post_id}")
@@ -217,5 +215,84 @@ async def compose_integrated_post(request: IntegratedPostCompositionRequest):
         request.post_format,
         request.custom_options
     )
+    
+    return result
+
+# Video template endpoints
+@router.get("/video-templates")
+async def get_video_templates():
+    """Get available video templates"""
+    post_composition_agent = get_agent('post_composition_agent')
+    if not post_composition_agent:
+        raise HTTPException(status_code=503, detail="Post composition agent not available")
+    
+    templates = post_composition_agent.get_available_templates()
+    
+    # Filter only video templates
+    video_templates = {
+        k: v for k, v in templates.get("templates", {}).items() 
+        if v.get("type") == "video"
+    }
+    
+    return {
+        "success": True,
+        "templates": video_templates,
+        "video_templates_enabled": templates.get("video_templates_enabled", True)
+    }
+
+@router.get("/video-template-fields/{template_id}")
+async def get_video_template_fields(template_id: str):
+    """Get replaceable fields for a video template"""
+    post_composition_agent = get_agent('post_composition_agent')
+    if not post_composition_agent:
+        raise HTTPException(status_code=503, detail="Post composition agent not available")
+    
+    result = post_composition_agent.get_video_template_fields(template_id)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Error getting template fields"))
+    
+    return result
+
+@router.post("/create-video-reel")
+async def create_video_reel(request: VideoReelRequest):
+    """Create a reel/video using a video template"""
+    post_composition_agent = get_agent('post_composition_agent')
+    if not post_composition_agent:
+        raise HTTPException(status_code=503, detail="Post composition agent not available")
+    
+    result = post_composition_agent.create_video_reel(
+        request.template_id,
+        request.content_data
+    )
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Error creating video reel"))
+    
+    return result
+
+@router.post("/compose-video-post")
+async def compose_video_post(request: PostCompositionRequest):
+    """Compose a post using video templates"""
+    # Ensure the template name starts with "video:"
+    if not request.template_name.startswith("video:"):
+        raise HTTPException(status_code=400, detail="Invalid video template name format")
+    
+    post_composition_agent = get_agent('post_composition_agent')
+    if not post_composition_agent:
+        raise HTTPException(status_code=503, detail="Post composition agent not available")
+    
+    result = post_composition_agent.compose_post(
+        request.background_path,
+        request.text,
+        request.period,
+        request.template_name,
+        request.post_format,
+        request.custom_options,
+        request.force_new
+    )
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("message", "Error composing video post"))
     
     return result

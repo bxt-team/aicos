@@ -31,7 +31,9 @@
       "Bash(export PATH=\"$ANDROID_HOME/build-tools/35.0.0:$PATH\")",
       "mcp__supabase__execute_sql",
       "mcp__supabase__apply_migration",
-      "mcp__supabase__list_tables"
+      "mcp__supabase__list_tables",
+      "WebFetch(domain:www.canva.dev)",
+      "WebFetch(domain:piapi.ai)"
     ],
     "deny": []
   },

@@ -58,6 +58,10 @@ interface ReelData {
   provider?: string;
   is_loop?: boolean;
   loop_style?: string;
+  // Task tracking for async generation
+  task_id?: string;
+  status?: 'processing' | 'completed' | 'failed';
+  external_url?: string;
 }
 
 interface PeriodTheme {
@@ -129,7 +133,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
   const [availableImages, setAvailableImages] = useState<{value: string, label: string, period: string, thumbnail?: string}[]>([]);
   const [additionalInput, setAdditionalInput] = useState('');
   const [customText, setCustomText] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState<string>('sora');
+  const [selectedProvider, setSelectedProvider] = useState<string>('klingai');
   const [selectedLoopStyle, setSelectedLoopStyle] = useState<string>('seamless');
   const [selectedReel, setSelectedReel] = useState<ReelData | null>(null);
   const [showScript, setShowScript] = useState(false);
@@ -146,17 +150,98 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     'Erfolg', 'Entspannung', 'Umsicht'
   ];
 
+  const pollForVideoStatus = useCallback(async (taskId: string) => {
+    const checkStatus = async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/background-video-status/${taskId}`);
+        const data = await response.json();
+        
+        if (data.success && data.task) {
+          const taskStatus = data.task.status;
+          
+          // Update the reel in state
+          setReels(prev => prev.map(reel => {
+            if (reel.task_id === taskId) {
+              return {
+                ...reel,
+                status: taskStatus,
+                external_url: data.task.external_url,
+                file_url: data.task.external_url || reel.file_url
+              };
+            }
+            return reel;
+          }));
+          
+          // Continue polling if still processing
+          if (taskStatus === 'processing') {
+            setTimeout(() => checkStatus(), 10000); // Check every 10 seconds
+          } else if (taskStatus === 'completed') {
+            console.log(`Video generation completed for task ${taskId}`);
+          } else if (taskStatus === 'failed') {
+            console.error(`Video generation failed for task ${taskId}`);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking video status:', err);
+        // Retry after a longer delay on error
+        setTimeout(() => checkStatus(), 30000); // Retry after 30 seconds
+      }
+    };
+    
+    // Start checking after a short delay
+    setTimeout(() => checkStatus(), 5000); // First check after 5 seconds
+  }, [apiBaseUrl]);
+
   const loadReels = useCallback(async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/instagram-reels`);
+      const response = await fetch(`${apiBaseUrl}/api/background-videos`);
       const data = await response.json();
       if (data.success) {
-        setReels(data.reels);
+        // Convert background videos to reel format
+        const reelsFromVideos = data.videos.map((video: any) => ({
+          id: video.id,
+          instagram_text: video.prompt || '',
+          period: video.period,
+          additional_input: '',
+          period_color: video.period_color || '#3b82f6',
+          script: {
+            title: `${video.period} Background Video`,
+            duration: `${video.duration}s`,
+            scenes: [{
+              scene_number: 1,
+              duration: `${video.duration}s`,
+              spoken_text: video.prompt || '',
+              visual_description: video.prompt || 'Background video'
+            }],
+            call_to_action: 'Folge uns für mehr!',
+            hashtags: [`#${video.period}`, '#7CyclesOfLife', '#InspirationalReels'],
+            music_mood: video.mood || 'inspiring'
+          },
+          image_paths: [],
+          image_descriptions: [],
+          file_path: video.file_path,
+          file_url: video.file_url,
+          thumbnail_url: video.thumbnail_url,
+          created_at: video.created_at,
+          duration: video.duration.toString(),
+          hashtags: [`#${video.period}`, '#7CyclesOfLife', '#InspirationalReels'],
+          provider: 'klingai',
+          is_loop: true,
+          loop_style: 'seamless'
+        }));
+        setReels(reelsFromVideos);
+        
+        // Check for any processing videos and start polling
+        reelsFromVideos.forEach((reel: ReelData) => {
+          if (reel.status === 'processing' && reel.task_id) {
+            pollForVideoStatus(reel.task_id);
+          }
+        });
       }
     } catch (err) {
       console.error('Error loading reels:', err);
     }
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, pollForVideoStatus]);
 
   const loadInstagramPosts = useCallback(async () => {
     try {
@@ -211,9 +296,9 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
 
   const loadPeriodThemes = useCallback(async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/reel-themes`);
+      const response = await fetch(`${apiBaseUrl}/api/background-video-themes`);
       const data = await response.json();
-      if (data.success) {
+      if (data.themes) {
         setPeriodThemes(data.themes);
       }
     } catch (err) {
@@ -223,27 +308,36 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
 
   const loadVideoProviders = useCallback(async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/video-providers`);
-      const data = await response.json();
-      if (data.success) {
-        setVideoProviders(data.providers);
-      }
+      // Set default video providers since endpoint doesn't exist
+      setVideoProviders({
+        'klingai': {
+          name: 'KlingAI',
+          description: 'Professional quality short videos',
+          max_duration: 10,
+          supports_loops: true,
+          formats: ['9:16'],
+          quality: 'Professional'
+        }
+      });
     } catch (err) {
       console.error('Error loading video providers:', err);
     }
-  }, [apiBaseUrl]);
+  }, []);
 
   const loadLoopStyles = useCallback(async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/loop-styles`);
-      const data = await response.json();
-      if (data.success) {
-        setLoopStyles(data.loop_styles);
-      }
+      // Set default loop styles since endpoint doesn't exist
+      setLoopStyles({
+        'seamless': {
+          name: 'Seamless',
+          description: 'Smooth continuous loop',
+          best_for: 'All background videos'
+        }
+      });
     } catch (err) {
       console.error('Error loading loop styles:', err);
     }
-  }, [apiBaseUrl]);
+  }, []);
 
   useEffect(() => {
     loadReels();
@@ -268,32 +362,66 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
       const selectedPostData = instagramPosts.find(p => p.id === selectedPost);
       const textToUse = customText || selectedPostData?.text || '';
       
-      const response = await fetch(`${apiBaseUrl}/api/generate-instagram-reel`, {
+      const response = await fetch(`${apiBaseUrl}/api/generate-background-video`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          instagram_text: textToUse,
           period: selectedPeriod,
-          additional_input: additionalInput,
-          image_paths: selectedImages,
-          image_descriptions: selectedImages.map(img => `Image: ${img}`),
-          provider: selectedProvider,
-          loop_style: selectedLoopStyle,
-          force_new: false
+          duration: selectedProvider === 'sora' ? 5 : 10,  // Sora = 5s, others = 10s
+          custom_prompt: `${textToUse}${additionalInput ? ` - ${additionalInput}` : ''}`
         }),
       });
 
       const data = await response.json();
       
-      if (data.success) {
-        setReels(prev => [data.reel, ...prev]);
+      if (data.success && data.task) {
+        // Async mode - video generation started
+        const taskReel: ReelData = {
+          id: data.task.id,
+          instagram_text: textToUse,
+          period: data.task.period,
+          additional_input: additionalInput,
+          period_color: '#3b82f6',
+          script: {
+            title: `${data.task.period} Background Video`,
+            duration: `${data.task.duration}s`,
+            scenes: [{
+              scene_number: 1,
+              duration: `${data.task.duration}s`,
+              spoken_text: textToUse,
+              visual_description: data.task.prompt || 'Background video'
+            }],
+            call_to_action: 'Folge uns für mehr!',
+            hashtags: [`#${data.task.period}`, '#7CyclesOfLife', '#InspirationalReels'],
+            music_mood: data.task.theme?.mood || 'inspiring'
+          },
+          image_paths: [],
+          image_descriptions: [],
+          file_path: data.task.file_path,
+          file_url: data.task.file_url,
+          thumbnail_url: undefined,
+          created_at: data.task.created_at,
+          duration: data.task.duration.toString(),
+          hashtags: [`#${data.task.period}`, '#7CyclesOfLife', '#InspirationalReels'],
+          provider: 'klingai',
+          is_loop: true,
+          loop_style: 'seamless',
+          // Add task tracking info
+          task_id: data.task.task_id,
+          status: data.task.status || 'processing'
+        } as ReelData & { task_id?: string; status?: string };
+        
+        setReels(prev => [taskReel, ...prev]);
         setSelectedPost('');
         setCustomText('');
         setAdditionalInput('');
         setSelectedImages([]);
         setError(null);
+        
+        // Start polling for status
+        pollForVideoStatus(data.task.task_id);
       } else {
         setError(data.message || 'Fehler beim Generieren des Reels');
       }
@@ -309,7 +437,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     if (!window.confirm('Möchten Sie diesen Reel wirklich löschen?')) return;
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/instagram-reels/${reelId}`, {
+      const response = await fetch(`${apiBaseUrl}/api/background-videos/${reelId}`, {
         method: 'DELETE',
       });
 
@@ -675,7 +803,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
 
             <div className="reels-grid">
               {filteredReels.map(reel => (
-                <div key={reel.id} className="reel-card">
+                <div key={reel.id} className={`reel-card ${reel.status === 'processing' ? 'processing' : ''}`}>
                   <div className="reel-header">
                     <span 
                       className="period-badge"
@@ -684,8 +812,18 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                       {reel.period}
                     </span>
                     <div className="reel-meta">
+                      {reel.status === 'processing' && (
+                        <span className="status-badge processing">
+                          ⏳ Wird generiert...
+                        </span>
+                      )}
+                      {reel.status === 'failed' && (
+                        <span className="status-badge failed">
+                          ❌ Fehlgeschlagen
+                        </span>
+                      )}
                       <span className="provider-badge">
-                        {reel.provider === 'sora' ? '🎥 Sora' : '🎬 Runway'}
+                        {reel.provider === 'sora' ? '🎥 Sora' : '🎬 KlingAI'}
                       </span>
                       <span className="duration">{reel.duration}s</span>
                       {reel.is_loop && <span className="loop-indicator">🔄</span>}
@@ -706,12 +844,14 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
                     <button 
                       onClick={() => viewReelDetails(reel)}
                       className="btn-outline"
+                      disabled={reel.status === 'processing'}
                     >
                       👁️ Details
                     </button>
                     <button 
                       onClick={() => handleAddVoiceOver(reel)}
                       className="btn-outline"
+                      disabled={reel.status === 'processing' || reel.status === 'failed'}
                     >
                       🎤 Voice Over
                     </button>

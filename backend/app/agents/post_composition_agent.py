@@ -7,6 +7,9 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from app.agents.crews.base_crew import BaseCrew
 from crewai import Agent, Task, Crew
 from crewai.llm import LLM
+from app.tools.video_template_tools import VideoTemplateProcessor
+import requests
+import tempfile
 
 class PostCompositionAgent(BaseCrew):
     """Agent for composing visual posts using templates and Python code"""
@@ -23,6 +26,9 @@ class PostCompositionAgent(BaseCrew):
         # Output directory for composed images
         self.output_dir = os.path.join(os.path.dirname(__file__), "../../static/composed")
         os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Initialize video template processor for advanced templates
+        self.video_processor = VideoTemplateProcessor()
         
         # Create the post composition agent
         self.composer_agent = self.create_agent("post_composition_agent", llm=self.llm)
@@ -161,7 +167,13 @@ class PostCompositionAgent(BaseCrew):
                               template_name: str, post_format: str, custom_options: Dict[str, Any]) -> Dict[str, Any]:
         """Compose post using specified template"""
         try:
-            # Load background image
+            # Check if this is a video template
+            if template_name.startswith("video:"):
+                return self._apply_video_template(
+                    background_path, text, period, template_name, post_format, custom_options
+                )
+            
+            # Load background image for PIL templates
             background = Image.open(background_path)
             
             # Resize to appropriate Instagram format
@@ -612,6 +624,77 @@ class PostCompositionAgent(BaseCrew):
         
         return image
     
+    def _apply_video_template(self, background_path: str, text: str, period: str, 
+                             template_name: str, post_format: str, custom_options: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply video template to create dynamic video content"""
+        try:
+            # Extract template ID
+            template_id = template_name.replace("video:", "")
+            
+            # Prepare replacements based on template and custom options
+            replacements = {
+                "background_color": custom_options.get("background_color", self.period_colors.get(period, "#000000")),
+                "text_main_text": custom_options.get("main_text", text),
+                "text_subtitle": custom_options.get("subtitle", f"7 Cycles - {period}"),
+                "text_period_name": period,
+                "text_period_description": custom_options.get("period_description", ""),
+                "color_primary_overlay": self.period_colors.get(period, "#808080"),
+                "color_period_color": self.period_colors.get(period, "#808080")
+            }
+            
+            # Add custom text replacements
+            if "text_replacements" in custom_options:
+                for key, value in custom_options["text_replacements"].items():
+                    replacements[f"text_{key}"] = value
+            
+            # Add custom color replacements
+            if "color_replacements" in custom_options:
+                for key, value in custom_options["color_replacements"].items():
+                    replacements[f"color_{key}"] = value
+            
+            # Add video replacements
+            if "video_replacements" in custom_options:
+                for key, value in custom_options["video_replacements"].items():
+                    replacements[f"video_{key}"] = value
+            
+            # Generate output filename
+            composition_hash = self._generate_composition_hash(background_path, text, period, template_name)
+            output_filename = f"{period.lower()}_video_{template_id}_{composition_hash[:8]}.mp4"
+            output_path = os.path.join(self.output_dir, output_filename)
+            
+            # Create video from template
+            result = self.video_processor.create_video_from_template(
+                template_id,
+                replacements,
+                output_path
+            )
+            
+            if not result["success"]:
+                return {
+                    "success": False,
+                    "error": result.get("error", "Unknown error"),
+                    "message": f"Fehler beim Erstellen des Videos: {result.get('error', 'Unknown error')}"
+                }
+            
+            # Create URL for frontend access
+            output_url = f"/static/composed/{output_filename}"
+            
+            return {
+                "success": True,
+                "output_path": output_path,
+                "output_url": output_url,
+                "filename": output_filename,
+                "template": template_id,
+                "duration": result.get("duration", 0)
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": f"Fehler beim Anwenden des Video-Templates: {str(e)}"
+            }
+    
     def _resize_to_post_format(self, image: Image.Image) -> Image.Image:
         """Resize image to Instagram Post format (4:5 ratio - 1080x1350)"""
         img_ratio = image.width / image.height
@@ -704,36 +787,157 @@ class PostCompositionAgent(BaseCrew):
             "default": {
                 "name": "Standard",
                 "description": "Einfaches Overlay mit Text",
-                "options": ["text_margin", "shadow_offset", "text_color"]
+                "options": ["text_margin", "shadow_offset", "text_color"],
+                "type": "pil"
             },
             "minimal": {
                 "name": "Minimal",
                 "description": "Leichtes Overlay mit einfachem Text",
-                "options": ["text_margin", "shadow_offset"]
+                "options": ["text_margin", "shadow_offset"],
+                "type": "pil"
             },
             "dramatic": {
                 "name": "Dramatisch",
                 "description": "Starkes Overlay mit fettem Text",
-                "options": ["text_margin", "shadow_offset", "text_color"]
+                "options": ["text_margin", "shadow_offset", "text_color"],
+                "type": "pil"
             },
             "gradient": {
                 "name": "Gradient",
                 "description": "Gradient-Overlay für dynamische Effekte",
-                "options": ["text_margin", "line_height"]
+                "options": ["text_margin", "line_height"],
+                "type": "pil"
             },
             "quote_card": {
                 "name": "Zitat-Karte",
                 "description": "Kartenhintergrund für Zitate",
-                "options": ["text_margin", "line_height"]
+                "options": ["text_margin", "line_height"],
+                "type": "pil"
             },
             "period_branding": {
                 "name": "Perioden-Branding",
                 "description": "Branding-Elemente für 7 Cycles Perioden",
-                "options": ["text_margin", "line_height", "text_color"]
+                "options": ["text_margin", "line_height", "text_color"],
+                "type": "pil"
             }
         }
         
+        # Add video templates
+        video_templates = self.video_processor.get_available_templates()
+        for vt in video_templates:
+            templates[f"video:{vt['id']}"] = {
+                "name": vt["name"],
+                "description": vt["description"],
+                "options": ["text_replacements", "video_replacements", "color_replacements"],
+                "type": "video",
+                "duration": vt["duration"],
+                "replaceable_elements": vt["replaceable_elements"]
+            }
+        
         return {
             "success": True,
-            "templates": templates
+            "templates": templates,
+            "video_templates_enabled": True
         }
+    
+    def get_video_template_fields(self, template_id: str) -> Dict[str, Any]:
+        """Get replaceable fields for a video template"""
+        try:
+            templates = self.video_processor.get_available_templates()
+            for template in templates:
+                if template["id"] == template_id:
+                    return {
+                        "success": True,
+                        "fields": template["replaceable_elements"],
+                        "template_id": template_id,
+                        "duration": template["duration"]
+                    }
+            
+            return {
+                "success": False,
+                "error": "Template not found",
+                "message": f"Video-Template '{template_id}' nicht gefunden"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": f"Fehler beim Abrufen der Template-Felder: {str(e)}"
+            }
+    
+    def create_video_reel(self, template_id: str, content_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a reel/video using a video template"""
+        try:
+            # Prepare replacements
+            replacements = {}
+            
+            # Add text replacements
+            if "text_replacements" in content_data:
+                for key, value in content_data["text_replacements"].items():
+                    replacements[f"text_{key}"] = value
+            
+            # Add color replacements
+            if "color_replacements" in content_data:
+                for key, value in content_data["color_replacements"].items():
+                    replacements[f"color_{key}"] = value
+            
+            # Add video replacements
+            if "video_replacements" in content_data:
+                for key, value in content_data["video_replacements"].items():
+                    replacements[f"video_{key}"] = value
+            
+            # Add period information if provided
+            if "period" in content_data:
+                period = content_data["period"]
+                replacements["color_period_color"] = self.period_colors.get(period, "#808080")
+                replacements["text_period_name"] = period
+            
+            # Generate output filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_filename = f"video_reel_{template_id}_{timestamp}.mp4"
+            output_path = os.path.join(self.output_dir, output_filename)
+            
+            # Create video
+            result = self.video_processor.create_video_from_template(
+                template_id,
+                replacements,
+                output_path
+            )
+            
+            if not result["success"]:
+                return {
+                    "success": False,
+                    "error": result.get("error", "Unknown error"),
+                    "message": f"Fehler beim Erstellen des Video-Reels: {result.get('error', 'Unknown error')}"
+                }
+            
+            # Create URL for frontend access
+            output_url = f"/static/composed/{output_filename}"
+            
+            # Store in posts storage
+            post_info = {
+                "id": hashlib.md5(f"{template_id}_{timestamp}".encode()).hexdigest(),
+                "type": "reel",
+                "template_id": template_id,
+                "file_path": output_path,
+                "file_url": output_url,
+                "duration": result.get("duration", 0),
+                "created_at": datetime.now().isoformat(),
+                "content_data": content_data
+            }
+            
+            self.posts_storage["posts"].append(post_info)
+            self._save_posts_storage()
+            
+            return {
+                "success": True,
+                "reel": post_info,
+                "message": "Video-Reel erfolgreich erstellt"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": f"Fehler beim Erstellen des Video-Reels: {str(e)}"
+            }

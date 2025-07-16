@@ -12,7 +12,7 @@ from app.agents.instagram_analyzer_agent import InstagramAnalyzerAgent
 from app.agents.content_workflow_agent import ContentWorkflowAgent
 from app.agents.post_composition_agent import PostCompositionAgent
 from app.agents.video_generation_agent import VideoGenerationAgent
-from app.agents.instagram_reel_agent import InstagramReelAgent
+from app.agents.background_video_agent import BackgroundVideoAgent
 from app.agents.android_testing_agent import AndroidTestingAgent
 from app.agents.voice_over_agent import VoiceOverAgent
 from app.agents.app_store_analyst import AppStoreAnalystAgent
@@ -48,7 +48,7 @@ content_wrapper: Optional[ContentGenerationWrapper] = None
 workflow_agent: Optional[ContentWorkflowAgent] = None
 post_composition_agent: Optional[PostCompositionAgent] = None
 video_generation_agent: Optional[VideoGenerationAgent] = None
-instagram_reel_agent: Optional[InstagramReelAgent] = None
+background_video_agent: Optional[BackgroundVideoAgent] = None
 android_testing_agent: Optional[AndroidTestingAgent] = None
 voice_over_agent: Optional[VoiceOverAgent] = None
 app_store_analyst_agent: Optional[AppStoreAnalystAgent] = None
@@ -79,9 +79,22 @@ def initialize_agents():
     global app_store_analyst_agent, play_store_analyst_agent, meta_ads_analyst_agent, google_analytics_expert_agent
     global threads_analysis_agent, content_strategy_agent, post_generator_agent, approval_agent, scheduler_agent
     global x_analysis_agent, x_content_strategy_agent, x_post_generator_agent, x_approval_agent, x_scheduler_agent, supabase_client
+    global background_video_agent
     
     logger.info(f"[INIT] OPENAI_API_KEY present: {bool(settings.OPENAI_API_KEY)}")
     logger.info(f"[INIT] OPENAI_API_KEY length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
+    
+    # Initialize Supabase client FIRST (before any agents that depend on it)
+    logger.info("[SUPABASE_CLIENT] Initializing...")
+    try:
+        supabase_client = SupabaseClient()
+        # Add mock activities if running without real Supabase
+        if not supabase_client.client:
+            supabase_client.add_mock_activities()
+        logger.info("[SUPABASE_CLIENT] Initialized successfully")
+    except Exception as e:
+        logger.error(f"[SUPABASE_CLIENT] Failed to initialize: {str(e)}")
+        supabase_client = None
     
     if settings.OPENAI_API_KEY:
         # Initialize shared knowledge base first
@@ -148,15 +161,6 @@ def initialize_agents():
         video_generation_agent = VideoGenerationAgent(settings.OPENAI_API_KEY)
         logger.info("[VIDEO_GENERATION_AGENT] Initialized successfully")
         
-        logger.info("[INSTAGRAM_REEL_AGENT] Initializing...")
-        instagram_reel_agent = InstagramReelAgent(
-            settings.OPENAI_API_KEY, 
-            settings.RUNWAY_API_KEY,
-            settings.KLINGAI_API_KEY,
-            settings.KLINGAI_PROVIDER
-        )
-        logger.info("[INSTAGRAM_REEL_AGENT] Initialized successfully")
-        
         # Initialize Voice Over agent
         logger.info("[VOICE_OVER_AGENT] Initializing...")
         voice_over_agent = VoiceOverAgent(settings.OPENAI_API_KEY, settings.ELEVENLABS_API_KEY)
@@ -207,17 +211,15 @@ def initialize_agents():
             logger.error(f"[GOOGLE_ANALYTICS_EXPERT] Failed to initialize: {str(e)}")
             google_analytics_expert_agent = None
         
-        # Initialize Supabase client
-        logger.info("[SUPABASE_CLIENT] Initializing...")
-        try:
-            supabase_client = SupabaseClient()
-            # Add mock activities if running without real Supabase
-            if not supabase_client.client:
-                supabase_client.add_mock_activities()
-            logger.info("[SUPABASE_CLIENT] Initialized successfully")
-        except Exception as e:
-            logger.error(f"[SUPABASE_CLIENT] Failed to initialize: {str(e)}")
-            supabase_client = None
+        # Initialize Background Video Agent (after Supabase client)
+        logger.info("[BACKGROUND_VIDEO_AGENT] Initializing...")
+        background_video_agent = BackgroundVideoAgent(
+            settings.OPENAI_API_KEY, 
+            settings.KLINGAI_API_KEY,
+            settings.KLINGAI_PROVIDER,
+            supabase_client
+        )
+        logger.info("[BACKGROUND_VIDEO_AGENT] Initialized successfully")
         
         # Initialize Threads agents
         logger.info("[THREADS_ANALYSIS_AGENT] Initializing...")
@@ -326,7 +328,7 @@ def get_agent(agent_name: str):
         'workflow_agent': workflow_agent,
         'post_composition_agent': post_composition_agent,
         'video_generation_agent': video_generation_agent,
-        'instagram_reel_agent': instagram_reel_agent,
+        'background_video_agent': background_video_agent,
         'android_testing_agent': android_testing_agent,
         'voice_over_agent': voice_over_agent,
         'app_store_analyst': app_store_analyst_agent,

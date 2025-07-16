@@ -277,46 +277,8 @@ async def get_video_types():
         ]
     }
 
-# Instagram Reel endpoints
-@router.post("/generate-instagram-reel")
-async def generate_instagram_reel(request: InstagramReelRequest):
-    """Generate Instagram Reel video"""
-    instagram_reel_agent = get_agent('instagram_reel_agent')
-    if not instagram_reel_agent:
-        raise HTTPException(status_code=503, detail="Instagram Reel agent not available")
-    
-    # Call the appropriate method based on the provider
-    if request.provider == "sora":
-        result = instagram_reel_agent.generate_reel_with_sora(
-            request.instagram_text,
-            request.period,
-            request.additional_input,
-            request.image_paths,
-            request.image_descriptions,
-            request.loop_style,
-            request.force_new
-        )
-    elif request.provider == "klingai":
-        result = instagram_reel_agent.generate_reel_with_klingai(
-            request.instagram_text,
-            request.period,
-            request.additional_input,
-            request.image_paths,
-            request.image_descriptions,
-            request.klingai_model,
-            request.force_new
-        )
-    else:  # Default to runway
-        result = instagram_reel_agent.generate_reel_with_runway(
-            request.instagram_text,
-            request.period,
-            request.additional_input,
-            request.image_paths,
-            request.image_descriptions,
-            request.force_new
-        )
-    
-    return result
+# Note: Instagram Reel generation has been replaced with Background Video generation
+# Use the /api/generate-background-video endpoint instead
 
 @router.get("/video-providers")
 async def get_video_providers():
@@ -324,33 +286,19 @@ async def get_video_providers():
     return {
         "success": True,
         "providers": {
-            "runway": {
-                "name": "Runway ML",
-                "description": "High-quality AI video generation",
-                "max_duration": 16,
-                "supports_loops": False,
-                "formats": ["mp4", "mov"],
-                "quality": "1080p"
-            },
-            "sora": {
-                "name": "OpenAI Sora",
-                "description": "Advanced AI video generation with seamless loops",
-                "max_duration": 60,
-                "supports_loops": True,
-                "formats": ["mp4", "webm"],
-                "quality": "4K"
-            },
             "klingai": {
                 "name": "KlingAI",
-                "description": "Cinematic quality video generation up to 10 seconds",
+                "description": "Background video generation for reels (5-10 seconds)",
                 "max_duration": 10,
                 "supports_loops": True,
                 "formats": ["mp4"],
                 "quality": "1080p",
                 "models": ["kling-2.1", "kling-2.0", "kling-1.6", "kling-1.5", "kling-1.0"],
-                "features": ["text-to-video", "image-to-video", "camera-control"]
+                "features": ["text-to-video", "seamless-loops", "vertical-format"],
+                "note": "Optimized for short background videos with piapi integration"
             }
-        }
+        },
+        "message": "For background videos, use /api/generate-background-video endpoint"
     }
 
 @router.get("/loop-styles")

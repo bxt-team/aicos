@@ -62,8 +62,17 @@ const PostCompositionInterface: React.FC = () => {
   const loadTemplates = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/composition-templates`);
-      if (response.data.success) {
-        setTemplates(response.data.templates);
+      if (response.data.templates) {
+        // Convert array to object keyed by template id
+        const templatesObj: { [key: string]: Template } = {};
+        response.data.templates.forEach((template: any) => {
+          templatesObj[template.id] = {
+            name: template.name,
+            description: template.description,
+            options: template.options || []
+          };
+        });
+        setTemplates(templatesObj);
       }
     } catch (err: any) {
       console.error('Error loading templates:', err);
@@ -77,7 +86,7 @@ const PostCompositionInterface: React.FC = () => {
       if (filterTemplate) params.append('template', filterTemplate);
       
       const response = await axios.get(`${API_BASE_URL}/api/composed-posts?${params}`);
-      if (response.data.success) {
+      if (response.data.posts) {
         setPosts(response.data.posts);
       }
     } catch (err: any) {
