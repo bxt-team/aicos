@@ -34,6 +34,8 @@ class SupabaseAdapter(StorageAdapter):
             'feedback': 'system_feedback',
             'cost_tracking': 'system_cost_tracking',
             'generic_storage': 'system_generic_storage',
+            'app_test_results': 'agent_app_test_results',
+            'app_uploads': 'agent_app_uploads',
         }
     
     def _get_table_name(self, collection: str) -> str:

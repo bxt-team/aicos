@@ -108,35 +108,121 @@ class ApprovalAgent(BaseCrew):
     def _parse_approval_assessment(self, result: Any, posts: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Parse the approval assessment from crew result."""
         try:
+            # Parse the actual result from the AI agent if it's a string
+            if isinstance(result, str):
+                # Try to extract JSON from the result
+                import re
+                json_match = re.search(r'\{.*\}', result, re.DOTALL)
+                if json_match:
+                    try:
+                        parsed_result = json.loads(json_match.group())
+                        if "assessment" in parsed_result:
+                            return parsed_result["assessment"]
+                    except json.JSONDecodeError:
+                        pass
+            
+            # If we couldn't parse the AI result, perform manual assessment
             assessment = {
-                "overall_quality": "high",
+                "overall_quality": "medium",
                 "brand_alignment": True,
                 "posts_assessment": []
             }
             
             for i, post in enumerate(posts):
+                # Calculate quality score based on various factors
+                quality_score = 7.0  # Base score
+                issues = []
+                recommendations = []
+                
+                # Content length check
+                content_length = len(post["content"])
+                if content_length < 50:
+                    quality_score -= 2
+                    issues.append("Content too short")
+                    recommendations.append("Add more valuable content (aim for 100-300 characters)")
+                elif content_length > 500:
+                    quality_score -= 1
+                    issues.append("Content might be too long")
+                    recommendations.append("Consider shortening for better engagement")
+                elif 100 <= content_length <= 300:
+                    quality_score += 1  # Optimal length
+                
+                # Hashtag analysis
+                hashtags = post.get("hashtags", [])
+                hashtag_count = len(hashtags)
+                if hashtag_count == 0:
+                    quality_score -= 1
+                    issues.append("No hashtags")
+                    recommendations.append("Add 3-7 relevant hashtags")
+                elif hashtag_count > 10:
+                    quality_score -= 1.5
+                    issues.append("Too many hashtags")
+                    recommendations.append("Reduce to 5-10 hashtags for better reach")
+                elif 3 <= hashtag_count <= 7:
+                    quality_score += 0.5  # Optimal hashtag count
+                
+                # Call to action check
+                has_cta = bool(post.get("call_to_action"))
+                if not has_cta:
+                    quality_score -= 0.5
+                    recommendations.append("Add a clear call-to-action to drive engagement")
+                else:
+                    quality_score += 0.5
+                
+                # Visual prompt check
+                has_visual = bool(post.get("visual_prompt"))
+                if not has_visual:
+                    recommendations.append("Consider adding visual content for higher engagement")
+                else:
+                    quality_score += 0.5
+                
+                # Period-specific checks
+                period = post.get("period", 0)
+                if period > 0:
+                    quality_score += 0.5  # Has period context
+                
+                # Emoji usage (engagement booster)
+                import re
+                emoji_pattern = re.compile("["
+                    u"\U0001F600-\U0001F64F"  # emoticons
+                    u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                    u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                    u"\U0001F1E0-\U0001F1FF"  # flags
+                    "]+", flags=re.UNICODE)
+                if emoji_pattern.search(post["content"]):
+                    quality_score += 0.5
+                else:
+                    recommendations.append("Consider adding emojis for better engagement")
+                
+                # Cap the score between 1 and 10
+                quality_score = max(1, min(10, quality_score))
+                
+                # Determine engagement potential based on score
+                if quality_score >= 8:
+                    engagement_potential = "high"
+                elif quality_score >= 6:
+                    engagement_potential = "medium"
+                else:
+                    engagement_potential = "low"
+                
+                # Determine approval recommendation
+                if quality_score >= 7 and len(issues) <= 1:
+                    approval_recommendation = ApprovalStatus.APPROVED.value
+                elif quality_score >= 5:
+                    approval_recommendation = ApprovalStatus.NEEDS_REVISION.value
+                else:
+                    approval_recommendation = ApprovalStatus.REJECTED.value
+                
                 post_assessment = {
                     "post_index": i,
-                    "content_preview": post["content"][:100] + "...",
-                    "quality_score": 8.5,
-                    "brand_alignment": True,
-                    "engagement_potential": "high",
-                    "issues": [],
-                    "recommendations": [],
-                    "approval_recommendation": ApprovalStatus.APPROVED.value
+                    "content_preview": post["content"][:100] + ("..." if len(post["content"]) > 100 else ""),
+                    "quality_score": round(quality_score, 1),
+                    "brand_alignment": True,  # Could be enhanced with brand guidelines check
+                    "engagement_potential": engagement_potential,
+                    "issues": issues,
+                    "recommendations": recommendations,
+                    "approval_recommendation": approval_recommendation
                 }
-                
-                # Check for potential issues
-                if len(post["content"]) > 500:
-                    post_assessment["issues"].append("Content might be too long")
-                    post_assessment["recommendations"].append("Consider shortening for better engagement")
-                
-                if len(post.get("hashtags", [])) > 10:
-                    post_assessment["issues"].append("Too many hashtags")
-                    post_assessment["recommendations"].append("Reduce to 5-10 hashtags")
-                
-                if not post.get("call_to_action"):
-                    post_assessment["recommendations"].append("Add a clear call-to-action")
                 
                 assessment["posts_assessment"].append(post_assessment)
             
@@ -146,6 +232,17 @@ class ApprovalAgent(BaseCrew):
                                              if p["approval_recommendation"] == ApprovalStatus.APPROVED.value)
             assessment["needs_revision_count"] = sum(1 for p in assessment["posts_assessment"] 
                                                    if p["approval_recommendation"] == ApprovalStatus.NEEDS_REVISION.value)
+            assessment["rejected_count"] = sum(1 for p in assessment["posts_assessment"] 
+                                             if p["approval_recommendation"] == ApprovalStatus.REJECTED.value)
+            
+            # Determine overall quality
+            avg_score = sum(p["quality_score"] for p in assessment["posts_assessment"]) / len(posts) if posts else 0
+            if avg_score >= 8:
+                assessment["overall_quality"] = "high"
+            elif avg_score >= 6:
+                assessment["overall_quality"] = "medium"
+            else:
+                assessment["overall_quality"] = "low"
             
             return assessment
             
@@ -240,17 +337,29 @@ class ApprovalAgent(BaseCrew):
         print(f"\nApproval Request: {approval_request['id']}")
         print(f"Total Posts: {approval_request['assessment']['total_posts']}")
         print(f"Requested at: {approval_request['requested_at']}")
+        print(f"Overall Quality: {approval_request['assessment']['overall_quality']}")
+        
+        # Count recommendations by status
+        approved = approval_request['assessment'].get('approved_count', 0)
+        needs_revision = approval_request['assessment'].get('needs_revision_count', 0)
+        rejected = approval_request['assessment'].get('rejected_count', 0)
+        
+        print(f"\nAssessment Summary:")
+        print(f"✅ Approved: {approved}")
+        print(f"📝 Needs Revision: {needs_revision}")
+        print(f"❌ Rejected: {rejected}")
         
         for i, post_assessment in enumerate(approval_request['assessment']['posts_assessment']):
             print(f"\n--- Post {i+1} ---")
             print(f"Preview: {post_assessment['content_preview']}")
             print(f"Quality Score: {post_assessment['quality_score']}/10")
             print(f"Engagement Potential: {post_assessment['engagement_potential']}")
+            print(f"Recommendation: {post_assessment['approval_recommendation']}")
             
             if post_assessment['issues']:
-                print(f"Issues: {', '.join(post_assessment['issues'])}")
+                print(f"⚠️ Issues: {', '.join(post_assessment['issues'])}")
             if post_assessment['recommendations']:
-                print(f"Recommendations: {', '.join(post_assessment['recommendations'])}")
+                print(f"💡 Recommendations: {', '.join(post_assessment['recommendations'])}")
         
         print("\n" + "-"*50)
         print("DECISION OPTIONS:")
@@ -259,15 +368,44 @@ class ApprovalAgent(BaseCrew):
         print("3. 📝 Request revisions")
         print("4. 🔍 View full posts")
         
-        # Simulate auto-approval for now
-        decision = ApprovalStatus.APPROVED.value
-        print(f"\n➡️ Auto-decision: {decision}")
+        # Make intelligent decision based on assessment
+        overall_quality = approval_request['assessment']['overall_quality']
+        avg_score = sum(p['quality_score'] for p in approval_request['assessment']['posts_assessment']) / len(approval_request['assessment']['posts_assessment'])
+        
+        # Decision logic based on quality scores
+        if overall_quality == "high" and approved > needs_revision + rejected:
+            decision = ApprovalStatus.APPROVED.value
+            notes = f"High quality posts with average score {avg_score:.1f}/10. All posts meet quality standards."
+        elif needs_revision > approved + rejected:
+            decision = ApprovalStatus.NEEDS_REVISION.value
+            notes = f"Most posts need revision. Average score {avg_score:.1f}/10. Please address the recommendations."
+        elif rejected > approved + needs_revision:
+            decision = ApprovalStatus.REJECTED.value
+            notes = f"Posts don't meet quality standards. Average score {avg_score:.1f}/10. Please regenerate with better content."
+        else:
+            # Mixed results - approve if average is good
+            if avg_score >= 6.5:
+                decision = ApprovalStatus.APPROVED.value
+                notes = f"Mixed quality but acceptable overall. Average score {avg_score:.1f}/10."
+            else:
+                decision = ApprovalStatus.NEEDS_REVISION.value
+                notes = f"Posts need improvement. Average score {avg_score:.1f}/10. Please revise based on recommendations."
+        
+        print(f"\n➡️ Bot Decision: {decision}")
+        print(f"📋 Notes: {notes}")
         print("="*50 + "\n")
         
         return {
             "decision": decision,
             "approver": "telegram_bot",
-            "notes": "Auto-approved by simulation"
+            "notes": notes,
+            "assessment_summary": {
+                "overall_quality": overall_quality,
+                "average_score": round(avg_score, 1),
+                "approved_posts": approved,
+                "revision_needed": needs_revision,
+                "rejected_posts": rejected
+            }
         }
     
     async def _update_posts_status(self, posts: List[Dict[str, Any]], status: str):

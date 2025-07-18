@@ -14,7 +14,7 @@ import WorkflowManagement from './components/WorkflowManagement';
 import PostCompositionInterface from './components/PostCompositionInterface';
 import VideoGenerationInterface from './components/VideoGenerationInterface';
 import InstagramReelInterface from './components/InstagramReelInterface';
-import AndroidTestInterface from './components/AndroidTestInterface';
+import AppTestInterface from './components/AppTestInterface';
 import VoiceOverInterface from './components/VoiceOverInterface';
 import MobileAnalyticsInterface from './components/MobileAnalyticsInterface';
 import ThreadsInterface from './components/ThreadsInterface';
@@ -46,7 +46,7 @@ function App() {
             <Route path="/post-composition" element={<PostCompositionInterface />} />
             <Route path="/video-generation" element={<VideoGenerationInterface />} />
             <Route path="/instagram-reel" element={<InstagramReelInterface apiBaseUrl="http://localhost:8000" />} />
-            <Route path="/android-test" element={<AndroidTestInterface />} />
+            <Route path="/app-test" element={<AppTestInterface />} />
             <Route path="/voice-over" element={<VoiceOverInterface apiBaseUrl="http://localhost:8000" />} />
             <Route path="/mobile-analytics" element={<MobileAnalyticsInterface />} />
             <Route path="/threads" element={<ThreadsInterface />} />

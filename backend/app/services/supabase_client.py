@@ -23,18 +23,52 @@ class Activity(BaseModel):
 
 class ThreadsPost(BaseModel):
     """Model for Threads posts stored in Supabase."""
-    id: Optional[int] = None
+    id: Optional[str] = None  # UUID in database
     content: str
-    tags: List[str]
-    period: int
-    visual_prompt: Optional[str] = None
-    status: str = "draft"  # draft, approved, scheduled, published
+    hashtags: List[str] = []  # Changed from tags to hashtags
+    media_urls: List[str] = []  # Added media_urls field
+    thread_parent_id: Optional[str] = None  # For thread replies
+    status: str = "draft"  # draft, approved, scheduled, published, needs_revision, rejected
     scheduled_at: Optional[datetime] = None
-    published_at: Optional[datetime] = None
-    approval_requested_at: Optional[datetime] = None
-    approved_by: Optional[str] = None
+    posted_at: Optional[datetime] = None  # Changed from published_at
+    threads_post_id: Optional[str] = None  # External Threads ID
     created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    metadata: Optional[Dict[str, Any]] = {}  # JSONB field
+    
+    # Legacy fields kept for compatibility
+    tags: Optional[List[str]] = None  # Maps to hashtags
+    period: Optional[int] = None  # Can be stored in metadata
+    visual_prompt: Optional[str] = None  # Can be stored in metadata
+    approval_requested_at: Optional[datetime] = None  # Can be stored in metadata
+    approved_by: Optional[str] = None  # Can be stored in metadata
+    updated_at: Optional[datetime] = None  # Not in DB but kept for compatibility
+    published_at: Optional[datetime] = None  # Maps to posted_at
+    
+    def __init__(self, **data):
+        # Map legacy fields
+        if 'tags' in data and 'hashtags' not in data:
+            data['hashtags'] = data.get('tags', [])
+        if 'published_at' in data and 'posted_at' not in data:
+            data['posted_at'] = data.get('published_at')
+        if 'hashtags' in data and 'tags' not in data:
+            data['tags'] = data.get('hashtags', [])
+        if 'posted_at' in data and 'published_at' not in data:
+            data['published_at'] = data.get('posted_at')
+            
+        # Store extra fields in metadata
+        metadata = data.get('metadata', {})
+        if 'period' in data and data['period'] is not None:
+            metadata['period'] = data['period']
+        if 'visual_prompt' in data and data['visual_prompt'] is not None:
+            metadata['visual_prompt'] = data['visual_prompt']
+        if 'approval_requested_at' in data and data['approval_requested_at'] is not None:
+            metadata['approval_requested_at'] = data['approval_requested_at'].isoformat() if isinstance(data['approval_requested_at'], datetime) else data['approval_requested_at']
+        if 'approved_by' in data and data['approved_by'] is not None:
+            metadata['approved_by'] = data['approved_by']
+        if metadata:
+            data['metadata'] = metadata
+            
+        super().__init__(**data)
 
 
 class SupabaseClient:
@@ -111,7 +145,7 @@ class SupabaseClient:
             return [ThreadsPost(**p) for p in posts[:limit]]
         
         try:
-            query = self.client.table("threads_posts").select("*")
+            query = self.client.table("agent_threads_posts").select("*")
             
             if status:
                 query = query.eq("status", status)
@@ -129,36 +163,102 @@ class SupabaseClient:
         if not self.client:
             # Mock implementation
             post_dict = post.dict(exclude_none=True)
-            post_dict["id"] = len(self._mock_data["threads_posts"]) + 1
+            post_dict["id"] = str(len(self._mock_data["threads_posts"]) + 1)
             post_dict["created_at"] = datetime.now()
             post_dict["updated_at"] = datetime.now()
             self._mock_data["threads_posts"].append(post_dict)
             return ThreadsPost(**post_dict)
         
         try:
-            data = post.dict(exclude_none=True, exclude={"id", "created_at", "updated_at"})
-            response = self.client.table("threads_posts").insert(data).execute()
+            # Prepare data for database
+            data = post.dict(exclude_none=True, exclude={"id", "created_at", "updated_at", "tags", "period", "visual_prompt", "approval_requested_at", "approved_by", "published_at"})
+            
+            # Map legacy fields
+            if post.tags:
+                data["hashtags"] = post.tags
+            if post.published_at:
+                data["posted_at"] = post.published_at
+                
+            # Store extra fields in metadata
+            metadata = data.get("metadata", {})
+            if post.period is not None:
+                metadata["period"] = post.period
+            if post.visual_prompt:
+                metadata["visual_prompt"] = post.visual_prompt
+            if post.approval_requested_at:
+                metadata["approval_requested_at"] = post.approval_requested_at.isoformat()
+            if post.approved_by:
+                metadata["approved_by"] = post.approved_by
+            if metadata:
+                data["metadata"] = metadata
+            
+            response = self.client.table("agent_threads_posts").insert(data).execute()
             return ThreadsPost(**response.data[0])
         except Exception as e:
             logger.error(f"Error creating threads post: {str(e)}")
             raise
     
-    async def update_threads_post(self, post_id: int, updates: Dict[str, Any]) -> ThreadsPost:
+    async def update_threads_post(self, post_id: Any, updates: Dict[str, Any]) -> ThreadsPost:
         """Update a Threads post."""
+        # post_id is already a string (UUID) in the database
+        
         if not self.client:
             # Mock implementation
             for i, post in enumerate(self._mock_data["threads_posts"]):
-                if post.get("id") == post_id:
+                if post.get("id") == str(post_id):
                     post.update(updates)
                     post["updated_at"] = datetime.now()
                     return ThreadsPost(**post)
             raise ValueError(f"Post with id {post_id} not found")
         
         try:
-            response = self.client.table("threads_posts").update(updates).eq("id", post_id).execute()
+            # Prepare updates for database
+            db_updates = {}
+            metadata_updates = {}
+            
+            for key, value in updates.items():
+                if key == "tags":
+                    db_updates["hashtags"] = value
+                elif key == "published_at":
+                    db_updates["posted_at"] = value
+                elif key in ["period", "visual_prompt", "approval_requested_at", "approved_by"]:
+                    # Store in metadata
+                    metadata_updates[key] = value.isoformat() if isinstance(value, datetime) else value
+                elif key not in ["updated_at"]:  # Skip fields not in DB
+                    db_updates[key] = value
+            
+            # If we have metadata updates, fetch current metadata and merge
+            if metadata_updates:
+                current = await self.get_threads_posts()
+                current_post = next((p for p in current if str(p.id) == str(post_id)), None)
+                if current_post:
+                    current_metadata = current_post.metadata or {}
+                    current_metadata.update(metadata_updates)
+                    db_updates["metadata"] = current_metadata
+            
+            response = self.client.table("agent_threads_posts").update(db_updates).eq("id", post_id).execute()
             return ThreadsPost(**response.data[0])
         except Exception as e:
             logger.error(f"Error updating threads post: {str(e)}")
+            raise
+    
+    async def delete_threads_post(self, post_id: Any) -> bool:
+        """Delete a Threads post."""
+        # post_id is already a string (UUID) in the database
+        
+        if not self.client:
+            # Mock implementation
+            for i, post in enumerate(self._mock_data["threads_posts"]):
+                if post.get("id") == str(post_id):
+                    del self._mock_data["threads_posts"][i]
+                    return True
+            return False
+        
+        try:
+            response = self.client.table("agent_threads_posts").delete().eq("id", post_id).execute()
+            return len(response.data) > 0
+        except Exception as e:
+            logger.error(f"Error deleting threads post: {str(e)}")
             raise
     
     # Mock data initialization for testing

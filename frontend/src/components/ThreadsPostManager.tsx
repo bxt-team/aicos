@@ -41,6 +41,7 @@ import { SelectChangeEvent } from '@mui/material/Select';
 import axios from 'axios';
 
 interface ThreadsPost {
+  id?: string;
   content: string;
   hashtags: string[];
   period: number;
@@ -82,6 +83,8 @@ const ThreadsPostManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [posts, setPosts] = useState<ThreadsPost[]>([]);
+  const [allPosts, setAllPosts] = useState<ThreadsPost[]>([]);
+  const [showAllPosts, setShowAllPosts] = useState(false);
   const [approvalResult, setApprovalResult] = useState<any>(null);
   const [activeStep, setActiveStep] = useState(0);
   
@@ -98,6 +101,51 @@ const ThreadsPostManager: React.FC = () => {
   const [editingIndex, setEditingIndex] = useState<number>(-1);
 
   const steps = ['Generate Posts', 'Review & Edit', 'Request Approval', 'Schedule'];
+
+  useEffect(() => {
+    if (showAllPosts) {
+      loadAllPosts();
+    }
+  }, [showAllPosts]);
+
+  const loadAllPosts = async () => {
+    try {
+      const response = await axios.get('/api/threads/posts/unapproved');
+      setAllPosts(response.data.posts);
+    } catch (err) {
+      console.error('Failed to load posts:', err);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
+    
+    try {
+      await axios.delete(`/api/threads/posts/${postId}`);
+      setSuccess('Post deleted successfully');
+      loadAllPosts();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to delete post');
+    }
+  };
+
+  const handleApprovePost = async (post: ThreadsPost) => {
+    try {
+      // Create a single-post approval request
+      const response = await axios.post('/api/threads/posts/approve', {
+        posts: [post]
+      });
+      
+      if (response.data.success && response.data.decision_result?.approval_request?.status === 'approved') {
+        setSuccess('Post approved successfully');
+        loadAllPosts();
+      } else {
+        setError('Post did not meet approval criteria');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to approve post');
+    }
+  };
 
   const generatePosts = async () => {
     setLoading(true);
@@ -166,7 +214,7 @@ const ThreadsPostManager: React.FC = () => {
     }
   };
 
-  const handleDeletePost = (index: number) => {
+  const handleDeleteGeneratedPost = (index: number) => {
     setPosts(posts.filter((_, i) => i !== index));
   };
 
@@ -176,12 +224,22 @@ const ThreadsPostManager: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>
-        Post Manager
-      </Typography>
-      <Typography variant="body2" color="text.secondary" paragraph>
-        Generate, review, and approve Threads posts
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box>
+          <Typography variant="h5" gutterBottom>
+            Post Manager
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Generate, review, and approve Threads posts
+          </Typography>
+        </Box>
+        <Button
+          variant={showAllPosts ? 'contained' : 'outlined'}
+          onClick={() => setShowAllPosts(!showAllPosts)}
+        >
+          {showAllPosts ? 'Hide All Posts' : 'Show All Posts'}
+        </Button>
+      </Box>
 
       <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
         {steps.map((label) => (
@@ -329,7 +387,7 @@ const ThreadsPostManager: React.FC = () => {
                       </IconButton>
                       <IconButton
                         size="small"
-                        onClick={() => handleDeletePost(index)}
+                        onClick={() => handleDeleteGeneratedPost(index)}
                         color="error"
                       >
                         <DeleteIcon />
@@ -360,38 +418,178 @@ const ThreadsPostManager: React.FC = () => {
       )}
 
       {activeStep === 2 && approvalResult && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Approval Status
-            </Typography>
-            {approvalResult.telegram_simulation && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Telegram Bot Decision: {approvalResult.telegram_simulation.decision}
-              </Alert>
-            )}
-            {approvalResult.decision_result && (
-              <Box>
-                <Typography variant="body1" gutterBottom>
-                  Status: {approvalResult.decision_result.approval_request.status}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {approvalResult.decision_result.message}
-                </Typography>
-              </Box>
-            )}
-          </CardContent>
-          <CardActions>
-            <Button
-              startIcon={<ScheduleIcon />}
-              onClick={proceedToSchedule}
-              variant="contained"
-              disabled={approvalResult.decision_result?.approval_request?.status !== 'approved'}
-            >
-              Proceed to Schedule
-            </Button>
-          </CardActions>
-        </Card>
+        <>
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Approval Status
+              </Typography>
+              {approvalResult.telegram_simulation && (
+                <>
+                  <Alert 
+                    severity={approvalResult.telegram_simulation.decision === 'approved' ? 'success' : 
+                             approvalResult.telegram_simulation.decision === 'needs_revision' ? 'warning' : 'error'} 
+                    sx={{ mb: 2 }}
+                  >
+                    Telegram Bot Decision: {approvalResult.telegram_simulation.decision}
+                  </Alert>
+                  
+                  {approvalResult.telegram_simulation.assessment_summary && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Overall Quality: <strong>{approvalResult.telegram_simulation.assessment_summary.overall_quality}</strong>
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Average Score: <strong>{approvalResult.telegram_simulation.assessment_summary.average_score}/10</strong>
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                        <Chip 
+                          icon={<CheckIcon />} 
+                          label={`${approvalResult.telegram_simulation.assessment_summary.approved_posts} Approved`} 
+                          color="success" 
+                          size="small" 
+                        />
+                        <Chip 
+                          icon={<EditIcon />} 
+                          label={`${approvalResult.telegram_simulation.assessment_summary.revision_needed} Need Revision`} 
+                          color="warning" 
+                          size="small" 
+                        />
+                        <Chip 
+                          icon={<CancelIcon />} 
+                          label={`${approvalResult.telegram_simulation.assessment_summary.rejected_posts} Rejected`} 
+                          color="error" 
+                          size="small" 
+                        />
+                      </Box>
+                    </Box>
+                  )}
+                  
+                  <Typography variant="body2" color="text.secondary">
+                    {approvalResult.telegram_simulation.notes}
+                  </Typography>
+                </>
+              )}
+              {approvalResult.decision_result && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body1" gutterBottom>
+                    Status: {approvalResult.decision_result.approval_request.status}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {approvalResult.decision_result.message}
+                  </Typography>
+                </Box>
+              )}
+            </CardContent>
+            <CardActions>
+              {approvalResult.telegram_simulation?.decision === 'needs_revision' && (
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setActiveStep(1);
+                    setApprovalResult(null);
+                  }}
+                  sx={{ mr: 1 }}
+                >
+                  Back to Edit Posts
+                </Button>
+              )}
+              {approvalResult.telegram_simulation?.decision === 'rejected' && (
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setActiveStep(0);
+                    setPosts([]);
+                    setApprovalResult(null);
+                  }}
+                  sx={{ mr: 1 }}
+                >
+                  Generate New Posts
+                </Button>
+              )}
+              <Button
+                startIcon={<ScheduleIcon />}
+                onClick={proceedToSchedule}
+                variant="contained"
+                disabled={approvalResult.decision_result?.approval_request?.status !== 'approved'}
+              >
+                Proceed to Schedule
+              </Button>
+            </CardActions>
+          </Card>
+          
+          {/* Post Assessment Details */}
+          {approvalResult.approval_request?.assessment?.posts_assessment && (
+            <>
+              <Typography variant="h6" gutterBottom>
+                Post Assessment Details
+              </Typography>
+              <Grid container spacing={2}>
+                {approvalResult.approval_request.assessment.posts_assessment.map((assessment: any, index: number) => (
+                  <Grid size={{ xs: 12, md: 6 }} key={index}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                          <Typography variant="subtitle1" fontWeight="bold">
+                            Post {index + 1}
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Chip 
+                              label={`Score: ${assessment.quality_score}/10`} 
+                              size="small"
+                              color={assessment.quality_score >= 7 ? 'success' : assessment.quality_score >= 5 ? 'warning' : 'error'}
+                            />
+                            <Chip 
+                              label={assessment.approval_recommendation} 
+                              size="small"
+                              variant="outlined"
+                              color={assessment.approval_recommendation === 'approved' ? 'success' : 
+                                     assessment.approval_recommendation === 'needs_revision' ? 'warning' : 'error'}
+                            />
+                          </Box>
+                        </Box>
+                        
+                        <Typography variant="body2" color="text.secondary" paragraph>
+                          {assessment.content_preview}
+                        </Typography>
+                        
+                        <Typography variant="body2" gutterBottom>
+                          Engagement Potential: <strong>{assessment.engagement_potential}</strong>
+                        </Typography>
+                        
+                        {assessment.issues && assessment.issues.length > 0 && (
+                          <Box sx={{ mt: 1, mb: 1 }}>
+                            <Typography variant="body2" color="error.main" gutterBottom>
+                              Issues:
+                            </Typography>
+                            {assessment.issues.map((issue: string, i: number) => (
+                              <Typography key={i} variant="body2" color="text.secondary" sx={{ pl: 2 }}>
+                                • {issue}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+                        
+                        {assessment.recommendations && assessment.recommendations.length > 0 && (
+                          <Box sx={{ mt: 1 }}>
+                            <Typography variant="body2" color="primary.main" gutterBottom>
+                              Recommendations:
+                            </Typography>
+                            {assessment.recommendations.map((rec: string, i: number) => (
+                              <Typography key={i} variant="body2" color="text.secondary" sx={{ pl: 2 }}>
+                                • {rec}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </>
+          )}
+        </>
       )}
 
       {activeStep === 3 && (
@@ -416,6 +614,105 @@ const ThreadsPostManager: React.FC = () => {
         <Alert severity="success" sx={{ mt: 2 }}>
           {success}
         </Alert>
+      )}
+
+      {/* All Posts Section */}
+      {showAllPosts && (
+        <>
+          <Divider sx={{ my: 4 }} />
+          <Typography variant="h6" gutterBottom>
+            All Unapproved Posts
+          </Typography>
+          {allPosts.length === 0 ? (
+            <Alert severity="info">No unapproved posts found</Alert>
+          ) : (
+            <Grid container spacing={2}>
+              {allPosts.map((post) => {
+                const period = periods.find(p => p.value === post.period);
+                return (
+                  <Grid size={{ xs: 12, md: 6 }} key={post.id}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Chip
+                              label={`${period?.name} (${post.period})`}
+                              size="small"
+                              sx={{ bgcolor: period?.color, color: 'white' }}
+                            />
+                            <Chip
+                              label={post.status || 'draft'}
+                              size="small"
+                              variant="outlined"
+                              color={
+                                post.status === 'needs_revision' ? 'warning' :
+                                post.status === 'rejected' ? 'error' : 'default'
+                              }
+                            />
+                          </Box>
+                          <Chip
+                            label={post.post_type}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </Box>
+                        <Typography variant="body1" paragraph>
+                          {post.content}
+                        </Typography>
+                        <Box sx={{ mb: 2 }}>
+                          {post.hashtags.map((tag, i) => (
+                            <Chip
+                              key={i}
+                              label={tag}
+                              size="small"
+                              sx={{ m: 0.5 }}
+                            />
+                          ))}
+                        </Box>
+                        {post.call_to_action && (
+                          <Typography variant="body2" color="primary" gutterBottom>
+                            CTA: {post.call_to_action}
+                          </Typography>
+                        )}
+                        {post.visual_prompt && (
+                          <Typography variant="body2" color="text.secondary">
+                            Visual: {post.visual_prompt}
+                          </Typography>
+                        )}
+                      </CardContent>
+                      <CardActions>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditPost(post, -1)}
+                          color="primary"
+                          title="Edit"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleApprovePost(post)}
+                          color="success"
+                          title="Quick Approve"
+                        >
+                          <ApproveIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeletePost(post.id!)}
+                          color="error"
+                          title="Delete"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </CardActions>
+                    </Card>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
+        </>
       )}
 
       {/* Edit Dialog */}

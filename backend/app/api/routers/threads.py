@@ -175,16 +175,18 @@ async def request_approval(
             approval_request = result["approval_request"]
             telegram_result = approval_agent.simulate_telegram_approval(approval_request)
             
-            # Auto-process the decision
-            decision_result = await approval_agent.process_approval_decision(
-                approval_request["id"],
-                telegram_result["decision"],
-                telegram_result["approver"],
-                telegram_result["notes"]
-            )
+            # Auto-process the decision only if it's an approval
+            # For other decisions, let the user manually process via the decide endpoint
+            if telegram_result["decision"] == "approved":
+                decision_result = await approval_agent.process_approval_decision(
+                    approval_request["id"],
+                    telegram_result["decision"],
+                    telegram_result["approver"],
+                    telegram_result["notes"]
+                )
+                result["decision_result"] = decision_result
             
             result["telegram_simulation"] = telegram_result
-            result["decision_result"] = decision_result
         
         return result
     except Exception as e:
@@ -330,6 +332,104 @@ async def get_threads_posts(
     try:
         posts = await supabase.get_threads_posts(status=status, limit=limit)
         return {"posts": [p.dict() for p in posts]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/posts/unapproved")
+async def get_unapproved_posts(
+    limit: int = 50,
+    supabase: SupabaseClient = Depends(get_supabase_client)
+):
+    """Get all unapproved Threads posts (draft, needs_revision, rejected)."""
+    try:
+        # Get posts with various unapproved statuses
+        draft_posts = await supabase.get_threads_posts(status="draft", limit=limit)
+        needs_revision_posts = await supabase.get_threads_posts(status="needs_revision", limit=limit)
+        rejected_posts = await supabase.get_threads_posts(status="rejected", limit=limit)
+        
+        # Combine and sort by created_at
+        all_posts = draft_posts + needs_revision_posts + rejected_posts
+        all_posts.sort(key=lambda x: x.created_at, reverse=True)
+        
+        # Limit the total
+        all_posts = all_posts[:limit]
+        
+        return {
+            "posts": [p.dict() for p in all_posts],
+            "total": len(all_posts),
+            "breakdown": {
+                "draft": len(draft_posts),
+                "needs_revision": len(needs_revision_posts),
+                "rejected": len(rejected_posts)
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/posts/approved")
+async def get_approved_posts(
+    limit: int = 50,
+    supabase: SupabaseClient = Depends(get_supabase_client)
+):
+    """Get all approved Threads posts."""
+    try:
+        posts = await supabase.get_threads_posts(status="approved", limit=limit)
+        return {
+            "posts": [p.dict() for p in posts],
+            "total": len(posts)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/posts/{post_id}/unapprove")
+async def unapprove_post(
+    post_id: str,
+    supabase: SupabaseClient = Depends(get_supabase_client)
+):
+    """Unapprove a previously approved post."""
+    try:
+        # Update post status back to draft
+        updated_post = await supabase.update_threads_post(
+            post_id,
+            {"status": "draft", "updated_at": datetime.now().isoformat()}
+        )
+        
+        if not updated_post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        return {
+            "success": True,
+            "message": "Post unapproved successfully",
+            "post": updated_post.dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/posts/{post_id}")
+async def delete_post(
+    post_id: str,
+    supabase: SupabaseClient = Depends(get_supabase_client)
+):
+    """Delete a Threads post."""
+    try:
+        # Delete the post
+        success = await supabase.delete_threads_post(post_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        return {
+            "success": True,
+            "message": "Post deleted successfully"
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

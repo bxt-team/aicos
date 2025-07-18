@@ -108,7 +108,7 @@ class KnowledgeTool(BaseTool):
     def _run(self, topic: str) -> str:
         """Get 7 Cycles knowledge on a topic."""
         try:
-            result = self.qa_agent.ask_question(topic)
+            result = self.qa_agent.answer_question(topic)
             if result["success"]:
                 return result["answer"]
             return "No specific knowledge found on this topic."
@@ -174,7 +174,7 @@ class PostGeneratorAgent(BaseCrew):
             # Get affirmations if requested
             affirmations = []
             if include_affirmations:
-                affirmations = self._get_affirmations(str(period))
+                affirmations = await self._get_affirmations(str(period))
             
             # Get activities if requested
             activities = []
@@ -354,14 +354,18 @@ class PostGeneratorAgent(BaseCrew):
     async def _store_posts_in_db(self, posts: List[Dict[str, Any]]):
         """Store generated posts in Supabase."""
         try:
+            from ..services.supabase_client import ThreadsPost
             for post in posts:
-                await self.supabase.create_threads_post({
-                    "content": post["content"],
-                    "tags": post["hashtags"],
-                    "period": post["period"],
-                    "visual_prompt": post.get("visual_prompt"),
-                    "status": "draft"
-                })
+                threads_post = ThreadsPost(
+                    content=post["content"],
+                    hashtags=post["hashtags"],
+                    metadata={
+                        "period": post["period"],
+                        "visual_prompt": post.get("visual_prompt")
+                    },
+                    status="draft"
+                )
+                await self.supabase.create_threads_post(threads_post)
         except Exception as e:
             logger.error(f"Error storing posts in database: {str(e)}")
     
@@ -374,6 +378,72 @@ class PostGeneratorAgent(BaseCrew):
                 return json.load(f)
         
         return None
+    
+    async def _get_affirmations(self, period: str) -> List[str]:
+        """Get affirmations for a specific period."""
+        try:
+            # Map period names
+            period_map = {
+                "1": "IMAGE", "IMAGE": "IMAGE",
+                "2": "VERÄNDERUNG", "VERÄNDERUNG": "VERÄNDERUNG", "CHANGE": "VERÄNDERUNG",
+                "3": "ENERGIE", "ENERGIE": "ENERGIE", "ENERGY": "ENERGIE",
+                "4": "KREATIVITÄT", "KREATIVITÄT": "KREATIVITÄT", "CREATIVITY": "KREATIVITÄT",
+                "5": "ERFOLG", "ERFOLG": "ERFOLG", "SUCCESS": "ERFOLG",
+                "6": "ENTSPANNUNG", "ENTSPANNUNG": "ENTSPANNUNG", "RELAXATION": "ENTSPANNUNG",
+                "7": "UMSICHT", "UMSICHT": "UMSICHT", "PRUDENCE": "UMSICHT"
+            }
+            
+            period_name = period_map.get(period.upper(), "IMAGE")
+            affirmations = await self.affirmations_agent.get_affirmations_by_period(period_name)
+            
+            if affirmations:
+                return [a["affirmation"] for a in affirmations[:3]]
+            return []
+        except Exception as e:
+            logger.error(f"Error getting affirmations: {str(e)}")
+            return []
+    
+    async def _get_activities(self, period: str) -> List[Dict[str, Any]]:
+        """Get activities for a specific period."""
+        try:
+            # Check if it's a period number
+            if period.isdigit():
+                activities = await self.supabase.get_activities(period=int(period))
+            else:
+                # Search by tag
+                activities = await self.supabase.get_activities(tags=[period.lower()])
+            
+            if activities:
+                return [{
+                    "title": a.title,
+                    "description": a.description,
+                    "period": a.period
+                } for a in activities[:3]]
+            
+            # Return mock activities if no real ones found
+            return [{
+                "title": "Morgenmeditation",
+                "description": "Beginne den Tag mit einer 10-minütigen Meditation",
+                "period": 1
+            }]
+        except Exception as e:
+            logger.error(f"Error getting activities: {str(e)}")
+            return [{
+                "title": "Atemübung",
+                "description": "Praktiziere bewusstes Atmen für innere Ruhe",
+                "period": 1
+            }]
+    
+    def _get_knowledge(self, topic: str) -> str:
+        """Get 7 Cycles knowledge on a topic."""
+        try:
+            result = self.qa_agent.answer_question(topic)
+            if result["success"]:
+                return result["answer"]
+            return "No specific knowledge found on this topic."
+        except Exception as e:
+            logger.error(f"Error getting knowledge: {str(e)}")
+            return "Unable to retrieve knowledge at this time."
     
     def health_check(self) -> Dict[str, Any]:
         """Check agent health status."""

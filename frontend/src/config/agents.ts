@@ -156,16 +156,16 @@ export const agentConfigs: AgentConfig[] = [
     version: '2.0'
   },
   {
-    id: 'android-test',
-    name: 'Android App Testing Agent',
-    route: '/android-test',
+    id: 'app-test',
+    name: 'Mobile App Testing Agent',
+    route: '/app-test',
     icon: '📱',
-    description: 'Automatisierte QA- und Performance-Tests für Android Apps mit detaillierter Fehleranalyse und UX-Empfehlungen',
+    description: 'Automatisierte QA- und Performance-Tests für iOS und Android Apps mit detaillierter Fehleranalyse und UX-Empfehlungen',
     category: 'Quality Assurance',
     enabled: true,
-    apiHealthCheck: '/health',
-    features: ['Automatisierte UI-Tests', 'Performance-Analyse', 'Crash-Erkennung', 'Accessibility-Prüfung', 'UX-Optimierung'],
-    version: '1.0'
+    apiHealthCheck: '/api/app-test/health/check',
+    features: ['iOS & Android Testing', 'Automatisierte UI-Tests', 'Performance-Analyse', 'Crash-Erkennung', 'Accessibility-Prüfung', 'Cross-Platform Vergleich'],
+    version: '2.0'
   },
   {
     id: 'voice-over-captions',

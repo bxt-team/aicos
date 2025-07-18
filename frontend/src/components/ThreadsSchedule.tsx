@@ -5,6 +5,7 @@ import {
   Typography,
   Card,
   CardContent,
+  CardActions,
   Chip,
   CircularProgress,
   Alert,
@@ -26,6 +27,7 @@ import {
   FormControl,
   InputLabel,
   Tooltip,
+  Divider,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import {
@@ -36,6 +38,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Publish as PublishIcon,
+  ThumbDown as UnapproveIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -55,6 +58,18 @@ interface ScheduledPost {
   day_of_week: string;
   is_peak_time: boolean;
   expected_reach: string;
+}
+
+interface ThreadsPost {
+  id: string;
+  content: string;
+  hashtags: string[];
+  period: number;
+  visual_prompt?: string;
+  post_type: string;
+  call_to_action: string;
+  created_at: string;
+  status: string;
 }
 
 interface Schedule {
@@ -79,6 +94,8 @@ const ThreadsSchedule: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [upcomingPosts, setUpcomingPosts] = useState<ScheduledPost[]>([]);
+  const [approvedPosts, setApprovedPosts] = useState<ThreadsPost[]>([]);
+  const [showApprovedPosts, setShowApprovedPosts] = useState(false);
   
   // Scheduling parameters
   const [startDate, setStartDate] = useState<Date | null>(new Date());
@@ -92,7 +109,10 @@ const ThreadsSchedule: React.FC = () => {
   useEffect(() => {
     loadLatestSchedule();
     loadUpcomingPosts();
-  }, []);
+    if (showApprovedPosts) {
+      loadApprovedPosts();
+    }
+  }, [showApprovedPosts]);
 
   const loadLatestSchedule = async () => {
     try {
@@ -109,6 +129,39 @@ const ThreadsSchedule: React.FC = () => {
       setUpcomingPosts(response.data.upcoming_posts);
     } catch (err) {
       // No upcoming posts
+    }
+  };
+
+  const loadApprovedPosts = async () => {
+    try {
+      const response = await axios.get('/api/threads/posts/approved');
+      setApprovedPosts(response.data.posts);
+    } catch (err: any) {
+      setError('Failed to load approved posts');
+    }
+  };
+
+  const handleUnapprovePost = async (postId: string) => {
+    if (!window.confirm('Are you sure you want to unapprove this post?')) return;
+    
+    try {
+      await axios.put(`/api/threads/posts/${postId}/unapprove`);
+      setSuccess('Post unapproved successfully');
+      loadApprovedPosts();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to unapprove post');
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
+    
+    try {
+      await axios.delete(`/api/threads/posts/${postId}`);
+      setSuccess('Post deleted successfully');
+      loadApprovedPosts();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to delete post');
     }
   };
 
@@ -178,14 +231,34 @@ const ThreadsSchedule: React.FC = () => {
     }
   };
 
+  const periods = [
+    { value: 1, name: 'IMAGE', color: '#DAA520' },
+    { value: 2, name: 'VERÄNDERUNG', color: '#FF6B6B' },
+    { value: 3, name: 'ENERGIE', color: '#4ECDC4' },
+    { value: 4, name: 'KREATIVITÄT', color: '#9B59B6' },
+    { value: 5, name: 'ERFOLG', color: '#F39C12' },
+    { value: 6, name: 'ENTSPANNUNG', color: '#3498DB' },
+    { value: 7, name: 'UMSICHT', color: '#2ECC71' },
+  ];
+
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>
-        Content Schedule
-      </Typography>
-      <Typography variant="body2" color="text.secondary" paragraph>
-        Schedule your approved posts for optimal engagement
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box>
+          <Typography variant="h5" gutterBottom>
+            Content Schedule
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Schedule your approved posts for optimal engagement
+          </Typography>
+        </Box>
+        <Button
+          variant={showApprovedPosts ? 'contained' : 'outlined'}
+          onClick={() => setShowApprovedPosts(!showApprovedPosts)}
+        >
+          {showApprovedPosts ? 'Hide' : 'Show'} Approved Posts ({approvedPosts.length})
+        </Button>
+      </Box>
 
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <Card sx={{ mb: 3 }}>
@@ -416,6 +489,97 @@ const ThreadsSchedule: React.FC = () => {
         <Alert severity="success" sx={{ mt: 2 }}>
           {success}
         </Alert>
+      )}
+
+      {/* Approved Posts Section */}
+      {showApprovedPosts && (
+        <>
+          <Divider sx={{ my: 4 }} />
+          <Typography variant="h6" gutterBottom>
+            Approved Posts Ready for Scheduling
+          </Typography>
+          {approvedPosts.length === 0 ? (
+            <Alert severity="info">No approved posts available for scheduling</Alert>
+          ) : (
+            <Grid container spacing={2}>
+              {approvedPosts.map((post) => {
+                const period = periods.find(p => p.value === post.period);
+                return (
+                  <Grid size={{ xs: 12, md: 6 }} key={post.id}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Chip
+                              label={`${period?.name} (${post.period})`}
+                              size="small"
+                              sx={{ bgcolor: period?.color, color: 'white' }}
+                            />
+                            <Chip
+                              label="approved"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          </Box>
+                          <Chip
+                            label={post.post_type}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </Box>
+                        <Typography variant="body1" paragraph>
+                          {post.content}
+                        </Typography>
+                        <Box sx={{ mb: 2 }}>
+                          {post.hashtags.map((tag, i) => (
+                            <Chip
+                              key={i}
+                              label={tag}
+                              size="small"
+                              sx={{ m: 0.5 }}
+                            />
+                          ))}
+                        </Box>
+                        {post.call_to_action && (
+                          <Typography variant="body2" color="primary" gutterBottom>
+                            CTA: {post.call_to_action}
+                          </Typography>
+                        )}
+                        {post.visual_prompt && (
+                          <Typography variant="body2" color="text.secondary">
+                            Visual: {post.visual_prompt}
+                          </Typography>
+                        )}
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                          Created: {new Date(post.created_at).toLocaleDateString()}
+                        </Typography>
+                      </CardContent>
+                      <CardActions>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleUnapprovePost(post.id)}
+                          color="warning"
+                          title="Unapprove"
+                        >
+                          <UnapproveIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeletePost(post.id)}
+                          color="error"
+                          title="Delete"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </CardActions>
+                    </Card>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
+        </>
       )}
 
       {/* Edit Dialog */}

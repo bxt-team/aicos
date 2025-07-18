@@ -13,7 +13,7 @@ from app.agents.content_workflow_agent import ContentWorkflowAgent
 from app.agents.post_composition_agent import PostCompositionAgent
 from app.agents.video_generation_agent import VideoGenerationAgent
 from app.agents.background_video_agent import BackgroundVideoAgent
-from app.agents.android_testing_agent import AndroidTestingAgent
+from app.agents.app_testing_agent import AppTestingAgent
 from app.agents.voice_over_agent import VoiceOverAgent
 from app.agents.app_store_analyst import AppStoreAnalystAgent
 from app.agents.play_store_analyst import PlayStoreAnalystAgent
@@ -49,7 +49,7 @@ workflow_agent: Optional[ContentWorkflowAgent] = None
 post_composition_agent: Optional[PostCompositionAgent] = None
 video_generation_agent: Optional[VideoGenerationAgent] = None
 background_video_agent: Optional[BackgroundVideoAgent] = None
-android_testing_agent: Optional[AndroidTestingAgent] = None
+app_testing_agent: Optional[AppTestingAgent] = None
 voice_over_agent: Optional[VoiceOverAgent] = None
 app_store_analyst_agent: Optional[AppStoreAnalystAgent] = None
 play_store_analyst_agent: Optional[PlayStoreAnalystAgent] = None
@@ -75,7 +75,7 @@ def initialize_agents():
     global image_generator, qa_agent, affirmations_agent, write_hashtag_agent
     global instagram_ai_prompt_agent, instagram_poster_agent, instagram_analyzer_agent
     global content_wrapper, workflow_agent, post_composition_agent
-    global video_generation_agent, instagram_reel_agent, android_testing_agent, voice_over_agent
+    global video_generation_agent, instagram_reel_agent, app_testing_agent, voice_over_agent
     global app_store_analyst_agent, play_store_analyst_agent, meta_ads_analyst_agent, google_analytics_expert_agent
     global threads_analysis_agent, content_strategy_agent, post_generator_agent, approval_agent, scheduler_agent
     global x_analysis_agent, x_content_strategy_agent, x_post_generator_agent, x_approval_agent, x_scheduler_agent, supabase_client
@@ -166,14 +166,14 @@ def initialize_agents():
         voice_over_agent = VoiceOverAgent(settings.OPENAI_API_KEY, settings.ELEVENLABS_API_KEY)
         logger.info("[VOICE_OVER_AGENT] Initialized successfully")
         
-        # Initialize Android testing agent
-        logger.info(f"[ANDROID_TESTING_AGENT] Initializing with adb_path: {settings.ADB_PATH}")
+        # Initialize App Testing agent (unified iOS and Android)
+        logger.info("[APP_TESTING_AGENT] Initializing...")
         try:
-            android_testing_agent = AndroidTestingAgent(settings.OPENAI_API_KEY, settings.ADB_PATH)
-            logger.info(f"[ANDROID_TESTING_AGENT] Initialized successfully: {android_testing_agent is not None}")
+            app_testing_agent = AppTestingAgent()
+            logger.info("[APP_TESTING_AGENT] Initialized successfully")
         except Exception as e:
-            logger.error(f"[ANDROID_TESTING_AGENT] Failed to initialize: {str(e)}")
-            android_testing_agent = None
+            logger.error(f"[APP_TESTING_AGENT] Failed to initialize: {str(e)}")
+            app_testing_agent = None
         
         # Initialize App Store Analyst agent
         logger.info("[APP_STORE_ANALYST] Initializing...")
@@ -307,12 +307,14 @@ def initialize_agents():
 
 def cleanup_agents():
     """Cleanup agent resources"""
-    if android_testing_agent:
+    if app_testing_agent:
         try:
-            android_testing_agent.cleanup()
-            logger.info("[ANDROID_TESTING_AGENT] Cleaned up successfully")
+            # Clean up any active tests
+            for test in app_testing_agent.list_tests():
+                app_testing_agent.cleanup_test(test['id'])
+            logger.info("[APP_TESTING_AGENT] Cleaned up successfully")
         except Exception as e:
-            logger.error(f"[ANDROID_TESTING_AGENT] Error cleaning up: {e}")
+            logger.error(f"[APP_TESTING_AGENT] Error cleaning up: {e}")
 
 def get_agent(agent_name: str):
     """Get a specific agent instance"""
@@ -329,7 +331,7 @@ def get_agent(agent_name: str):
         'post_composition_agent': post_composition_agent,
         'video_generation_agent': video_generation_agent,
         'background_video_agent': background_video_agent,
-        'android_testing_agent': android_testing_agent,
+        'app_testing': app_testing_agent,
         'voice_over_agent': voice_over_agent,
         'app_store_analyst': app_store_analyst_agent,
         'play_store_analyst': play_store_analyst_agent,

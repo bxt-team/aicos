@@ -16,7 +16,7 @@ from app.core.dependencies import initialize_agents, cleanup_agents
 # Import routers
 from app.api.routers import (
     health, content, affirmations, visual_posts, instagram,
-    media, workflows, android_testing, feedback, qa, images, mobile_analytics, threads, x, agent_prompts,
+    media, workflows, app_testing, feedback, qa, images, mobile_analytics, threads, x, agent_prompts,
     background_video
 )
 
@@ -112,7 +112,7 @@ app.include_router(visual_posts.router)
 app.include_router(instagram.router)
 app.include_router(media.router)
 app.include_router(workflows.router)
-app.include_router(android_testing.router)
+app.include_router(app_testing.router)
 app.include_router(feedback.router)
 app.include_router(qa.router)
 app.include_router(images.router)

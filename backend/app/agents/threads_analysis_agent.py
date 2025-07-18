@@ -13,6 +13,7 @@ from langchain_community.llms import OpenAI
 
 from .crews.base_crew import BaseCrew
 from ..core.storage import StorageFactory
+from .tools.threads_scraper import scrape_threads_profile
 
 logger = logging.getLogger(__name__)
 
@@ -23,47 +24,62 @@ class ThreadsProfileAnalyzerTool(BaseTool):
     description: str = "Analyze a Threads profile to extract content patterns, engagement metrics, and posting strategies"
     
     def _run(self, handle: str) -> str:
-        """Mock function to simulate Threads profile analysis."""
-        # In production, this would use web scraping or Threads API
-        mock_data = {
-            "handle": handle,
-            "followers": 5432,
-            "following": 234,
-            "posts_count": 156,
-            "avg_likes": 234,
-            "avg_comments": 45,
-            "posting_frequency": "2-3 times per week",
-            "peak_times": ["10:00 AM", "7:00 PM"],
-            "content_themes": [
-                "Personal growth",
-                "Mindfulness",
-                "Daily affirmations",
-                "Community building"
-            ],
-            "hashtag_usage": [
-                "#mindfulness",
-                "#spiritualjourney",
-                "#dailyaffirmation",
-                "#selfcare",
-                "#community"
-            ],
-            "post_formats": [
-                "Short inspirational quotes (60%)",
-                "Personal stories (25%)",
-                "Questions to audience (10%)",
-                "Reels/Videos (5%)"
-            ],
-            "engagement_tactics": [
-                "Asks questions at end of posts",
-                "Uses emojis strategically",
-                "Responds to comments within 2 hours",
-                "Creates conversation threads"
-            ],
-            "tone": "Warm, encouraging, authentic",
-            "visual_style": "Minimalist with nature elements"
-        }
+        """Analyze a real Threads profile using web scraping."""
+        try:
+            # Use the real scraper
+            profile_data = scrape_threads_profile(handle)
+            
+            # Format the data for the agent
+            formatted_data = {
+                "handle": profile_data.get("handle", handle),
+                "followers": profile_data.get("followers", 0),
+                "following": profile_data.get("following", 0),
+                "posts_count": profile_data.get("posts_count", 0),
+                "posts_analyzed": profile_data.get("posts_analyzed", 0),
+                "engagement_metrics": profile_data.get("engagement_metrics", {}),
+                "content_patterns": profile_data.get("content_patterns", {}),
+                "content_themes": profile_data.get("content_themes", []),
+                "posting_behavior": profile_data.get("posting_behavior", {}),
+                "error": profile_data.get("error", None)
+            }
+            
+            # Add analysis insights
+            if not formatted_data.get("error"):
+                # Extract key insights
+                patterns = formatted_data.get("content_patterns", {})
+                
+                formatted_data["insights"] = {
+                    "uses_hashtags": patterns.get("uses_hashtags", False),
+                    "top_hashtags": patterns.get("top_hashtags", []),
+                    "hashtag_strategy": "Uses hashtags" if patterns.get("uses_hashtags") else "No hashtags used",
+                    "avg_engagement": formatted_data.get("engagement_metrics", {}).get("total_engagement", 0),
+                    "content_mix": self._analyze_content_mix(formatted_data),
+                    "posting_consistency": formatted_data.get("posting_behavior", {}).get("has_consistent_style", False)
+                }
+            
+            return json.dumps(formatted_data, indent=2)
+            
+        except Exception as e:
+            logger.error(f"Error analyzing Threads profile {handle}: {str(e)}")
+            return json.dumps({
+                "handle": handle,
+                "error": f"Failed to analyze profile: {str(e)}"
+            }, indent=2)
+    
+    def _analyze_content_mix(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze the content mix from scraped data."""
+        patterns = data.get("content_patterns", {})
+        post_types = patterns.get("post_types", {})
         
-        return json.dumps(mock_data, indent=2)
+        total_posts = sum(post_types.values())
+        if total_posts == 0:
+            return {"error": "No posts to analyze"}
+        
+        return {
+            "text_posts": f"{(post_types.get('text', 0) / total_posts * 100):.0f}%",
+            "media_posts": f"{(post_types.get('media', 0) / total_posts * 100):.0f}%",
+            "avg_post_length": patterns.get("avg_post_length", 0)
+        }
 
 
 class ThreadsAnalysisAgent(BaseCrew):
@@ -147,83 +163,129 @@ class ThreadsAnalysisAgent(BaseCrew):
             else:
                 content = str(result)
             
-            # Structure the analysis
+            # Try to parse the actual scraped data from the result
+            scraped_data = {}
+            try:
+                # Look for JSON data in the result
+                import re
+                logger.info(f"Parsing result content (first 500 chars): {content[:500]}")
+                json_match = re.search(r'\{[\s\S]*\}', content)
+                if json_match:
+                    scraped_data = json.loads(json_match.group())
+                    logger.info(f"Successfully parsed scraped data with {len(scraped_data)} keys")
+                else:
+                    logger.warning("No JSON found in crew result")
+            except Exception as e:
+                logger.error(f"Error parsing JSON from result: {e}")
+                pass
+            
+            # Build analysis based on real data
+            engagement = scraped_data.get("engagement_metrics", {})
+            patterns = scraped_data.get("content_patterns", {})
+            themes = scraped_data.get("content_themes", [])
+            insights = scraped_data.get("insights", {})
+            
+            # Create recommendations based on actual data
+            uses_hashtags = patterns.get("uses_hashtags", False)
+            top_hashtags = patterns.get("top_hashtags", [])
+            avg_engagement = engagement.get("total_engagement", 0)
+            
+            # Structure the analysis with real insights
             return {
                 "competitor_insights": {
-                    "posting_patterns": {
-                        "frequency": "2-3 times per week",
-                        "best_times": ["10:00 AM EST", "7:00 PM EST"],
-                        "consistency": "High - regular schedule maintained"
+                    "profile_metrics": {
+                        "handle": scraped_data.get("handle", ""),
+                        "followers": scraped_data.get("followers", 0),
+                        "following": scraped_data.get("following", 0),
+                        "posts_count": scraped_data.get("posts_count", 0),
+                        "posts_analyzed": scraped_data.get("posts_analyzed", 0)
+                    },
+                    "engagement_analysis": {
+                        "avg_likes": engagement.get("avg_likes", 0),
+                        "avg_comments": engagement.get("avg_comments", 0),
+                        "avg_reposts": engagement.get("avg_reposts", 0),
+                        "total_avg_engagement": avg_engagement
                     },
                     "content_strategy": {
-                        "primary_themes": [
-                            "Personal transformation",
-                            "Spiritual wisdom",
-                            "Community support"
-                        ],
-                        "content_mix": {
-                            "inspirational_quotes": 40,
-                            "personal_stories": 30,
-                            "educational_content": 20,
-                            "community_engagement": 10
-                        },
-                        "hashtag_strategy": [
-                            "Mix of branded and trending hashtags",
-                            "5-10 hashtags per post",
-                            "Focus on niche-specific tags"
-                        ]
+                        "primary_themes": themes if themes else ["Content themes not detected"],
+                        "uses_hashtags": uses_hashtags,
+                        "top_hashtags": top_hashtags if top_hashtags else ["No hashtags found"],
+                        "hashtag_count": patterns.get("hashtag_count", 0),
+                        "avg_post_length": patterns.get("avg_post_length", 0),
+                        "content_mix": insights.get("content_mix", {}),
+                        "mentions_others": patterns.get("mentions_others", False)
                     },
-                    "engagement_tactics": {
-                        "conversation_starters": True,
-                        "story_polls": True,
-                        "user_generated_content": True,
-                        "response_time": "Within 2 hours"
-                    },
-                    "visual_strategy": {
-                        "style": "Minimalist with nature elements",
-                        "colors": ["Earth tones", "Soft pastels"],
-                        "text_overlay": "Clean, readable fonts"
+                    "posting_patterns": {
+                        "posts_analyzed": scraped_data.get("posts_analyzed", 0),
+                        "has_consistent_style": scraped_data.get("posting_behavior", {}).get("has_consistent_style", False),
+                        "post_types": patterns.get("post_types", {})
                     }
                 },
-                "recommendations": {
-                    "posting_schedule": {
-                        "frequency": "Start with 2-3 posts per week",
-                        "times": ["10:00 AM", "7:00 PM"],
-                        "days": ["Tuesday", "Thursday", "Sunday"]
-                    },
-                    "content_pillars": [
-                        {
-                            "name": "7 Cycles Wisdom",
-                            "percentage": 40,
-                            "description": "Share insights from each life cycle"
-                        },
-                        {
-                            "name": "Daily Affirmations",
-                            "percentage": 30,
-                            "description": "Period-specific affirmations"
-                        },
-                        {
-                            "name": "Community Stories",
-                            "percentage": 20,
-                            "description": "Feature community transformations"
-                        },
-                        {
-                            "name": "Activities & Practices",
-                            "percentage": 10,
-                            "description": "Share practical exercises"
-                        }
-                    ],
-                    "engagement_strategy": [
-                        "End posts with open-ended questions",
-                        "Create weekly themes aligned with cycles",
-                        "Host regular Q&A sessions",
-                        "Encourage sharing personal experiences"
-                    ]
-                }
+                "recommendations": self._generate_recommendations(scraped_data),
+                "raw_data": scraped_data  # Include raw data for transparency
             }
         except Exception as e:
             logger.error(f"Error parsing analysis result: {str(e)}")
             return {"error": "Failed to parse analysis"}
+    
+    def _generate_recommendations(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate recommendations based on analyzed data."""
+        patterns = data.get("content_patterns", {})
+        themes = data.get("content_themes", [])
+        engagement = data.get("engagement_metrics", {})
+        
+        # Determine posting frequency recommendation
+        if data.get("posts_count", 0) > 100:
+            frequency = "2-3 times per week"
+        else:
+            frequency = "Start with 1-2 posts per week and gradually increase"
+        
+        # Hashtag recommendations
+        if patterns.get("uses_hashtags"):
+            hashtag_rec = f"Use {patterns.get('hashtag_count', 5)}-{patterns.get('hashtag_count', 5)+5} hashtags per post, focusing on: {', '.join(patterns.get('top_hashtags', [])[:5])}"
+        else:
+            hashtag_rec = "Consider adding 5-10 relevant hashtags to increase discoverability"
+        
+        return {
+            "posting_schedule": {
+                "frequency": frequency,
+                "optimal_times": ["10:00 AM", "2:00 PM", "7:00 PM"],
+                "consistency": "Maintain regular posting schedule"
+            },
+            "content_strategy": {
+                "themes_to_explore": themes[:3] if themes else ["Affirmations", "Personal Growth", "Mindfulness"],
+                "hashtag_strategy": hashtag_rec,
+                "engagement_goal": f"Aim for {int(engagement.get('total_engagement', 50) * 1.2)} total engagement per post"
+            },
+            "content_pillars": [
+                {
+                    "name": "7 Cycles Wisdom",
+                    "percentage": 40,
+                    "description": "Share insights from each life cycle"
+                },
+                {
+                    "name": "Period-Specific Content",
+                    "percentage": 30,
+                    "description": "Tailor content to current period themes"
+                },
+                {
+                    "name": "Community Engagement",
+                    "percentage": 20,
+                    "description": "Ask questions and feature followers"
+                },
+                {
+                    "name": "Visual Content",
+                    "percentage": 10,
+                    "description": "Share inspiring visuals with quotes"
+                }
+            ],
+            "growth_tactics": [
+                "Engage with similar accounts in your niche",
+                "Reply to comments within 2-4 hours",
+                "Create conversation-starting posts",
+                "Share behind-the-scenes content"
+            ]
+        }
     
     async def _save_analysis_to_storage(self, handles: List[str], analysis_data: Dict[str, Any]) -> str:
         """Save analysis to Supabase storage."""
