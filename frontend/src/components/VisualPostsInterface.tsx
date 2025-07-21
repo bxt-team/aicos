@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { apiService } from '../services/api';
 import './VisualPostsInterface.css';
 import ImageFeedback from './ImageFeedback';
 import FeedbackAnalytics from './FeedbackAnalytics';
@@ -88,7 +88,6 @@ const VisualPostsInterface: React.FC = () => {
   // Force refresh state
   const [refreshKey, setRefreshKey] = useState<number>(0);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
   const periods = [
     'Image', 'Veränderung', 'Energie', 'Kreativität', 
@@ -109,12 +108,8 @@ const VisualPostsInterface: React.FC = () => {
 
   const loadPosts = useCallback(async (periodFilter?: string) => {
     try {
-      const url = periodFilter 
-        ? `${API_BASE_URL}/visual-posts?period=${periodFilter}`
-        : `${API_BASE_URL}/visual-posts`;
-      
-      console.log('Loading posts from:', url);
-      const response = await axios.get(url);
+      console.log('Loading posts with filter:', periodFilter);
+      const response = await apiService.visualPosts.list(periodFilter);
       console.log('Posts response:', response.data);
       
       if (response.data.success) {
@@ -124,29 +119,29 @@ const VisualPostsInterface: React.FC = () => {
     } catch (error) {
       console.error('Error loading visual posts:', error);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const loadAffirmations = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/affirmations`);
+      const response = await apiService.affirmations.list();
       if (response.data.success) {
         setAffirmations(response.data.affirmations || []);
       }
     } catch (error) {
       console.error('Error loading affirmations:', error);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const loadInstagramPosts = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/instagram-posts`);
+      const response = await apiService.instagram.listPosts();
       if (response.data.success) {
         setInstagramPosts(response.data.posts || []);
       }
     } catch (error) {
       console.error('Error loading Instagram posts:', error);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const handleUrlParameters = useCallback(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -218,11 +213,7 @@ const VisualPostsInterface: React.FC = () => {
     try {
       const tags = searchTags.split(',').map(tag => tag.trim()).filter(tag => tag);
       
-      const response = await axios.post(`${API_BASE_URL}/search-images`, {
-        tags,
-        period: searchPeriod,
-        count: 6
-      });
+      const response = await apiService.visualPosts.searchImages(tags, searchPeriod, 6);
 
       if (response.data.success) {
         setSearchResults(response.data.images);
@@ -268,7 +259,7 @@ const VisualPostsInterface: React.FC = () => {
             instagram_style: urlParams.get('instagram_style')
           });
           
-          response = await axios.post(`${API_BASE_URL}/create-instagram-ai-image`, {
+          response = await apiService.visualPosts.create({
             text: customText,
             period: selectedPeriod,
             tags: tags.length > 0 ? tags : undefined,
@@ -285,7 +276,7 @@ const VisualPostsInterface: React.FC = () => {
           console.log('Instagram AI image response:', response.data);
         } else {
           // Create AI image with manual context
-          response = await axios.post(`${API_BASE_URL}/create-dalle-visual-post`, {
+          response = await apiService.visualPosts.create({
             text: customText,
             period: selectedPeriod,
             tags: tags.length > 0 ? tags : undefined,
@@ -304,7 +295,7 @@ const VisualPostsInterface: React.FC = () => {
         
         const tags = customTags ? customTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
         
-        response = await axios.post(`${API_BASE_URL}/create-visual-post`, {
+        response = await apiService.visualPosts.create({
           text: selectedAff.text,
           period: selectedAff.period_name,
           tags: tags.length > 0 ? tags : undefined,
@@ -318,7 +309,7 @@ const VisualPostsInterface: React.FC = () => {
         if (selectedPost) {
           const tags = customTags ? customTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
           
-          response = await axios.post(`${API_BASE_URL}/create-instagram-ai-image`, {
+          response = await apiService.visualPosts.create({
             text: selectedPost.affirmation,
             period: selectedPost.period_name,
             tags: tags.length > 0 ? tags : undefined,
@@ -341,7 +332,7 @@ const VisualPostsInterface: React.FC = () => {
         
         const tags = customTags ? customTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
         
-        response = await axios.post(`${API_BASE_URL}/create-visual-post`, {
+        response = await apiService.visualPosts.create({
           text: customText,
           period: selectedPeriod,
           tags: tags.length > 0 ? tags : undefined,
@@ -402,7 +393,7 @@ const VisualPostsInterface: React.FC = () => {
     }
 
     try {
-      const response = await axios.delete(`${API_BASE_URL}/visual-posts/${postId}`);
+      const response = await apiService.visualPosts.delete(postId);
       
       if (response.data.success) {
         await loadPosts(filterPeriod || undefined);
@@ -789,7 +780,7 @@ const VisualPostsInterface: React.FC = () => {
               <div key={`${post.id}-${index}-${refreshKey}`} className="visual-post-card">
                 <div className="post-image">
                   <img 
-                    src={`${API_BASE_URL}${post.file_url}`} 
+                    src={post.file_url.startsWith('http') ? post.file_url : `${window.location.origin}${post.file_url}`} 
                     alt={post.text}
                     loading="lazy"
                   />
@@ -848,7 +839,7 @@ const VisualPostsInterface: React.FC = () => {
                       Löschen
                     </button>
                     <a
-                      href={`${API_BASE_URL}${post.file_url}`}
+                      href={post.file_url.startsWith('http') ? post.file_url : `${window.location.origin}${post.file_url}`}
                       download={`affirmation-${post.period.toLowerCase()}-${post.id.slice(0, 8)}.jpg`}
                       className="download-button"
                     >

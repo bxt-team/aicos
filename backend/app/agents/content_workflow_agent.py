@@ -21,7 +21,10 @@ class ContentWorkflowAgent(BaseCrew):
     """Agent for orchestrating the complete content workflow from affirmation to scheduled posts and reels"""
     
     def __init__(self, openai_api_key: str, pexels_api_key: str = None, instagram_access_token: str = None):
-        super().__init__()
+        # Get storage adapter from factory for multi-tenant support
+        storage_adapter = StorageFactory.get_adapter()
+        super().__init__(storage_adapter=storage_adapter)
+        
         self.openai_api_key = openai_api_key
         self.pexels_api_key = pexels_api_key
         self.instagram_access_token = instagram_access_token
@@ -39,8 +42,7 @@ class ContentWorkflowAgent(BaseCrew):
         if instagram_access_token:
             self.instagram_poster = InstagramPosterAgent(openai_api_key, instagram_access_token)
         
-        # Initialize storage adapter
-        self.storage = StorageFactory.get_adapter()
+        # Collection name for workflows
         self.collection = "workflows"
         
         # Legacy storage for backward compatibility
@@ -49,8 +51,27 @@ class ContentWorkflowAgent(BaseCrew):
         # Create the workflow orchestration agent
         self.workflow_agent = self.create_agent("content_workflow_agent", llm=self.llm)
     
+    def _propagate_context_to_agents(self):
+        """Propagate context to all sub-agents"""
+        if not self.validate_context():
+            return
+        
+        # Propagate context to all sub-agents
+        if hasattr(self.affirmations_agent, 'set_context'):
+            self.affirmations_agent.set_context(self._context)
+        if hasattr(self.visual_post_creator, 'set_context'):
+            self.visual_post_creator.set_context(self._context)
+        if hasattr(self.post_composition_agent, 'set_context'):
+            self.post_composition_agent.set_context(self._context)
+        if hasattr(self.video_generation_agent, 'set_context'):
+            self.video_generation_agent.set_context(self._context)
+        if hasattr(self.hashtag_research_agent, 'set_context'):
+            self.hashtag_research_agent.set_context(self._context)
+        if self.instagram_poster and hasattr(self.instagram_poster, 'set_context'):
+            self.instagram_poster.set_context(self._context)
+    
     async def _save_workflow_to_storage(self, workflow_data: Dict[str, Any]) -> str:
-        """Save workflow to Supabase storage"""
+        """Save workflow to storage with multi-tenant support"""
         try:
             # Prepare data for storage
             storage_data = {
@@ -67,17 +88,25 @@ class ContentWorkflowAgent(BaseCrew):
                 "completed_at": workflow_data.get("completed_at")
             }
             
-            # Save to storage
-            workflow_id = await self.storage.save(self.collection, storage_data)
+            # Save to storage with context
+            if self.validate_context():
+                workflow_id = await self.save_result(self.collection, storage_data)
+            else:
+                # Fallback to direct storage if no context
+                workflow_id = await self.storage_adapter.save(self.collection, storage_data)
             return workflow_id
         except Exception as e:
             print(f"Error saving workflow to storage: {e}")
             return ""
     
     async def _get_workflow_from_storage(self, workflow_id: str) -> Optional[Dict[str, Any]]:
-        """Get workflow from Supabase storage"""
+        """Get workflow from storage with multi-tenant support"""
         try:
-            workflow = await self.storage.load(self.collection, workflow_id)
+            if self.validate_context():
+                workflow = await self.load_result(self.collection, workflow_id)
+            else:
+                # Fallback to direct storage if no context
+                workflow = await self.storage_adapter.load(self.collection, workflow_id)
             return workflow
         except Exception as e:
             print(f"Error loading workflow from storage: {e}")
@@ -111,6 +140,9 @@ class ContentWorkflowAgent(BaseCrew):
                                        options: Dict[str, Any] = None) -> Dict[str, Any]:
         """Create a complete content workflow from affirmation to scheduled posts and reels"""
         try:
+            # Propagate context to all sub-agents
+            self._propagate_context_to_agents()
+            
             workflow_options = options or {}
             workflow_hash = self._generate_workflow_hash(period, workflow_type, workflow_options)
             
@@ -226,10 +258,26 @@ class ContentWorkflowAgent(BaseCrew):
             
             # Generate affirmations for the period
             affirmation_count = options.get("affirmation_count", 5)
-            affirmation_result = self.affirmations_agent.generate_affirmations(
-                period=period,
-                count=affirmation_count
-            )
+            
+            # Get period info
+            period_info = {
+                "description": f"Focus on {period}",
+                "color": options.get("period_color", "#DAA520")
+            }
+            
+            # Run async method
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                affirmation_result = loop.run_until_complete(
+                    self.affirmations_agent.generate_affirmations(
+                        period_name=period,
+                        period_info=period_info,
+                        count=affirmation_count
+                    )
+                )
+            finally:
+                loop.close()
             
             if not affirmation_result["success"]:
                 return {
@@ -545,18 +593,29 @@ class ContentWorkflowAgent(BaseCrew):
             if status:
                 filters["status"] = status
             
-            # Get workflows from storage
+            # Get workflows from storage with multi-tenant support
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                workflows = loop.run_until_complete(
-                    self.storage.list(
-                        self.collection,
-                        filters=filters,
-                        order_by="created_at",
-                        order_desc=True
+                if self.validate_context():
+                    workflows = loop.run_until_complete(
+                        self.list_results(
+                            self.collection,
+                            filters=filters,
+                            order_by="created_at",
+                            order_desc=True
+                        )
                     )
-                )
+                else:
+                    # Fallback to direct storage if no context
+                    workflows = loop.run_until_complete(
+                        self.storage_adapter.list(
+                            self.collection,
+                            filters=filters,
+                            order_by="created_at",
+                            order_desc=True
+                        )
+                    )
             finally:
                 loop.close()
             

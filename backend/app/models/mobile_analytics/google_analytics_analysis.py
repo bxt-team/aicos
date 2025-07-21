@@ -119,7 +119,7 @@ class GoogleAnalyticsAnalysis(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "app_id": "com.example.app",
                 "app_name": "Example App",

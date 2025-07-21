@@ -1,11 +1,14 @@
 """
 Workflow management endpoints
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
 from app.core.dependencies import get_agent
+from app.core.auth import get_current_user
+from app.models.auth import User
+from app.core.middleware import RequestContext
 
 router = APIRouter(prefix="/api", tags=["workflows"])
 
@@ -37,11 +40,21 @@ class VideoReelRequest(BaseModel):
 
 # Workflow endpoints
 @router.post("/workflows")
-async def create_workflow(request: WorkflowCreateRequest):
-    """Create a new content workflow"""
+async def create_workflow(
+    request: WorkflowCreateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new content workflow (requires authentication)"""
     workflow_agent = get_agent('workflow_agent')
     if not workflow_agent:
         raise HTTPException(status_code=503, detail="Workflow agent not available")
+    
+    # Set context on agent
+    context = RequestContext(
+        user_id=current_user.id,
+        organization_id=current_user.default_organization_id
+    )
+    workflow_agent.set_context(context)
     
     result = workflow_agent.create_workflow(
         request.period,
@@ -52,20 +65,39 @@ async def create_workflow(request: WorkflowCreateRequest):
     return result
 
 @router.get("/workflows")
-async def list_workflows():
-    """List all workflows"""
+async def list_workflows(
+    current_user: User = Depends(get_current_user)
+):
+    """List all workflows (requires authentication)"""
     workflow_agent = get_agent('workflow_agent')
     if not workflow_agent:
         raise HTTPException(status_code=503, detail="Workflow agent not available")
     
+    # Set context on agent
+    context = RequestContext(
+        user_id=current_user.id,
+        organization_id=current_user.default_organization_id
+    )
+    workflow_agent.set_context(context)
+    
     return workflow_agent.list_workflows()
 
 @router.get("/workflows/{workflow_id}")
-async def get_workflow(workflow_id: str):
-    """Get a specific workflow by ID"""
+async def get_workflow(
+    workflow_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get a specific workflow by ID (requires authentication)"""
     workflow_agent = get_agent('workflow_agent')
     if not workflow_agent:
         raise HTTPException(status_code=503, detail="Workflow agent not available")
+    
+    # Set context on agent
+    context = RequestContext(
+        user_id=current_user.id,
+        organization_id=current_user.default_organization_id
+    )
+    workflow_agent.set_context(context)
     
     workflow = workflow_agent.get_workflow(workflow_id)
     if not workflow:
@@ -74,11 +106,21 @@ async def get_workflow(workflow_id: str):
     return workflow
 
 @router.delete("/workflows/{workflow_id}")
-async def delete_workflow(workflow_id: str):
-    """Delete a workflow"""
+async def delete_workflow(
+    workflow_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a workflow (requires authentication)"""
     workflow_agent = get_agent('workflow_agent')
     if not workflow_agent:
         raise HTTPException(status_code=503, detail="Workflow agent not available")
+    
+    # Set context on agent
+    context = RequestContext(
+        user_id=current_user.id,
+        organization_id=current_user.default_organization_id
+    )
+    workflow_agent.set_context(context)
     
     result = workflow_agent.delete_workflow(workflow_id)
     if not result.get("success"):
@@ -120,11 +162,22 @@ async def get_workflow_templates():
 
 # Post composition endpoints
 @router.post("/compose-post")
-async def compose_post(request: PostCompositionRequest):
-    """Compose a visual post with text overlay"""
+async def compose_post(
+    request: PostCompositionRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Compose a visual post with text overlay (requires authentication)"""
     post_composition_agent = get_agent('post_composition_agent')
     if not post_composition_agent:
         raise HTTPException(status_code=503, detail="Post composition agent not available")
+    
+    # Set context on agent
+    context = RequestContext(
+        user_id=current_user.id,
+        organization_id=current_user.default_organization_id
+    )
+    if hasattr(post_composition_agent, 'set_context'):
+        post_composition_agent.set_context(context)
     
     result = post_composition_agent.compose_post(
         request.background_path,

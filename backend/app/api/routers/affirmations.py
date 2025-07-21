@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.models.content import AffirmationRequest
 from app.core.dependencies import get_agent
+from app.core.auth import get_current_user
+from app.models.auth import User
+from app.core.middleware import RequestContext
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,7 +21,11 @@ PERIODS = {
 }
 
 @router.post("/generate-affirmations")
-async def generate_affirmations(request: AffirmationRequest):
+async def generate_affirmations(
+    request: AffirmationRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Generate affirmations for a specific period (requires authentication)"""
     affirmations_agent = get_agent('affirmations_agent')
     logger.info(f"Affirmations agent status: {affirmations_agent}")
     logger.info(f"Affirmations agent type: {type(affirmations_agent)}")
@@ -28,6 +35,18 @@ async def generate_affirmations(request: AffirmationRequest):
         raise HTTPException(status_code=503, detail="Affirmations Agent not initialized")
     
     try:
+        # Extract organization context from request
+        org_id = getattr(request, 'organization_id', None) or current_user.default_organization_id
+        project_id = getattr(request, 'project_id', None)
+        
+        # Set context on agent
+        context = RequestContext(
+            user_id=current_user.id,
+            organization_id=org_id,
+            project_id=project_id
+        )
+        affirmations_agent.set_context(context)
+        
         period_info = PERIODS.get(request.period_name, request.period_info)
         
         result = await affirmations_agent.generate_affirmations(
@@ -51,7 +70,11 @@ async def generate_affirmations(request: AffirmationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/affirmations")
-async def get_all_affirmations(period_name: str = None):
+async def get_all_affirmations(
+    period_name: str = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get all affirmations, optionally filtered by period (requires authentication)"""
     affirmations_agent = get_agent('affirmations_agent')
     
     if not affirmations_agent:
@@ -59,6 +82,13 @@ async def get_all_affirmations(period_name: str = None):
         raise HTTPException(status_code=503, detail="Affirmations Agent not initialized")
     
     try:
+        # Set context on agent
+        context = RequestContext(
+            user_id=current_user.id,
+            organization_id=current_user.default_organization_id
+        )
+        affirmations_agent.set_context(context)
+        
         result = await affirmations_agent.get_affirmations_by_period(period_name)
         
         if not result.get("success", False):

@@ -17,7 +17,7 @@ from app.core.dependencies import initialize_agents, cleanup_agents
 from app.api.routers import (
     health, content, affirmations, visual_posts, instagram,
     media, workflows, app_testing, feedback, qa, images, mobile_analytics, threads, x, agent_prompts,
-    background_video
+    background_video, auth, organizations, projects
 )
 
 # Configure logging
@@ -36,25 +36,25 @@ deps_logger.setLevel(logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("[STARTUP] Starting 7 Cycles Backend...")
+    logger.info("[STARTUP] Starting AI Company Backend...")
     initialize_agents()
     logger.info("[STARTUP] Agents initialized successfully")
     
     yield
     
     # Shutdown
-    logger.info("[SHUTDOWN] Shutting down 7 Cycles Backend...")
+    logger.info("[SHUTDOWN] Shutting down AI Company Backend...")
     cleanup_agents()
     logger.info("[SHUTDOWN] Cleanup completed")
 
 # Create FastAPI app
 app = FastAPI(
-    title="7 Cycles AI Assistant API",
+    title="AI Company API",
     version="2.0.0",
     description="""
-## 7 Cycles AI Content Generation API
+## AI Company Enterprise AI Platform
 
-This API provides comprehensive AI-powered content generation for the "7 Cycles of Life" methodology.
+This API provides comprehensive AI-powered content generation and automation solutions. The "7 Cycles of Life" is one of our specialized projects.
 
 ### Features:
 - 🎯 **Multi-agent AI System**: CrewAI-based agents for specialized tasks
@@ -62,7 +62,7 @@ This API provides comprehensive AI-powered content generation for the "7 Cycles 
 - 🎨 **Visual Content**: Generate images with DALL-E 3 and stock photos
 - 🎬 **Video Generation**: Create Instagram Reels with AI
 - 🎙️ **Voice Over**: Generate voice narration with ElevenLabs
-- 💭 **Q&A System**: Answer questions about the 7 Cycles philosophy
+- 💭 **Q&A System**: Answer questions about various knowledge bases
 - ✨ **Affirmations**: Generate period-specific affirmations
 
 ### Documentation:
@@ -80,7 +80,10 @@ This API provides comprehensive AI-powered content generation for the "7 Cycles 
 - **Workflows** (`/api/workflows/*`): Complex multi-step workflows
 
 ### Authentication:
-Currently using API keys configured via environment variables.
+- **JWT Authentication**: Secure user authentication with JWT tokens
+- **Multi-Tenant Support**: Organization and project-based data isolation
+- **API Keys**: Programmatic access with scoped permissions
+- **Role-Based Access**: Owner, Admin, Member, and Viewer roles
     """,
     lifespan=lifespan,
     docs_url="/docs",
@@ -97,6 +100,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add multi-tenant middleware
+from app.core.middleware import ContextMiddleware, MultiTenantMiddleware, AuditLoggingMiddleware
+
+# Add in reverse order (last added is executed first)
+app.add_middleware(AuditLoggingMiddleware)
+app.add_middleware(MultiTenantMiddleware)
+app.add_middleware(ContextMiddleware)
+
 # Mount static files
 static_dir = "static"
 if not os.path.exists(static_dir):
@@ -105,6 +116,7 @@ if not os.path.exists(static_dir):
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Include routers
+app.include_router(auth.router)  # Auth should be first
 app.include_router(health.router)
 app.include_router(content.router)
 app.include_router(affirmations.router)
@@ -121,6 +133,8 @@ app.include_router(threads.router)
 app.include_router(x.router)
 app.include_router(agent_prompts.router)
 app.include_router(background_video.router)
+app.include_router(organizations.router)  # Organization management
+app.include_router(projects.router)  # Project management
 
 if __name__ == "__main__":
     import uvicorn

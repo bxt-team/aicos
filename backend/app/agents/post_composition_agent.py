@@ -8,18 +8,29 @@ from app.agents.crews.base_crew import BaseCrew
 from crewai import Agent, Task, Crew
 from crewai.llm import LLM
 from app.tools.video_template_tools import VideoTemplateProcessor
+from app.core.storage import StorageFactory
 import requests
 import tempfile
+import asyncio
+
+from app.core.storage import StorageFactory
+import asyncio
 
 class PostCompositionAgent(BaseCrew):
     """Agent for composing visual posts using templates and Python code"""
     
     def __init__(self, openai_api_key: str):
-        super().__init__()
+        # Get storage adapter from factory for multi-tenant support
+        storage_adapter = StorageFactory.get_adapter()
+        super().__init__(storage_adapter=storage_adapter)
+        
         self.openai_api_key = openai_api_key
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Storage for composed posts - using separate file to avoid conflicts
+        # Collection name for composed posts
+        self.collection = "composed_posts"
+        
+        # Legacy storage for backward compatibility
         self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/composed_posts_storage.json")
         self.posts_storage = self._load_posts_storage()
         
@@ -51,6 +62,16 @@ class PostCompositionAgent(BaseCrew):
         # Instagram Post dimensions (4:5 aspect ratio)
         self.post_width = 1080
         self.post_height = 1350
+    
+    def _run_async(self, coro):
+        """Helper to run async code in sync context"""
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        return loop.run_until_complete(coro)
         
     def _load_posts_storage(self) -> Dict[str, Any]:
         """Load previously composed posts"""
@@ -144,7 +165,18 @@ class PostCompositionAgent(BaseCrew):
                 }
             }
             
-            # Save to storage
+            # Save to multi-tenant storage
+            if self.validate_context():
+                post_id = self._run_async(
+                    self.save_result(self.collection, post_info)
+                )
+            else:
+                post_id = self._run_async(
+                    self.storage_adapter.save(self.collection, post_info)
+                )
+            post_info["id"] = post_id
+            
+            # Also save to legacy storage for backward compatibility
             self.posts_storage["posts"].append(post_info)
             self.posts_storage["by_hash"][composition_hash] = post_info
             self._save_posts_storage()
@@ -718,13 +750,41 @@ class PostCompositionAgent(BaseCrew):
     def get_composed_posts(self, period: str = None, template: str = None) -> Dict[str, Any]:
         """Get all composed posts, optionally filtered by period or template"""
         try:
-            posts = self.posts_storage.get("posts", [])
-            
+            # Build filters
+            filters = {}
             if period:
-                posts = [post for post in posts if post.get("period") == period]
-            
+                filters["period"] = period
             if template:
-                posts = [post for post in posts if post.get("template_name") == template]
+                filters["template_name"] = template
+            
+            # Get posts from multi-tenant storage
+            if self.validate_context():
+                posts = self._run_async(
+                    self.list_results(
+                        self.collection,
+                        filters=filters,
+                        order_by="created_at",
+                        order_desc=True
+                    )
+                )
+            else:
+                posts = self._run_async(
+                    self.storage_adapter.list(
+                        self.collection,
+                        filters=filters,
+                        order_by="created_at",
+                        order_desc=True
+                    )
+                )
+            
+            # Also check legacy storage for backward compatibility
+            if not posts and self.posts_storage.get("posts"):
+                legacy_posts = self.posts_storage.get("posts", [])
+                if period:
+                    legacy_posts = [post for post in legacy_posts if post.get("period") == period]
+                if template:
+                    legacy_posts = [post for post in legacy_posts if post.get("template_name") == template]
+                posts.extend(legacy_posts)
             
             return {
                 "success": True,

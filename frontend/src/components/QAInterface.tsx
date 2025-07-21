@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { apiService } from '../services/api';
 import './QAInterface.css';
 
 interface QAInterfaceProps {}
@@ -18,18 +18,18 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
   const [overview, setOverview] = useState<string>('');
   const [showOverview, setShowOverview] = useState(false);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  // API_BASE_URL no longer needed - handled by apiService
 
   const loadOverview = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/knowledge-overview`);
+      const response = await apiService.qa.getKnowledgeOverview();
       if (response.data.success) {
         setOverview(response.data.overview);
       }
     } catch (error) {
       console.error('Error loading knowledge overview:', error);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   // Removed automatic loading - will load only when user clicks the button
 
@@ -39,9 +39,7 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/ask-question`, {
-        question: question.trim()
-      });
+      const response = await apiService.qa.askQuestion(question.trim());
 
       if (response.data.success) {
         const newQuestion: Question = {

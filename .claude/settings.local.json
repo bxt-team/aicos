@@ -33,7 +33,14 @@
       "mcp__supabase__apply_migration",
       "mcp__supabase__list_tables",
       "WebFetch(domain:www.canva.dev)",
-      "WebFetch(domain:piapi.ai)"
+      "WebFetch(domain:piapi.ai)",
+      "Bash(chmod:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then echo \"Found .env file\")",
+      "Bash(else echo \"No .env file found\")",
+      "Bash(fi)",
+      "mcp__supabase__search_docs",
+      "Bash(pip show:*)"
     ],
     "deny": []
   },

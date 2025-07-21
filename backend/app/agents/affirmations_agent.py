@@ -20,7 +20,10 @@ logger = logging.getLogger(__name__)
 class AffirmationsAgent(BaseCrew):
     def __init__(self, openai_api_key: str):
         logger.info("[AFFIRMATIONS_AGENT] Initializing...")
-        super().__init__()
+        # Get storage adapter from factory for multi-tenant support
+        storage_adapter = StorageFactory.get_adapter()
+        super().__init__(storage_adapter=storage_adapter)
+        
         self.openai_api_key = openai_api_key
         
         # Use shared embeddings and vector store
@@ -28,8 +31,7 @@ class AffirmationsAgent(BaseCrew):
         self.vector_store = knowledge_base_manager.get_vector_store()
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Initialize storage adapter
-        self.storage = StorageFactory.get_adapter()
+        # Collection name for affirmations
         self.collection = "affirmations"
         
         # Create the affirmations agent from YAML config
@@ -46,7 +48,9 @@ class AffirmationsAgent(BaseCrew):
     
     def _get_period_context(self, period_name: str, period_info: Dict[str, Any]) -> str:
         """Get relevant context for a specific 7 Cycles period"""
-        if not self.vector_store:
+        # Use organization-specific knowledge base if available
+        vector_store = self._get_scoped_vector_store()
+        if not vector_store:
             return "Wissensdatenbank nicht verfügbar"
         
         try:
@@ -65,7 +69,7 @@ class AffirmationsAgent(BaseCrew):
             query = period_queries.get(period_name, "7 cycles lebenszyklen energie kreativität erfolg")
             
             # Retrieve relevant documents
-            docs = self.vector_store.similarity_search(query, k=3)
+            docs = vector_store.similarity_search(query, k=3)
             
             # Combine context
             context = "\n\n".join([doc.page_content for doc in docs])
@@ -118,14 +122,21 @@ class AffirmationsAgent(BaseCrew):
             period_color = cycles_periods[period_name]
             period_number = self._map_period_to_number(period_name)
             
-            # Check for existing affirmations
-            existing_affirmations = await self._run_async(
-                self.storage.list(
+            # Check for existing affirmations with multi-tenant support
+            if self.validate_context():
+                existing_affirmations = await self.list_results(
                     self.collection,
                     filters={"period": period_number, "theme": period_name},
                     limit=count
                 )
-            )
+            else:
+                existing_affirmations = await self._run_async(
+                    self.storage_adapter.list(
+                        self.collection,
+                        filters={"period": period_number, "theme": period_name},
+                        limit=count
+                    )
+                )
             
             if existing_affirmations and len(existing_affirmations) >= count:
                 return {
@@ -257,10 +268,14 @@ class AffirmationsAgent(BaseCrew):
                     }
                 }
                 
-                # Save to storage
-                affirmation_id = await self._run_async(
-                    self.storage.save(self.collection, storage_data)
-                )
+                # Save to storage with multi-tenant context
+                if self.validate_context():
+                    affirmation_id = await self.save_result(self.collection, storage_data)
+                else:
+                    # Fallback to direct storage if no context
+                    affirmation_id = await self._run_async(
+                        self.storage_adapter.save(self.collection, storage_data)
+                    )
                 
                 # Add to result list
                 saved_affirmation = storage_data.copy()
@@ -297,14 +312,24 @@ class AffirmationsAgent(BaseCrew):
                 period_number = self._map_period_to_number(period_name)
                 filters = {"period": period_number}
             
-            affirmations = await self._run_async(
-                self.storage.list(
+            # Use multi-tenant list method
+            if self.validate_context():
+                affirmations = await self.list_results(
                     self.collection,
                     filters=filters,
                     order_by="created_at",
                     order_desc=True
                 )
-            )
+            else:
+                # Fallback to direct storage if no context
+                affirmations = await self._run_async(
+                    self.storage_adapter.list(
+                        self.collection,
+                        filters=filters,
+                        order_by="created_at",
+                        order_desc=True
+                    )
+                )
             
             logger.info(f"[AFFIRMATIONS_AGENT] Retrieved {len(affirmations) if isinstance(affirmations, list) else 'unknown'} affirmations")
             logger.debug(f"[AFFIRMATIONS_AGENT] Affirmations type: {type(affirmations)}")
@@ -411,9 +436,12 @@ class AffirmationsAgent(BaseCrew):
     # Backward compatibility methods
     async def _load_generated_affirmations(self) -> Dict[str, Any]:
         """Legacy method - now uses storage adapter"""
-        affirmations = await self._run_async(
-            self.storage.list(self.collection)
-        )
+        if self.validate_context():
+            affirmations = await self.list_results(self.collection)
+        else:
+            affirmations = await self._run_async(
+                self.storage_adapter.list(self.collection)
+            )
         
         # Convert to legacy format
         by_period = {}
@@ -431,3 +459,12 @@ class AffirmationsAgent(BaseCrew):
     def _save_generated_affirmations(self):
         """Legacy method - no longer needed with storage adapter"""
         pass  # Storage adapter handles persistence automatically
+    
+    def _get_scoped_vector_store(self):
+        """Get organization-specific vector store if context is available"""
+        if not self.validate_context():
+            return self.vector_store
+        
+        # For now, return default vector store
+        # In future, this could load organization-specific knowledge bases
+        return self.vector_store

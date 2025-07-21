@@ -13,90 +13,102 @@ import uuid
 from app.agents.crews.base_crew import BaseCrew
 from app.services.knowledge_base_manager import knowledge_base_manager
 from app.services.supabase_client import SupabaseClient
+from app.core.storage import StorageFactory
+import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
 
 class WriteHashtagResearchAgent(BaseCrew):
     def __init__(self, openai_api_key: str):
-        super().__init__()
+        # Get storage adapter from factory for multi-tenant support
+        storage_adapter = StorageFactory.get_adapter()
+        super().__init__(storage_adapter=storage_adapter)
+        
         self.openai_api_key = openai_api_key
         # Use shared embeddings and vector store
         self.embeddings = knowledge_base_manager.get_embeddings()
         self.vector_store = knowledge_base_manager.get_vector_store()
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Initialize Supabase client
+        # Collection name for hashtag research
+        self.collection = "instagram_posts"
+        
+        # Initialize Supabase client for backward compatibility
         self.supabase = SupabaseClient()
         
         # Create the agent
         self.write_hashtag_agent = self._create_write_hashtag_agent()
     
     async def _save_to_database(self, post_data: Dict[str, Any]) -> Optional[str]:
-        """Save Instagram post to Supabase database"""
+        """Save Instagram post to multi-tenant storage"""
         try:
-            # Prepare data for database
-            db_data = {
-                "id": str(uuid.uuid4()),
+            # Prepare data for storage
+            storage_data = {
                 "content": post_data.get("post_text", ""),
                 "hashtags": post_data.get("hashtags", []),
                 "post_type": "feed",  # default to feed post
                 "status": "draft",
-                "metadata": {
-                    "call_to_action": post_data.get("call_to_action", ""),
-                    "engagement_strategies": post_data.get("engagement_strategies", []),
-                    "optimal_posting_time": post_data.get("optimal_posting_time", ""),
-                    "period_name": post_data.get("period_name", ""),
-                    "period_color": post_data.get("period_color", ""),
-                    "affirmation": post_data.get("affirmation", ""),
-                    "style": post_data.get("style", ""),
-                    "content_hash": post_data.get("id", "")
-                }
+                "call_to_action": post_data.get("call_to_action", ""),
+                "engagement_strategies": post_data.get("engagement_strategies", []),
+                "optimal_posting_time": post_data.get("optimal_posting_time", ""),
+                "period_name": post_data.get("period_name", ""),
+                "period_color": post_data.get("period_color", ""),
+                "affirmation": post_data.get("affirmation", ""),
+                "style": post_data.get("style", ""),
+                "content_hash": post_data.get("id", "")
             }
             
-            # Insert into database
-            response = self.supabase.client.table("agent_instagram_posts").insert(db_data).execute()
+            # Save to multi-tenant storage
+            if self.validate_context():
+                post_id = await self.save_result(self.collection, storage_data)
+            else:
+                post_id = await self.storage_adapter.save(self.collection, storage_data)
             
-            if response.data:
-                return response.data[0].get("id")
-            return None
+            return post_id
             
         except Exception as e:
-            logger.error(f"Error saving to database: {e}")
+            logger.error(f"Error saving to storage: {e}")
             return None
     
     async def _get_from_database(self, content_hash: str = None) -> List[Dict[str, Any]]:
-        """Get Instagram posts from Supabase database"""
+        """Get Instagram posts from multi-tenant storage"""
         try:
-            if not self.supabase.client:
-                return []
-            
-            query = self.supabase.client.table("agent_instagram_posts").select("*")
-            
+            # Build filters
+            filters = {}
             if content_hash:
-                # Search for specific content by hash in metadata
-                query = query.eq("metadata->>content_hash", content_hash)
+                filters["content_hash"] = content_hash
             
-            # Order by created_at descending
-            query = query.order("created_at", desc=True)
+            # Get from multi-tenant storage
+            if self.validate_context():
+                posts = await self.list_results(
+                    self.collection,
+                    filters=filters,
+                    order_by="created_at",
+                    order_desc=True
+                )
+            else:
+                posts = await self.storage_adapter.list(
+                    self.collection,
+                    filters=filters,
+                    order_by="created_at",
+                    order_desc=True
+                )
             
-            response = query.execute()
-            
-            # Transform database format to expected format
-            posts = []
-            for item in response.data:
-                metadata = item.get("metadata", {})
+            # Transform storage format to expected format
+            formatted_posts = []
+            for item in posts:
                 post = {
-                    "id": metadata.get("content_hash", item.get("id")),
+                    "id": item.get("content_hash", item.get("id")),
                     "post_text": item.get("content", ""),
                     "hashtags": item.get("hashtags", []),
-                    "call_to_action": metadata.get("call_to_action", ""),
-                    "engagement_strategies": metadata.get("engagement_strategies", []),
-                    "optimal_posting_time": metadata.get("optimal_posting_time", ""),
-                    "period_name": metadata.get("period_name", ""),
-                    "period_color": metadata.get("period_color", ""),
-                    "affirmation": metadata.get("affirmation", ""),
-                    "style": metadata.get("style", ""),
+                    "call_to_action": item.get("call_to_action", ""),
+                    "engagement_strategies": item.get("engagement_strategies", []),
+                    "optimal_posting_time": item.get("optimal_posting_time", ""),
+                    "period_name": item.get("period_name", ""),
+                    "period_color": item.get("period_color", ""),
+                    "affirmation": item.get("affirmation", ""),
+                    "style": item.get("style", ""),
                     "created_at": item.get("created_at", ""),
                     "db_id": item.get("id")
                 }

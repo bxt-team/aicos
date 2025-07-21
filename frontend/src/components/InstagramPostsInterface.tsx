@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { apiService } from '../services/api';
 import './InstagramPostsInterface.css';
 
 interface InstagramPost {
@@ -59,7 +59,6 @@ const InstagramPostsInterface: React.FC = () => {
   const [postingToInstagram, setPostingToInstagram] = useState<string | null>(null);
   const [preparingContent, setPreparingContent] = useState<string | null>(null);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
   const periods = ['Image', 'Veränderung', 'Energie', 'Kreativität', 'Erfolg', 'Entspannung', 'Umsicht'];
   const styles = [
@@ -73,23 +72,23 @@ const InstagramPostsInterface: React.FC = () => {
 
   const loadPosts = useCallback(async (periodFilter?: string) => {
     try {
-      const url = periodFilter 
-        ? `${API_BASE_URL}/instagram-posts?period_name=${periodFilter}`
-        : `${API_BASE_URL}/instagram-posts`;
-      
-      const response = await axios.get(url);
+      const response = await apiService.instagram.listPosts();
       if (response.data.status === 'success') {
-        setPosts(response.data.posts || []);
+        let posts = response.data.posts || [];
+        if (periodFilter) {
+          posts = posts.filter((post: InstagramPost) => post.period_name === periodFilter);
+        }
+        setPosts(posts);
       }
     } catch (error) {
       console.error('Error loading Instagram posts:', error);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const loadAffirmations = useCallback(async () => {
     setLoadingAffirmations(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/affirmations`);
+      const response = await apiService.affirmations.list();
       if (response.data.status === 'success') {
         setAffirmations(response.data.affirmations || []);
       }
@@ -98,7 +97,7 @@ const InstagramPostsInterface: React.FC = () => {
     } finally {
       setLoadingAffirmations(false);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   useEffect(() => {
     loadPosts();
@@ -150,7 +149,7 @@ const InstagramPostsInterface: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post<GenerateResponse>(`${API_BASE_URL}/generate-instagram-post`, {
+      const response = await apiService.instagram.generatePost({
         affirmation: currentAffirmation.trim(),
         period_name: selectedPeriod,
         style: selectedStyle
@@ -284,7 +283,7 @@ const InstagramPostsInterface: React.FC = () => {
   const prepareForInstagram = async (post: InstagramPost, visualPostId?: string) => {
     setPreparingContent(post.id);
     try {
-      const response = await axios.post(`${API_BASE_URL}/prepare-instagram-content`, {
+      const response = await apiService.instagram.prepareContent({
         instagram_post_id: post.id,
         visual_post_id: visualPostId
       });
@@ -318,7 +317,7 @@ const InstagramPostsInterface: React.FC = () => {
   const postToInstagram = async (instagramPostId: string, visualPostId?: string, postType: string = 'feed_post') => {
     setPostingToInstagram(instagramPostId);
     try {
-      const response = await axios.post(`${API_BASE_URL}/post-to-instagram`, {
+      const response = await apiService.instagram.postToInstagram({
         instagram_post_id: instagramPostId,
         visual_post_id: visualPostId,
         post_type: postType

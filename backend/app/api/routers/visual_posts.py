@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import FileResponse
 from app.models.visual_post import (
     VisualPostRequest,
@@ -11,6 +11,9 @@ from app.models.visual_post import (
 from app.models.instagram import InstagramAIImageRequest
 from app.core.dependencies import get_agent
 from app.core.config import settings
+from app.core.auth import get_current_user
+from app.models.auth import User
+from app.core.middleware import RequestContext
 from datetime import datetime
 import json
 import os
@@ -25,12 +28,26 @@ os.makedirs(settings.get_storage_path(settings.GENERATED_DIR), exist_ok=True)
 os.makedirs(settings.get_storage_path(settings.COMPOSED_DIR), exist_ok=True)
 
 @router.post("/search-images")
-async def search_images(tags: list[str], period: str, count: int = 10):
+async def search_images(
+    tags: list[str], 
+    period: str, 
+    count: int = 10,
+    current_user: User = Depends(get_current_user)
+):
+    """Search for images based on tags (requires authentication)"""
     image_generator = get_agent('image_generator')
     if not image_generator:
         raise HTTPException(status_code=503, detail="Image Generator not initialized")
     
     try:
+        # Set context on agent
+        if hasattr(image_generator, 'set_context'):
+            context = RequestContext(
+                user_id=current_user.id,
+                organization_id=current_user.default_organization_id
+            )
+            image_generator.set_context(context)
+        
         # Search for images based on tags
         images = image_generator.search_images(tags, count)
         
@@ -61,12 +78,24 @@ async def search_images(tags: list[str], period: str, count: int = 10):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/create-visual-post")
-async def create_visual_post(request: VisualPostRequest):
+async def create_visual_post(
+    request: VisualPostRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a visual post (requires authentication)"""
     image_generator = get_agent('image_generator')
     if not image_generator:
         raise HTTPException(status_code=503, detail="Image Generator not initialized")
     
     try:
+        # Set context on agent
+        if hasattr(image_generator, 'set_context'):
+            context = RequestContext(
+                user_id=current_user.id,
+                organization_id=current_user.default_organization_id
+            )
+            image_generator.set_context(context)
+        
         # Generate visual post
         result = image_generator.create_affirmation_image(
             text=request.text,
@@ -176,7 +205,28 @@ async def create_instagram_ai_image(request: InstagramAIImageRequest):
     pass
 
 @router.get("/visual-posts")
-async def get_visual_posts(period: Optional[str] = None):
+async def get_visual_posts(
+    period: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get visual posts (requires authentication)"""
+    # Try to use visual post creator agent if available
+    visual_post_creator = get_agent('visual_post_creator')
+    if visual_post_creator and hasattr(visual_post_creator, 'get_visual_posts_by_period'):
+        # Set context on agent
+        if hasattr(visual_post_creator, 'set_context'):
+            context = RequestContext(
+                user_id=current_user.id,
+                organization_id=current_user.default_organization_id
+            )
+            visual_post_creator.set_context(context)
+        
+        # Get posts from agent
+        result = visual_post_creator.get_visual_posts_by_period(period)
+        if result.get('success', False):
+            return result
+    
+    # Fallback to file system
     # Use the static/generated directory where images are actually saved
     generated_dir = os.path.join("static", "generated")
     
@@ -247,7 +297,11 @@ async def get_visual_posts(period: Optional[str] = None):
     }
 
 @router.delete("/visual-posts/{post_id}")
-async def delete_visual_post(post_id: str):
+async def delete_visual_post(
+    post_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a visual post (requires authentication)"""
     generated_dir = os.path.join("static", "generated")
     
     # Find and delete the image file and metadata

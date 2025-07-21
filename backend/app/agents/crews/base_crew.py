@@ -6,7 +6,11 @@ import yaml
 import os
 from typing import Dict, Any, List, Optional
 import logging
+from uuid import UUID
+
 from app.core.cost_tracker import cost_tracker, TokenUsage
+from app.models.auth import RequestContext
+from app.core.storage.base import StorageAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +34,9 @@ class CostTrackingCallback(BaseCallbackHandler):
 
 
 class BaseCrew:
-    """Base class for loading CrewAI configurations from YAML files"""
+    """Base class for loading CrewAI configurations from YAML files with multi-tenant support"""
     
-    def __init__(self, config_dir: str = None):
+    def __init__(self, config_dir: str = None, storage_adapter: Optional[StorageAdapter] = None):
         if config_dir is None:
             config_dir = os.path.join(os.path.dirname(__file__), "../config")
         
@@ -42,6 +46,10 @@ class BaseCrew:
         self.crews_config = self._load_yaml("crews.yaml")
         self.cost_tracking_enabled = True
         self.session_costs = []
+        
+        # Multi-tenant support
+        self._context: Optional[RequestContext] = None
+        self.storage_adapter = storage_adapter
         
     def _load_yaml(self, filename: str) -> Dict[str, Any]:
         """Load a YAML configuration file"""
@@ -153,3 +161,65 @@ class BaseCrew:
         """Enable or disable cost tracking"""
         self.cost_tracking_enabled = enabled
         logger.info(f"Cost tracking {'enabled' if enabled else 'disabled'} for {self.__class__.__name__}")
+    
+    # Multi-tenant support methods
+    def set_context(self, context: RequestContext):
+        """Set organization/project context for the agent"""
+        self._context = context
+        logger.info(f"Context set for {self.__class__.__name__}: org={context.organization_id}, project={context.project_id}")
+    
+    def get_context(self) -> Optional[RequestContext]:
+        """Get current context"""
+        return self._context
+    
+    def get_scoped_storage(self) -> Optional['ScopedStorageAdapter']:
+        """Get storage adapter with automatic scoping"""
+        if not self.storage_adapter or not self._context:
+            return None
+        
+        from app.core.storage.scoped_adapter import ScopedStorageAdapter
+        return ScopedStorageAdapter(self.storage_adapter, self._context)
+    
+    async def save_result(self, collection: str, data: dict, id: Optional[str] = None) -> str:
+        """Save data with automatic context injection"""
+        storage = self.get_scoped_storage()
+        if not storage:
+            raise ValueError("No storage adapter or context available")
+        
+        # Add context information
+        scoped_data = {
+            **data,
+            'organization_id': str(self._context.organization_id),
+            'project_id': str(self._context.project_id) if self._context.project_id else None,
+            'created_by': str(self._context.user_id)
+        }
+        
+        return await storage.save(collection, scoped_data, id)
+    
+    async def list_results(self, collection: str, filters: Optional[Dict] = None, **kwargs) -> List[Dict[str, Any]]:
+        """List data with automatic context filtering"""
+        storage = self.get_scoped_storage()
+        if not storage:
+            raise ValueError("No storage adapter or context available")
+        
+        return await storage.list(collection, filters, **kwargs)
+    
+    async def get_result(self, collection: str, id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific result with context validation"""
+        storage = self.get_scoped_storage()
+        if not storage:
+            raise ValueError("No storage adapter or context available")
+        
+        return await storage.load(collection, id)
+    
+    def validate_context(self) -> bool:
+        """Validate that context is properly set"""
+        if not self._context:
+            logger.warning(f"No context set for {self.__class__.__name__}")
+            return False
+        
+        if not self._context.organization_id:
+            logger.warning(f"No organization_id in context for {self.__class__.__name__}")
+            return False
+        
+        return True

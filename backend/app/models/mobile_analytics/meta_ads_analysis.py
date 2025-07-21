@@ -87,7 +87,7 @@ class MetaAdsAnalysis(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "campaign_id": "123456789",
                 "campaign_name": "Mobile App Install Campaign",

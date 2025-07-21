@@ -20,6 +20,15 @@
   overflow-y: auto;
 }
 
+/* Remove margin for auth pages */
+.app-container.auth-page {
+  margin-left: 0;
+}
+
+.app-container.auth-page .main-content {
+  padding: 0;
+}
+
 /* Adjust for collapsed sidebar */
 @media (max-width: 768px) {
   .app-container {

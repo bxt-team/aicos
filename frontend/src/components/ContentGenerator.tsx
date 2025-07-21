@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiService } from '../services/api';
 import './ContentGenerator.css';
 
 interface ContentRequest {
@@ -27,7 +27,7 @@ const ContentGenerator: React.FC = () => {
         }
       };
 
-      const response = await axios.post('http://localhost:8000/content/generate', requestData);
+      const response = await apiService.content.generate(requestData);
       const { content_id } = response.data;
 
       navigate(`/content/${content_id}`);

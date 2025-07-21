@@ -1,10 +1,13 @@
 """
 Q&A and knowledge base endpoints
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from typing import List, Optional
 
 from app.core.dependencies import get_agent
+from app.core.auth import get_current_user, get_request_context, check_permission
+from app.models.auth import User, RequestContext, Permission
 
 router = APIRouter(prefix="/api", tags=["qa"])
 
@@ -14,11 +17,19 @@ class QuestionRequest(BaseModel):
 
 # Q&A endpoints
 @router.post("/ask-question")
-async def ask_question(request: QuestionRequest):
+async def ask_question(
+    request: QuestionRequest,
+    current_user: User = Depends(get_current_user),
+    context: RequestContext = Depends(get_request_context),
+    _: None = Depends(check_permission(Permission.AGENT_USE))
+):
     """Ask a question about the 7 Cycles of Life"""
     qa_agent = get_agent('qa_agent')
     if not qa_agent:
         raise HTTPException(status_code=503, detail="Q&A agent not available")
+    
+    # Set context for multi-tenant support
+    qa_agent.set_context(context)
     
     result = qa_agent.answer_question(request.question)
     
@@ -27,7 +38,8 @@ async def ask_question(request: QuestionRequest):
             "success": True,
             "answer": result["answer"],
             "sources": result.get("sources", []),
-            "confidence": result.get("confidence", "high")
+            "confidence": result.get("confidence", "high"),
+            "interaction_id": result.get("interaction_id")
         }
     else:
         raise HTTPException(status_code=500, detail=result.get("error", "Failed to answer question"))
@@ -51,11 +63,17 @@ async def check_qa_health():
     }
 
 @router.get("/knowledge-overview")
-async def get_knowledge_overview():
+async def get_knowledge_overview(
+    current_user: User = Depends(get_current_user),
+    context: RequestContext = Depends(get_request_context)
+):
     """Get an overview of the knowledge base"""
     qa_agent = get_agent('qa_agent')
     if not qa_agent:
         raise HTTPException(status_code=503, detail="Q&A agent not available")
+    
+    # Set context for multi-tenant support
+    qa_agent.set_context(context)
     
     overview = qa_agent.get_knowledge_overview()
     return {
@@ -155,3 +173,53 @@ async def get_agent_prompts():
             }
         }
     }
+
+# New endpoints for Q&A interactions
+@router.get("/qa-interactions")
+async def get_qa_interactions(
+    limit: int = 10,
+    current_user: User = Depends(get_current_user),
+    context: RequestContext = Depends(get_request_context)
+):
+    """Get recent Q&A interactions for the organization"""
+    qa_agent = get_agent('qa_agent')
+    if not qa_agent:
+        raise HTTPException(status_code=503, detail="Q&A agent not available")
+    
+    # Set context for multi-tenant support
+    qa_agent.set_context(context)
+    
+    interactions = await qa_agent.get_recent_interactions(limit=limit)
+    return {
+        "success": True,
+        "interactions": interactions,
+        "count": len(interactions)
+    }
+
+class FeedbackRequest(BaseModel):
+    interaction_id: str
+    rating: int  # 1-5
+
+@router.post("/qa-feedback")
+async def submit_qa_feedback(
+    request: FeedbackRequest,
+    current_user: User = Depends(get_current_user),
+    context: RequestContext = Depends(get_request_context)
+):
+    """Submit feedback for a Q&A interaction"""
+    qa_agent = get_agent('qa_agent')
+    if not qa_agent:
+        raise HTTPException(status_code=503, detail="Q&A agent not available")
+    
+    # Set context for multi-tenant support
+    qa_agent.set_context(context)
+    
+    success = await qa_agent.update_interaction_feedback(
+        request.interaction_id, 
+        request.rating
+    )
+    
+    if success:
+        return {"success": True, "message": "Feedback submitted successfully"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to submit feedback")

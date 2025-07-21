@@ -1,6 +1,7 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { MenuProvider } from './contexts/MenuContext';
+import { AuthProvider } from './contexts/AuthContext';
 import './App.css';
 import ContentGenerator from './components/ContentGenerator';
 import ContentViewer from './components/ContentViewer';
@@ -23,26 +24,45 @@ import AgentManagement from './components/AgentManagement';
 import AgentPromptsDisplay from './components/AgentPromptsDisplay';
 import Header from './components/Header';
 import SideMenu from './components/SideMenu';
+import Login from './components/auth/Login';
+import Signup from './components/auth/Signup';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import AppHeader from './components/AppHeader';
+import { useAuth } from './contexts/AuthContext';
+import UserProfile from './components/UserProfile';
+import OrganizationSettings from './components/OrganizationSettings';
+import ProjectManagement from './components/ProjectManagement';
 
-function App() {
+function AppContent() {
+  const { user } = useAuth();
+  const location = useLocation();
+  
+  // Check if we're on an auth page (login or signup)
+  const isAuthPage = ['/login', '/signup'].includes(location.pathname);
+  
   return (
-    <Router>
-      <MenuProvider>
-        <div className="App">
-          <SideMenu />
-          <div className="app-container">
-            <Header />
-          <main className="main-content">
+    <MenuProvider>
+      <div className="App">
+        {user && !isAuthPage && <SideMenu />}
+        <div className={`app-container ${isAuthPage ? 'auth-page' : ''}`}>
+          {/* Only show header if not on auth pages */}
+          {!isAuthPage && (user ? <AppHeader /> : <Header />)}
+          <main className="main-content" style={{ marginTop: (user && !isAuthPage) ? '64px' : '0' }}>
             <Routes>
-            <Route path="/" element={<AgentManagement />} />
-            <Route path="/agents" element={<AgentManagement />} />
-            <Route path="/qa" element={<QAInterface />} />
-            <Route path="/affirmations" element={<AffirmationsInterface />} />
-            <Route path="/instagram-posts" element={<InstagramPostsInterface />} />
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            
+            {/* Protected routes */}
+            <Route path="/" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
+            <Route path="/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
+            <Route path="/qa" element={<ProtectedRoute><QAInterface /></ProtectedRoute>} />
+            <Route path="/affirmations" element={<ProtectedRoute><AffirmationsInterface /></ProtectedRoute>} />
+            <Route path="/instagram-posts" element={<ProtectedRoute><InstagramPostsInterface /></ProtectedRoute>} />
             <Route path="/instagram-posting" element={<InstagramPostingInterface />} />
             <Route path="/instagram-analyzer" element={<InstagramAnalyzerInterface />} />
-            <Route path="/visual-posts" element={<VisualPostsInterface />} />
-            <Route path="/workflows" element={<WorkflowManagement />} />
+            <Route path="/visual-posts" element={<ProtectedRoute><VisualPostsInterface /></ProtectedRoute>} />
+            <Route path="/workflows" element={<ProtectedRoute><WorkflowManagement /></ProtectedRoute>} />
             <Route path="/post-composition" element={<PostCompositionInterface />} />
             <Route path="/video-generation" element={<VideoGenerationInterface />} />
             <Route path="/instagram-reel" element={<InstagramReelInterface apiBaseUrl="http://localhost:8000" />} />
@@ -52,13 +72,25 @@ function App() {
             <Route path="/threads" element={<ThreadsInterface />} />
             <Route path="/x-twitter" element={<XInterface />} />
             <Route path="/agent-prompts" element={<AgentPromptsDisplay />} />
-            <Route path="/content-generator" element={<ContentGenerator />} />
+            <Route path="/content-generator" element={<ProtectedRoute><ContentGenerator /></ProtectedRoute>} />
             <Route path="/content/:contentId" element={<ContentViewer />} />
+            <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+            <Route path="/organization-settings" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
+            <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
             </Routes>
           </main>
           </div>
         </div>
       </MenuProvider>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Router>
   );
 }

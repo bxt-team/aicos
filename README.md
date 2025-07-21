@@ -172,6 +172,64 @@ Add your content sources to the `knowledge_files/` directory:
 2. Serve static files with a web server
 3. Configure API endpoints for production
 
+## Multi-Tenant Implementation (In Progress)
+
+The system is being upgraded to support multiple organizations and projects with proper authentication and data isolation.
+
+### Implementation Progress
+
+#### Week 1-2: Core Infrastructure ⏳
+- [ ] Database schema for organizations, projects, and users
+- [ ] JWT authentication system
+- [ ] Row-Level Security (RLS) policies
+- [ ] Authentication endpoints (/auth/signup, /auth/login)
+- [ ] Context middleware for request scoping
+- [ ] Permission system (RBAC)
+
+#### Week 3: Storage Layer 🔄
+- [ ] Scoped storage adapter
+- [ ] Multi-tenant Supabase adapter
+- [ ] Data migration utilities
+
+#### Week 4-5: Agent Migration 🤖
+- [ ] Update base agent class with context support
+- [ ] Migrate QA agent (pilot)
+- [ ] Migrate all remaining agents
+
+#### Week 6: API Updates 🔌
+- [ ] Add authentication to existing endpoints
+- [ ] Organization/project management APIs
+- [ ] API key management
+
+#### Week 7: Frontend Integration 💻
+- [ ] Authentication UI (login/signup)
+- [ ] Organization/project selector
+- [ ] Member management
+
+#### Week 8: Testing & Migration 🧪
+- [ ] Data migration from single to multi-tenant
+- [ ] Integration testing
+- [ ] Performance testing
+
+#### Week 9: Deployment 🚀
+- [ ] Staged rollout with feature flags
+- [ ] Production deployment
+- [ ] Monitoring and support
+
+### Key Features Being Added
+
+- **Organizations & Projects**: Hierarchical structure for data organization
+- **Authentication**: JWT-based auth with Supabase
+- **Role-Based Access Control**: Owner, Admin, Member, Viewer roles
+- **Data Isolation**: Row-level security for complete data separation
+- **API Keys**: Programmatic access with scoped permissions
+- **Audit Logging**: Track all actions for compliance
+
+### Documentation
+
+- [Full Implementation Plan](./MULTI_TENANT_IMPLEMENTATION_PLAN.md)
+- [Technical Design Document](./.tasks/organization-project-scoping-plan.md)
+
 ## Contributing
 
 1. Fork the repository

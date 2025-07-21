@@ -10,16 +10,24 @@ import tempfile
 from app.agents.crews.base_crew import BaseCrew
 from crewai import Agent, Task, Crew
 from crewai.llm import LLM
+from app.core.storage import StorageFactory
+import asyncio
 
 class VideoGenerationAgent(BaseCrew):
     """Agent for creating Instagram Reels videos from one or more images"""
     
     def __init__(self, openai_api_key: str):
-        super().__init__()
+        # Get storage adapter from factory for multi-tenant support
+        storage_adapter = StorageFactory.get_adapter()
+        super().__init__(storage_adapter=storage_adapter)
+        
         self.openai_api_key = openai_api_key
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Storage for created videos
+        # Collection name for videos
+        self.collection = "videos"
+        
+        # Legacy storage for backward compatibility
         self.storage_file = os.path.join(os.path.dirname(__file__), "../../static/videos_storage.json")
         self.videos_storage = self._load_videos_storage()
         
@@ -44,6 +52,16 @@ class VideoGenerationAgent(BaseCrew):
         
         # Check if ffmpeg is available
         self.ffmpeg_available = self._check_ffmpeg()
+    
+    def _run_async(self, coro):
+        """Helper to run async code in sync context"""
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        return loop.run_until_complete(coro)
         
     def _check_ffmpeg(self) -> bool:
         """Check if ffmpeg is available"""
@@ -162,7 +180,18 @@ class VideoGenerationAgent(BaseCrew):
                 }
             }
             
-            # Save to storage
+            # Save to multi-tenant storage
+            if self.validate_context():
+                video_id = self._run_async(
+                    self.save_result(self.collection, video_info)
+                )
+            else:
+                video_id = self._run_async(
+                    self.storage_adapter.save(self.collection, video_info)
+                )
+            video_info["id"] = video_id
+            
+            # Also save to legacy storage for backward compatibility
             self.videos_storage["videos"].append(video_info)
             self.videos_storage["by_hash"][video_hash] = video_info
             self._save_videos_storage()
@@ -593,10 +622,37 @@ class VideoGenerationAgent(BaseCrew):
     def get_videos(self, video_type: str = None) -> Dict[str, Any]:
         """Get all videos, optionally filtered by type"""
         try:
-            videos = self.videos_storage.get("videos", [])
-            
+            # Build filters
+            filters = {}
             if video_type:
-                videos = [video for video in videos if video.get("video_type") == video_type]
+                filters["video_type"] = video_type
+            
+            # Get videos from multi-tenant storage
+            if self.validate_context():
+                videos = self._run_async(
+                    self.list_results(
+                        self.collection,
+                        filters=filters,
+                        order_by="created_at",
+                        order_desc=True
+                    )
+                )
+            else:
+                videos = self._run_async(
+                    self.storage_adapter.list(
+                        self.collection,
+                        filters=filters,
+                        order_by="created_at",
+                        order_desc=True
+                    )
+                )
+            
+            # Also check legacy storage for backward compatibility
+            if not videos and self.videos_storage.get("videos"):
+                legacy_videos = self.videos_storage.get("videos", [])
+                if video_type:
+                    legacy_videos = [video for video in legacy_videos if video.get("video_type") == video_type]
+                videos.extend(legacy_videos)
             
             return {
                 "success": True,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { apiService } from '../services/api';
 import './AffirmationsInterface.css';
 
 interface Affirmation {
@@ -36,24 +36,19 @@ const AffirmationsInterface: React.FC = () => {
   const [affirmationCount, setAffirmationCount] = useState<number>(5);
   const [filterPeriod, setFilterPeriod] = useState<string>('');
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
   const loadPeriods = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/periods`);
+      const response = await apiService.affirmations.getPeriods();
       setPeriods(response.data);
     } catch (error) {
       console.error('Error loading periods:', error);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const loadAffirmations = useCallback(async (periodFilter?: string) => {
     try {
-      const url = periodFilter 
-        ? `${API_BASE_URL}/affirmations?period_name=${periodFilter}`
-        : `${API_BASE_URL}/affirmations`;
-      
-      const response = await axios.get(url);
+      const response = await apiService.affirmations.list(periodFilter);
       if (response.data.status === 'success') {
         const affirmationsData = Array.isArray(response.data.affirmations) 
           ? response.data.affirmations 
@@ -63,7 +58,7 @@ const AffirmationsInterface: React.FC = () => {
     } catch (error) {
       console.error('Error loading affirmations:', error);
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   useEffect(() => {
     loadPeriods();
@@ -90,7 +85,7 @@ const AffirmationsInterface: React.FC = () => {
         }
       }
 
-      const response = await axios.post(`${API_BASE_URL}/generate-affirmations`, {
+      const response = await apiService.affirmations.generate({
         period_name: selectedPeriod,
         period_info: periodInfo,
         count: affirmationCount
@@ -174,8 +169,8 @@ const AffirmationsInterface: React.FC = () => {
   return (
     <div className="affirmations-interface">
       <div className="affirmations-header">
-        <h2>7 Lebenszyklen Affirmationen-Generator</h2>
-        <p>Erstelle personalisierte Affirmationen basierend auf deinem aktuellen Lebenszyklus und deiner Periode</p>
+        <h2>AI Company - Affirmations Generator</h2>
+        <p>Create personalized affirmations based on your current life cycle and period</p>
       </div>
 
       <div className="generator-section">

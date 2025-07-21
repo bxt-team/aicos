@@ -21,7 +21,7 @@ class AppStoreAnalysisRequest(BaseModel):
     include_visuals: bool = Field(True, description="Include visual assets analysis")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "url": "https://apps.apple.com/us/app/example-app/id123456789",
                 "include_reviews": True,
@@ -213,7 +213,7 @@ class PlayStoreAnalysisRequest(BaseModel):
     include_visuals: bool = Field(True, description="Include visual assets analysis")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "url": "https://play.google.com/store/apps/details?id=com.example.app",
                 "include_reviews": True,
@@ -285,7 +285,7 @@ class MetaAdsAnalysisRequest(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "campaign_id": "123456789",
                 "date_range": {
@@ -364,7 +364,7 @@ class GoogleAnalyticsRequest(BaseModel):
     analytics_data: Optional[Dict[str, Any]] = Field(None, description="Pre-fetched analytics data")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "property_id": "123456789",
                 "app_name": "My Mobile App",

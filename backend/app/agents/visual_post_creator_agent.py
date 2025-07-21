@@ -17,7 +17,10 @@ class VisualPostCreatorAgent(BaseCrew):
     """Agent for finding and generating background images for visual posts"""
     
     def __init__(self, openai_api_key: str, pexels_api_key: str = None):
-        super().__init__()
+        # Get storage adapter from factory for multi-tenant support
+        storage_adapter = StorageFactory.get_adapter()
+        super().__init__(storage_adapter=storage_adapter)
+        
         self.openai_api_key = openai_api_key
         self.pexels_api_key = pexels_api_key
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
@@ -25,8 +28,7 @@ class VisualPostCreatorAgent(BaseCrew):
         # Initialize image search agent
         self.image_search_agent = ImageSearchAgent(openai_api_key, pexels_api_key)
         
-        # Initialize storage adapter
-        self.storage = StorageFactory.get_adapter()
+        # Collection name for visual posts
         self.collection = "visual_posts"
         
         # Output directory for created images
@@ -85,19 +87,31 @@ class VisualPostCreatorAgent(BaseCrew):
                              count: int = 3, force_new: bool = False) -> Dict[str, Any]:
         """Find and prepare background images for visual posts"""
         try:
+            # Propagate context to image search agent if needed
+            if self.validate_context() and hasattr(self.image_search_agent, 'set_context'):
+                self.image_search_agent.set_context(self._context)
             # Check if images already exist in storage
             search_hash = self._generate_post_hash("", period, tags)
             period_number = self.period_numbers.get(period, 1)
             
             if not force_new:
                 # Look for existing posts with similar tags
-                existing_posts = self._run_async(
-                    self.storage.list(
-                        self.collection,
-                        filters={"period": period_number},
-                        limit=count
+                if self.validate_context():
+                    existing_posts = self._run_async(
+                        self.list_results(
+                            self.collection,
+                            filters={"period": period_number},
+                            limit=count
+                        )
                     )
-                )
+                else:
+                    existing_posts = self._run_async(
+                        self.storage_adapter.list(
+                            self.collection,
+                            filters={"period": period_number},
+                            limit=count
+                        )
+                    )
                 
                 # Filter by matching tags
                 matching_posts = []
@@ -172,10 +186,15 @@ class VisualPostCreatorAgent(BaseCrew):
                         }
                     }
                     
-                    # Save to storage
-                    post_id = self._run_async(
-                        self.storage.save(self.collection, visual_post_data)
-                    )
+                    # Save to storage with multi-tenant support
+                    if self.validate_context():
+                        post_id = self._run_async(
+                            self.save_result(self.collection, visual_post_data)
+                        )
+                    else:
+                        post_id = self._run_async(
+                            self.storage_adapter.save(self.collection, visual_post_data)
+                        )
                     
                     processed_image_info = {
                         "id": post_id,
@@ -354,14 +373,25 @@ class VisualPostCreatorAgent(BaseCrew):
                 if period_number:
                     filters = {"period": period_number}
             
-            posts = self._run_async(
-                self.storage.list(
-                    self.collection,
-                    filters=filters,
-                    order_by="created_at",
-                    order_desc=True
+            # Get posts with multi-tenant support
+            if self.validate_context():
+                posts = self._run_async(
+                    self.list_results(
+                        self.collection,
+                        filters=filters,
+                        order_by="created_at",
+                        order_desc=True
+                    )
                 )
-            )
+            else:
+                posts = self._run_async(
+                    self.storage_adapter.list(
+                        self.collection,
+                        filters=filters,
+                        order_by="created_at",
+                        order_desc=True
+                    )
+                )
             
             # Transform to expected format
             formatted_posts = []
@@ -400,9 +430,14 @@ class VisualPostCreatorAgent(BaseCrew):
     # Backward compatibility methods
     def _load_posts_storage(self) -> Dict[str, Any]:
         """Legacy method - now uses storage adapter"""
-        posts = self._run_async(
-            self.storage.list(self.collection)
-        )
+        if self.validate_context():
+            posts = self._run_async(
+                self.list_results(self.collection)
+            )
+        else:
+            posts = self._run_async(
+                self.storage_adapter.list(self.collection)
+            )
         
         # Convert to legacy format
         by_period = {}

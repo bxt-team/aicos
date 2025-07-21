@@ -6,25 +6,30 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import json
 from app.agents.crews.base_crew import BaseCrew
 from app.services.knowledge_base_manager import knowledge_base_manager
 from app.core.storage import StorageFactory
 import asyncio
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 class QAAgent(BaseCrew):
     def __init__(self, openai_api_key: str):
-        super().__init__()
+        # Get storage adapter from factory
+        storage_adapter = StorageFactory.get_adapter()
+        super().__init__(storage_adapter=storage_adapter)
+        
         self.openai_api_key = openai_api_key
         # Use shared embeddings and vector store
         self.embeddings = knowledge_base_manager.get_embeddings()
         self.vector_store = knowledge_base_manager.get_vector_store()
         self.llm = LLM(model="gpt-4o-mini", api_key=openai_api_key)
         
-        # Initialize storage adapter
-        self.storage = StorageFactory.get_adapter()
+        # Collection name for Q&A interactions
         self.collection = "qa_interactions"
         
         # Create the Q&A agent from YAML config
@@ -51,8 +56,11 @@ class QAAgent(BaseCrew):
     def answer_question(self, question: str) -> Dict[str, Any]:
         """Answer a question using the knowledge base"""
         try:
-            # Get relevant context
-            context = self._get_relevant_context(question)
+            # Get relevant context - use scoped if context is available
+            if self.validate_context():
+                context = self._get_relevant_context_scoped(question)
+            else:
+                context = self._get_relevant_context(question)
             
             # Create task from YAML config
             task = self.create_task(
@@ -76,7 +84,7 @@ class QAAgent(BaseCrew):
             # This is a simple heuristic - in production, you might use more sophisticated methods
             relevance_score = self._calculate_relevance_score(question, context)
             
-            # Save Q&A interaction to Supabase
+            # Save Q&A interaction with multi-tenant context
             interaction_data = {
                 "question": question,
                 "answer": answer,
@@ -90,13 +98,20 @@ class QAAgent(BaseCrew):
                 }
             }
             
-            # Run async save operation
+            # Run async save operation with context
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                interaction_id = loop.run_until_complete(
-                    self.storage.save(self.collection, interaction_data)
-                )
+                # Use base class's save_result for multi-tenant support
+                if self.validate_context():
+                    interaction_id = loop.run_until_complete(
+                        self.save_result(self.collection, interaction_data)
+                    )
+                else:
+                    # Fallback to direct storage if no context
+                    interaction_id = loop.run_until_complete(
+                        self.storage_adapter.save(self.collection, interaction_data)
+                    )
             finally:
                 loop.close()
             
@@ -210,12 +225,22 @@ class QAAgent(BaseCrew):
     async def get_recent_interactions(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get recent Q&A interactions from storage"""
         try:
-            interactions = await self.storage.list(
-                self.collection,
-                order_by="created_at",
-                order_desc=True,
-                limit=limit
-            )
+            # Use base class's list_results for multi-tenant support
+            if self.validate_context():
+                interactions = await self.list_results(
+                    self.collection,
+                    limit=limit,
+                    order_by="created_at",
+                    order_desc=True
+                )
+            else:
+                # Fallback to direct storage if no context
+                interactions = await self.storage_adapter.list(
+                    self.collection,
+                    order_by="created_at",
+                    order_desc=True,
+                    limit=limit
+                )
             return interactions
         except Exception as e:
             print(f"Error retrieving interactions: {e}")
@@ -227,8 +252,12 @@ class QAAgent(BaseCrew):
             if user_feedback < 1 or user_feedback > 5:
                 raise ValueError("Feedback must be between 1 and 5")
             
-            # Load existing interaction
-            interaction = await self.storage.load(self.collection, interaction_id)
+            # Load existing interaction with context validation
+            if self.validate_context():
+                interaction = await self.get_result(self.collection, interaction_id)
+            else:
+                interaction = await self.storage_adapter.load(self.collection, interaction_id)
+                
             if not interaction:
                 return False
             
@@ -237,8 +266,102 @@ class QAAgent(BaseCrew):
             interaction["metadata"]["feedback_timestamp"] = datetime.now().isoformat()
             
             # Save updated interaction
-            await self.storage.save(self.collection, interaction, interaction_id)
+            if self.validate_context():
+                await self.save_result(self.collection, interaction, interaction_id)
+            else:
+                await self.storage_adapter.save(self.collection, interaction, interaction_id)
             return True
         except Exception as e:
             print(f"Error updating feedback: {e}")
             return False
+    
+    async def get_scoped_knowledge_base(self) -> Optional[FAISS]:
+        """Get organization/project specific knowledge base"""
+        if not self.validate_context():
+            # Return default knowledge base if no context
+            return self.vector_store
+        
+        try:
+            # Check if organization has custom knowledge documents
+            storage = self.get_scoped_storage()
+            if not storage:
+                return self.vector_store
+            
+            # Look for organization-specific documents
+            org_docs = await storage.list(
+                'knowledge_documents',
+                filters={'project_id': None}  # Org-level docs only
+            )
+            
+            # Look for project-specific documents if in project context
+            project_docs = []
+            if self._context.project_id:
+                project_docs = await storage.list(
+                    'knowledge_documents',
+                    filters={'project_id': str(self._context.project_id)}
+                )
+            
+            all_docs = org_docs + project_docs
+            
+            if not all_docs:
+                # No custom documents, use default knowledge base
+                logger.info(f"No custom documents for org {self._context.organization_id}, using default KB")
+                return self.vector_store
+            
+            # Create organization-specific vector store
+            logger.info(f"Loading {len(all_docs)} custom documents for org {self._context.organization_id}")
+            
+            # Convert stored documents to LangChain documents
+            langchain_docs = []
+            for doc in all_docs:
+                content = doc.get('content', '')
+                metadata = doc.get('metadata', {})
+                langchain_docs.append(Document(page_content=content, metadata=metadata))
+            
+            # Create text splitter
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200
+            )
+            
+            # Split documents
+            split_docs = text_splitter.split_documents(langchain_docs)
+            
+            # Create vector store
+            org_vector_store = FAISS.from_documents(split_docs, self.embeddings)
+            
+            # Optionally merge with default knowledge base
+            if self.vector_store:
+                # Merge organization docs with default docs
+                org_vector_store.merge_from(self.vector_store)
+            
+            return org_vector_store
+            
+        except Exception as e:
+            logger.error(f"Error loading scoped knowledge base: {e}")
+            return self.vector_store
+    
+    def _get_relevant_context_scoped(self, question: str, k: int = 5) -> str:
+        """Retrieve relevant context using organization-specific knowledge base"""
+        # Run async operation to get scoped knowledge base
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            vector_store = loop.run_until_complete(self.get_scoped_knowledge_base())
+        finally:
+            loop.close()
+        
+        if not vector_store:
+            return "Wissensdatenbank nicht verfügbar"
+        
+        try:
+            # Retrieve relevant documents
+            docs = vector_store.similarity_search(question, k=k)
+            
+            # Combine context
+            context = "\n\n".join([doc.page_content for doc in docs])
+            return context
+            
+        except Exception as e:
+            logger.error(f"Fehler beim Abrufen des Kontexts: {e}")
+            return "Fehler beim Abrufen des Kontexts"

@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { apiService } from '../services/api';
 import './WorkflowManagement.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 interface WorkflowTemplate {
   name: string;
@@ -69,7 +67,7 @@ const WorkflowManagement: React.FC = () => {
 
   const loadTemplates = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/workflow-templates`);
+      const response = await apiService.workflows.getTemplates();
       if (response.data.success) {
         setTemplates(response.data.templates);
       }
@@ -80,7 +78,7 @@ const WorkflowManagement: React.FC = () => {
 
   const loadWorkflows = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/workflows`);
+      const response = await apiService.workflows.list();
       if (response.data.success) {
         setWorkflows(response.data.workflows);
       }
@@ -96,7 +94,7 @@ const WorkflowManagement: React.FC = () => {
 
     for (const workflowId of workflowsToCheck) {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/workflows/${workflowId}`);
+        const response = await apiService.workflows.get(workflowId);
         if (response.data.workflow_id) {
           setRunningWorkflows(prev => ({
             ...prev,
@@ -141,7 +139,7 @@ const WorkflowManagement: React.FC = () => {
       const templateOptions = templates[selectedTemplate]?.default_options || {};
       const finalOptions = { ...templateOptions, ...customOptions };
 
-      const response = await axios.post(`${API_BASE_URL}/api/workflows`, {
+      const response = await apiService.workflows.create({
         period: selectedPeriod,
         workflow_type: selectedTemplate,
         options: finalOptions
@@ -178,7 +176,7 @@ const WorkflowManagement: React.FC = () => {
     }
 
     try {
-      await axios.delete(`${API_BASE_URL}/api/workflows/${workflowId}`);
+      await apiService.workflows.delete(workflowId);
       loadWorkflows();
       
       // Remove from running workflows if present

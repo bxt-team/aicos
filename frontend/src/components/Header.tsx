@@ -22,8 +22,8 @@ const Header: React.FC = () => {
         )}
         <Link to="/" className="header-title">
           <div className="title-content">
-            <span className="title-icon">🌀</span>
-            <h1>7 Lebenszyklen KI-Assistent</h1>
+            <span className="title-icon">🏢</span>
+            <h1>AI Company</h1>
           </div>
         </Link>
       </div>
