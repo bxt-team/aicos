@@ -1,0 +1,285 @@
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Alert,
+  CircularProgress,
+  Divider,
+  IconButton,
+  InputAdornment,
+  useTheme,
+  alpha
+} from '@mui/material';
+import {
+  Visibility,
+  VisibilityOff,
+  BusinessCenter,
+  Email,
+  Lock
+} from '@mui/icons-material';
+import { useAuth } from '../../contexts/AuthContext';
+
+const Login: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const theme = useTheme();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      await login(email, password);
+      navigate('/');
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        position: 'relative',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)',
+        }
+      }}
+    >
+      <Container component="main" maxWidth="xs">
+        <Paper 
+          elevation={24} 
+          sx={{ 
+            padding: 5,
+            borderRadius: 3,
+            backdropFilter: 'blur(10px)',
+            background: alpha(theme.palette.background.paper, 0.95),
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: -2,
+              left: -2,
+              right: -2,
+              bottom: -2,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              borderRadius: 3,
+              opacity: 0.1,
+              zIndex: -1
+            }
+          }}
+        >
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <BusinessCenter 
+              sx={{ 
+                fontSize: 48, 
+                color: theme.palette.primary.main,
+                mb: 2
+              }} 
+            />
+            <Typography 
+              component="h1" 
+              variant="h4" 
+              sx={{ 
+                fontWeight: 700,
+                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 1
+              }}
+            >
+              AI Company
+            </Typography>
+            <Typography 
+              variant="body1" 
+              color="text.secondary"
+              sx={{ fontWeight: 300 }}
+            >
+              Welcome back! Please login to continue.
+            </Typography>
+          </Box>
+          
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 3,
+                borderRadius: 2,
+                '& .MuiAlert-icon': {
+                  fontSize: 20
+                }
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email Address"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email sx={{ color: 'action.active', fontSize: 20 }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.primary.main,
+                  },
+                },
+              }}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              id="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock sx={{ color: 'action.active', fontSize: 20 }} />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                      size="small"
+                    >
+                      {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                mb: 1,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  '&:hover fieldset': {
+                    borderColor: theme.palette.primary.main,
+                  },
+                },
+              }}
+            />
+            
+            <Box sx={{ textAlign: 'right', mb: 3 }}>
+              <Link 
+                to="/forgot-password" 
+                style={{ 
+                  textDecoration: 'none', 
+                  color: theme.palette.primary.main,
+                  fontSize: '0.875rem',
+                  fontWeight: 500
+                }}
+              >
+                Forgot password?
+              </Link>
+            </Box>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              sx={{ 
+                mb: 3,
+                py: 1.5,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '1rem',
+                fontWeight: 600,
+                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+                '&:hover': {
+                  boxShadow: `0 6px 30px ${alpha(theme.palette.primary.main, 0.4)}`,
+                },
+                '&:disabled': {
+                  background: theme.palette.action.disabledBackground,
+                }
+              }}
+              disabled={isLoading || !email || !password}
+            >
+              {isLoading ? (
+                <CircularProgress size={24} sx={{ color: 'white' }} />
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+            
+            <Divider sx={{ mb: 3 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
+                OR
+              </Typography>
+            </Divider>
+            
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Don't have an account?{' '}
+                <Link 
+                  to="/signup" 
+                  style={{ 
+                    textDecoration: 'none', 
+                    color: theme.palette.primary.main,
+                    fontWeight: 600
+                  }}
+                >
+                  Sign up now
+                </Link>
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
+  );
+};
+
+export default Login;
