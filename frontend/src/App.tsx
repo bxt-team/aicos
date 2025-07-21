@@ -18,6 +18,7 @@ import InstagramReelInterface from './components/InstagramReelInterface';
 import AppTestInterface from './components/AppTestInterface';
 import VoiceOverInterface from './components/VoiceOverInterface';
 import MobileAnalyticsInterface from './components/MobileAnalyticsInterface';
+import DebugAuth from './components/DebugAuth';
 import ThreadsInterface from './components/ThreadsInterface';
 import XInterface from './components/XInterface';
 import AgentManagement from './components/AgentManagement';
@@ -69,6 +70,7 @@ function AppContent() {
             <Route path="/app-test" element={<AppTestInterface />} />
             <Route path="/voice-over" element={<VoiceOverInterface apiBaseUrl="http://localhost:8000" />} />
             <Route path="/mobile-analytics" element={<MobileAnalyticsInterface />} />
+            <Route path="/debug-auth" element={<ProtectedRoute><DebugAuth /></ProtectedRoute>} />
             <Route path="/threads" element={<ThreadsInterface />} />
             <Route path="/x-twitter" element={<XInterface />} />
             <Route path="/agent-prompts" element={<AgentPromptsDisplay />} />

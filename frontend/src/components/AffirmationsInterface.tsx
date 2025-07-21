@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
+import ProjectRequired from './ProjectRequired';
 import './AffirmationsInterface.css';
 
 interface Affirmation {
@@ -167,9 +168,10 @@ const AffirmationsInterface: React.FC = () => {
   };
 
   return (
-    <div className="affirmations-interface">
-      <div className="affirmations-header">
-        <h2>AI Company - Affirmations Generator</h2>
+    <ProjectRequired>
+      <div className="affirmations-interface">
+        <div className="affirmations-header">
+          <h2>AI Company - Affirmations Generator</h2>
         <p>Create personalized affirmations based on your current life cycle and period</p>
       </div>
 
@@ -300,6 +302,7 @@ const AffirmationsInterface: React.FC = () => {
         )}
       </div>
     </div>
+    </ProjectRequired>
   );
 };
 

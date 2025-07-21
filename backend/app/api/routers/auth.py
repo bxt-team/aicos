@@ -102,6 +102,30 @@ async def signup(request: SignupRequest):
         }
         supabase.table("organization_members").insert(membership_data).execute()
         
+        # Create default project for the organization
+        project_id = uuid4()
+        project_data = {
+            "id": str(project_id),
+            "organization_id": organization["id"],
+            "name": "Default Project",
+            "description": "Your first project - feel free to rename or create additional projects",
+            "created_by": user["id"],
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        supabase.table("projects").insert(project_data).execute()
+        
+        # Add user as project member
+        project_membership_data = {
+            "id": str(uuid4()),
+            "project_id": str(project_id),
+            "user_id": user["id"],
+            "role": "admin",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        supabase.table("project_members").insert(project_membership_data).execute()
+        
         # Create tokens
         permissions = [p.value for p in ROLE_PERMISSIONS[OrganizationRole.OWNER]]
         organizations = [{

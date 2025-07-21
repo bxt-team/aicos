@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ProjectRequired from './ProjectRequired';
 import { apiService } from '../services/api';
 import './VisualPostsInterface.css';
 import ImageFeedback from './ImageFeedback';
@@ -490,6 +491,7 @@ const VisualPostsInterface: React.FC = () => {
   };
 
   return (
+    <ProjectRequired>
     <div className="visual-posts-interface">
       <div className="visual-posts-header">
         <div className="header-content">
@@ -891,6 +893,7 @@ const VisualPostsInterface: React.FC = () => {
       {/* Instagram Post Selection Modal */}
       {renderInstagramPostModal()}
     </div>
+    </ProjectRequired>
   );
 };
 

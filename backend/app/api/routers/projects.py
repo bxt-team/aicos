@@ -37,23 +37,67 @@ async def list_projects(
 ):
     """List all projects the user has access to"""
     try:
-        # In a real implementation, query database for projects
-        # Filter by organization_id if provided
-        projects = []
+        from app.core.dependencies import get_supabase_client
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
         
-        # Mock data for now
-        if organization_id == current_user.default_organization_id:
-            projects = [
-                {
-                    "id": "proj_1",
-                    "name": "Default Project",
-                    "description": "Main project",
-                    "organization_id": organization_id,
-                    "created_at": datetime.now().isoformat(),
-                    "is_active": True,
-                    "member_count": 1
-                }
-            ]
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get projects the user has access to
+        if organization_id:
+            # Get projects for specific organization
+            # First check if user has access to this organization
+            org_check = supabase.table("organization_members").select("role").eq(
+                "user_id", str(current_user.id)
+            ).eq("organization_id", organization_id).execute()
+            
+            if not org_check.data:
+                raise HTTPException(status_code=403, detail="Access denied to this organization")
+            
+            # Get all projects for the organization
+            result = supabase.table("projects").select("*").eq(
+                "organization_id", organization_id
+            ).execute()
+            
+            projects = []
+            for project in result.data:
+                # Check if user is a member of this project
+                member_check = supabase.table("project_members").select("role").eq(
+                    "user_id", str(current_user.id)
+                ).eq("project_id", project["id"]).execute()
+                
+                projects.append({
+                    "id": project["id"],
+                    "name": project["name"],
+                    "description": project.get("description"),
+                    "organization_id": project["organization_id"],
+                    "created_at": project["created_at"],
+                    "is_active": project.get("is_active", True),
+                    "role": member_check.data[0]["role"] if member_check.data else None
+                })
+        else:
+            # Get all projects user has access to
+            result = supabase.table("project_members").select(
+                "role, projects(id, name, description, organization_id, created_at, is_active)"
+            ).eq("user_id", str(current_user.id)).execute()
+            
+            projects = []
+            for membership in result.data:
+                if membership.get("projects"):
+                    project = membership["projects"]
+                    projects.append({
+                        "id": project["id"],
+                        "name": project["name"],
+                        "description": project.get("description"),
+                        "organization_id": project["organization_id"],
+                        "created_at": project["created_at"],
+                        "is_active": project.get("is_active", True),
+                        "role": membership["role"]
+                    })
         
         return {
             "success": True,

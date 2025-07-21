@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
+import ProjectRequired from './ProjectRequired';
 import './QAInterface.css';
 
 interface QAInterfaceProps {}
@@ -84,10 +85,11 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
   ];
 
   return (
-    <div className="qa-interface">
-      <div className="qa-header">
-        <h2>Ask About the 7 Cycles of Life</h2>
-        <p>Get insights and answers based on the comprehensive knowledge base</p>
+    <ProjectRequired>
+      <div className="qa-interface">
+        <div className="qa-header">
+          <h2>Ask About the 7 Cycles of Life</h2>
+          <p>Get insights and answers based on the comprehensive knowledge base</p>
         
         <button
           className="overview-toggle"
@@ -169,6 +171,7 @@ const QAInterface: React.FC<QAInterfaceProps> = () => {
         )}
       </div>
     </div>
+    </ProjectRequired>
   );
 };
 

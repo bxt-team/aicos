@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ProjectRequired from './ProjectRequired';
 import './VoiceOverInterface.css';
 
 interface VoiceOverInterfaceProps {
@@ -247,6 +248,7 @@ const VoiceOverInterface: React.FC<VoiceOverInterfaceProps> = ({
   };
 
   return (
+    <ProjectRequired>
     <div className="voice-over-interface">
       <h2>Voice Over & Captions</h2>
 
@@ -540,6 +542,7 @@ const VoiceOverInterface: React.FC<VoiceOverInterfaceProps> = ({
         </div>
       )}
     </div>
+    </ProjectRequired>
   );
 };
 

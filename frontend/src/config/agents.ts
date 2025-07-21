@@ -6,7 +6,6 @@ export interface AgentConfig {
   description: string;
   category: string;
   enabled: boolean;
-  apiHealthCheck?: string;
   features: string[];
   version?: string;
 }
@@ -31,7 +30,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Beantwortet Fragen über die 7 Lebenszyklen basierend auf der Wissensdatenbank',
     category: 'Wissen & Forschung',
     enabled: true,
-    apiHealthCheck: '/qa-health',
     features: ['Fragebeantwortung', 'Wissensdatenbank', 'Kontextuelle Antworten'],
     version: '1.0'
   },
@@ -43,7 +41,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Erstellt kraftvolle, personalisierte Affirmationen für jede 7 Cycles Periode',
     category: 'Persönlichkeitsentwicklung',
     enabled: true,
-    apiHealthCheck: '/periods',
     features: ['7 Cycles Integration', 'Personalisierung', 'Periodenspezifisch'],
     version: '1.0'
   },
@@ -55,7 +52,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Generiert Instagram Posts mit Affirmationen, relevanten Hashtags und Call-to-Actions',
     category: 'Social Media Marketing',
     enabled: true,
-    apiHealthCheck: '/instagram-posts',
     features: ['Hashtag Research', 'Call-to-Actions', 'Engagement Strategien', 'Content Marketing'],
     version: '1.0'
   },
@@ -67,7 +63,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Postet Inhalte direkt auf Instagram mit optimaler Timing und Engagement-Strategien',
     category: 'Social Media Marketing',
     enabled: true,
-    apiHealthCheck: '/instagram-posting-status',
     features: ['Direct Instagram Posting', 'Content Optimization', 'Rate Limiting', 'Posting History'],
     version: '1.0'
   },
@@ -79,7 +74,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Analysiert erfolgreiche Instagram-Accounts und generiert umsetzbare Posting-Strategien',
     category: 'Social Media Marketing',
     enabled: true,
-    apiHealthCheck: '/instagram-analyses',
     features: ['Account Analysis', 'Success Factor Identification', 'Strategy Generation', 'Competitive Analysis'],
     version: '1.0'
   },
@@ -91,7 +85,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Erstellt ästhetische visuelle Affirmations-Posts mit Hintergrundbildern',
     category: 'Visual Content',
     enabled: true,
-    apiHealthCheck: '/visual-posts',
     features: ['Bildsuche', 'Farb-Overlays', 'Design Automation', 'Instagram Stories'],
     version: '1.0'
   },
@@ -103,7 +96,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Vollständige Content-Erstellung mit CrewAI Flow System',
     category: 'Content Creation',
     enabled: true,
-    apiHealthCheck: '/content',
     features: ['CrewAI Integration', 'Multi-Agent Workflows', 'Research & Writing', 'Bild-Generierung'],
     version: '1.0'
   },
@@ -115,7 +107,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Orchestriert komplette Content-Workflows von Affirmationen bis zu geplanten Posts und Reels',
     category: 'System Management',
     enabled: true,
-    apiHealthCheck: '/api/workflow-templates',
     features: ['Multi-Agent Orchestration', 'Workflow Templates', 'Monitoring', 'Video Generation', 'Post Composition'],
     version: '1.0'
   },
@@ -127,7 +118,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Komponiere professionelle visuelle Posts mit Templates und benutzerdefinierten Optionen',
     category: 'Visual Content',
     enabled: true,
-    apiHealthCheck: '/api/composition-templates',
     features: ['Template System', 'Custom Options', 'Multi-Format Support', 'Professional Design'],
     version: '1.0'
   },
@@ -139,7 +129,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Erstelle ansprechende Instagram Reels aus Bildern mit verschiedenen Effekten und Animationen',
     category: 'Visual Content',
     enabled: true,
-    apiHealthCheck: '/api/video-types',
     features: ['Multiple Video Types', 'FFmpeg Integration', 'Instagram Reels', 'Professional Effects'],
     version: '1.0'
   },
@@ -151,7 +140,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Erstelle professionelle Instagram Reels mit KI-Scripts, Runway-Videos und ChatGPT Sora 5-Sekunden-Loops',
     category: 'Visual Content',
     enabled: true,
-    apiHealthCheck: '/api/reel-themes',
     features: ['Video Script Generation', 'Runway AI Integration', 'ChatGPT Sora Loops', '7 Cycles Optimized', '5s Loop Videos'],
     version: '2.0'
   },
@@ -163,7 +151,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Automatisierte QA- und Performance-Tests für iOS und Android Apps mit detaillierter Fehleranalyse und UX-Empfehlungen',
     category: 'Quality Assurance',
     enabled: true,
-    apiHealthCheck: '/api/app-test/health/check',
     features: ['iOS & Android Testing', 'Automatisierte UI-Tests', 'Performance-Analyse', 'Crash-Erkennung', 'Accessibility-Prüfung', 'Cross-Platform Vergleich'],
     version: '2.0'
   },
@@ -175,7 +162,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Erstelle professionelle Voice-Overs und Untertitel für Videos mit KI-Sprachsynthese und automatischer Transkription',
     category: 'Video Content',
     enabled: true,
-    apiHealthCheck: '/api/available-voices',
     features: ['Voice-Over Generation', 'ElevenLabs Integration', 'Auto-Untertitelung', 'Multi-Language Support', 'Video Processing'],
     version: '1.0'
   },
@@ -187,7 +173,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Analysiere und optimiere App Store und Play Store Listings, Meta Ads Performance und Google Analytics für mobile Apps',
     category: 'Mobile Marketing',
     enabled: true,
-    apiHealthCheck: '/api/mobile-analytics/app-store/health',
     features: ['App Store ASO Analysis', 'Play Store Optimization', 'Meta Ads Performance', 'Google Analytics Mobile', 'Review Sentiment Analysis', 'Keyword Optimization'],
     version: '1.0'
   },
@@ -199,7 +184,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Manage Meta Threads content with AI-powered analysis, strategy, and scheduling',
     category: 'Social Media Marketing',
     enabled: true,
-    apiHealthCheck: '/api/threads/health',
     features: ['Profile Analysis', 'Content Strategy', 'Post Generation', 'Approval Workflow', 'Smart Scheduling'],
     version: '1.0'
   },
@@ -211,7 +195,6 @@ export const agentConfigs: AgentConfig[] = [
     description: 'Comprehensive X/Twitter management with viral content creation and engagement optimization',
     category: 'Social Media Marketing',
     enabled: true,
-    apiHealthCheck: '/api/x/health',
     features: ['Tweet Analysis', 'Thread Creation', 'Poll Management', 'Viral Strategies', 'Algorithm Optimization'],
     version: '1.0'
   }

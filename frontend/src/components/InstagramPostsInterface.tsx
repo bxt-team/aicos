@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ProjectRequired from './ProjectRequired';
 import { apiService } from '../services/api';
 import './InstagramPostsInterface.css';
 
@@ -383,6 +384,7 @@ const InstagramPostsInterface: React.FC = () => {
   };
 
   return (
+    <ProjectRequired>
     <div className="instagram-posts-interface">
       <div className="instagram-header">
         <h2>📱 Instagram Post Generator mit Hashtag Research</h2>
@@ -685,6 +687,7 @@ const InstagramPostsInterface: React.FC = () => {
         )}
       </div>
     </div>
+    </ProjectRequired>
   );
 };
 

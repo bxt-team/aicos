@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ProjectRequired from './ProjectRequired';
 import { apiService } from '../services/api';
 import './WorkflowManagement.css';
 
@@ -466,6 +467,7 @@ const WorkflowManagement: React.FC = () => {
   );
 
   return (
+    <ProjectRequired>
     <div className="workflow-management">
       <div className="header">
         <h2>🔄 Workflow Management</h2>
@@ -506,6 +508,7 @@ const WorkflowManagement: React.FC = () => {
         {activeTab === 'templates' && renderTemplatesTab()}
       </div>
     </div>
+    </ProjectRequired>
   );
 };
 

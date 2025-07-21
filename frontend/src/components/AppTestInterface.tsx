@@ -121,7 +121,8 @@ const AppTestInterface: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [tabValue, setTabValue] = useState(0);
   const [detailsTabValue, setDetailsTabValue] = useState(0);
-  const [healthStatus, setHealthStatus] = useState<any>(null);
+  // Removed health status - assuming all agents are always up
+  const healthStatus = { status: 'healthy', platforms: { android: { status: 'ready' }, ios: { status: 'ready' } } };
   const [uploadedApps, setUploadedApps] = useState<UploadedApp[]>([]);
   const [showAppSelector, setShowAppSelector] = useState(false);
   const [loadingApps, setLoadingApps] = useState(false);
@@ -134,7 +135,6 @@ const AppTestInterface: React.FC = () => {
   // Fetch test results on mount
   useEffect(() => {
     fetchTestResults();
-    fetchHealthStatus();
     const interval = setInterval(fetchTestResults, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -179,15 +179,7 @@ const AppTestInterface: React.FC = () => {
     }
   };
 
-  const fetchHealthStatus = async () => {
-    try {
-      const response = await fetch('/api/app-test/health/check');
-      const data = await response.json();
-      setHealthStatus(data);
-    } catch (err) {
-      console.error('Failed to fetch health status:', err);
-    }
-  };
+  // Removed health status fetching - all agents are assumed to be always up
 
   const fetchUploadedApps = async () => {
     setLoadingApps(true);

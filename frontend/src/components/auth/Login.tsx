@@ -13,7 +13,9 @@ import {
   IconButton,
   InputAdornment,
   useTheme,
-  alpha
+  alpha,
+  FormControlLabel,
+  Checkbox
 } from '@mui/material';
 import {
   Visibility,
@@ -28,6 +30,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -41,7 +44,7 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
@@ -211,7 +214,24 @@ const Login: React.FC = () => {
               }}
             />
             
-            <Box sx={{ textAlign: 'right', mb: 3 }}>
+            
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    name="rememberMe"
+                    color="primary"
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                    Remember me
+                  </Typography>
+                }
+              />
               <Link 
                 to="/forgot-password" 
                 style={{ 

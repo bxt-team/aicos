@@ -9,7 +9,7 @@ from datetime import datetime
 from app.core.auth import get_current_user, check_permission
 from app.models.auth import User, Permission, OrganizationRole
 from app.core.dependencies import get_supabase_client
-# from app.core.security.permissions import has_organization_permission
+from app.core.security.permissions import has_organization_permission
 
 router = APIRouter(prefix="/api/organizations", tags=["Organizations"])
 
@@ -41,18 +41,31 @@ async def list_organizations(
 ):
     """List all organizations the user belongs to"""
     try:
-        # Get user's organization memberships from database
-        # This would query the organization_members table
-        organizations = []
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
         
-        # For now, return the user's default organization
-        if current_user.default_organization_id:
-            organizations.append({
-                "id": current_user.default_organization_id,
-                "name": "Default Organization",
-                "role": "owner",
-                "created_at": current_user.created_at
-            })
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get user's organization memberships from database
+        result = supabase.table("organization_members").select(
+            "role, created_at, organizations(id, name, description, created_at)"
+        ).eq("user_id", str(current_user.id)).execute()
+        
+        organizations = []
+        for membership in result.data:
+            if membership.get("organizations"):
+                org = membership["organizations"]
+                organizations.append({
+                    "id": org["id"],
+                    "name": org["name"],
+                    "description": org.get("description"),
+                    "role": membership["role"],
+                    "created_at": org["created_at"]
+                })
         
         return {
             "success": True,
@@ -69,24 +82,82 @@ async def create_organization(
 ):
     """Create a new organization"""
     try:
-        # In a real implementation, this would:
-        # 1. Create organization in database
-        # 2. Add current user as owner
-        # 3. Return the created organization
+        from uuid import uuid4
+        import re
         
-        organization = {
-            "id": f"org_{datetime.now().timestamp()}",
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Create organization
+        org_id = str(uuid4())
+        slug = re.sub(r'[^a-z0-9-]', '-', request.name.lower()).strip('-')
+        
+        org_data = {
+            "id": org_id,
             "name": request.name,
+            "slug": slug,
             "description": request.description,
             "website": request.website,
-            "subscription_tier": request.subscription_tier,
-            "created_at": datetime.now().isoformat(),
-            "created_by": current_user.id
+            "subscription_tier": request.subscription_tier or "free",
+            "created_by": str(current_user.id),
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
         }
+        supabase.table("organizations").insert(org_data).execute()
+        
+        # Add user as owner
+        membership_data = {
+            "id": str(uuid4()),
+            "organization_id": org_id,
+            "user_id": str(current_user.id),
+            "role": "owner",
+            "accepted_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        supabase.table("organization_members").insert(membership_data).execute()
+        
+        # Create default project
+        project_id = str(uuid4())
+        project_data = {
+            "id": project_id,
+            "organization_id": org_id,
+            "name": "Default Project",
+            "description": "Your first project - feel free to rename or create additional projects",
+            "created_by": str(current_user.id),
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        supabase.table("projects").insert(project_data).execute()
+        
+        # Add user as project admin
+        project_membership_data = {
+            "id": str(uuid4()),
+            "project_id": project_id,
+            "user_id": str(current_user.id),
+            "role": "admin",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        supabase.table("project_members").insert(project_membership_data).execute()
         
         return {
             "success": True,
-            "organization": organization,
+            "organization": {
+                "id": org_id,
+                "name": request.name,
+                "slug": slug,
+                "description": request.description,
+                "website": request.website,
+                "subscription_tier": request.subscription_tier or "free",
+                "created_at": org_data["created_at"]
+            },
             "message": "Organization created successfully"
         }
     except Exception as e:

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { agentConfigs, AgentConfig } from '../config/agents';
 import axios from 'axios';
 import './AgentManagement.css';
@@ -18,38 +18,14 @@ interface AgentPrompt {
 
 const AgentManagement: React.FC = () => {
   const [agents] = useState<AgentConfig[]>(agentConfigs);
-  const [healthStatus, setHealthStatus] = useState<{ [key: string]: boolean }>({});
-  const [loading, setLoading] = useState(false);
+  // Removed health status - all agents are assumed to be always up
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [agentPrompts, setAgentPrompts] = useState<{ [key: string]: AgentPrompt }>({});
   const [loadingPrompts, setLoadingPrompts] = useState<Set<string>>(new Set());
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-  const checkAgentHealth = useCallback(async () => {
-    setLoading(true);
-    const status: { [key: string]: boolean } = {};
-
-    for (const agent of agents) {
-      if (agent.apiHealthCheck) {
-        try {
-          const response = await fetch(`${API_BASE_URL}${agent.apiHealthCheck}`);
-          status[agent.id] = response.ok;
-        } catch {
-          status[agent.id] = false;
-        }
-      } else {
-        status[agent.id] = true; // Assume healthy if no health check endpoint
-      }
-    }
-
-    setHealthStatus(status);
-    setLoading(false);
-  }, [agents, API_BASE_URL]);
-
-  useEffect(() => {
-    checkAgentHealth();
-  }, [checkAgentHealth]);
+  // Removed health check - all agents are assumed to be always up
 
   const formatTimestamp = (timestamp?: string) => {
     if (!timestamp) return 'Unbekannt';
@@ -57,13 +33,11 @@ const AgentManagement: React.FC = () => {
   };
 
   const getStatusIcon = (agentId: string) => {
-    if (loading) return '🔄';
-    return healthStatus[agentId] ? '✅' : '❌';
+    return '✅';
   };
 
   const getStatusText = (agentId: string) => {
-    if (loading) return 'Überprüfung...';
-    return healthStatus[agentId] ? 'Online' : 'Offline';
+    return 'Online';
   };
 
   const getCategoryColor = (category: string) => {
@@ -158,15 +132,7 @@ const AgentManagement: React.FC = () => {
       <div className="management-header">
         <h2>🤖 Agent Management Dashboard</h2>
         <p>Übersicht und Status aller verfügbaren AI-Agenten</p>
-        <div className="header-actions">
-          <button 
-            className="refresh-button"
-            onClick={checkAgentHealth}
-            disabled={loading}
-          >
-            {loading ? '🔄 Überprüfung...' : '🔄 Status aktualisieren'}
-          </button>
-        </div>
+        {/* Removed refresh button - all agents are always up */}
       </div>
 
       <div className="agents-overview">
@@ -174,10 +140,6 @@ const AgentManagement: React.FC = () => {
           <div className="stat-card">
             <div className="stat-number">{agents.filter(a => a.enabled).length}</div>
             <div className="stat-label">Aktive Agenten</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">{Object.values(healthStatus).filter(Boolean).length}</div>
-            <div className="stat-label">Online</div>
           </div>
           <div className="stat-card">
             <div className="stat-number">{Array.from(new Set(agents.map(a => a.category))).length}</div>
@@ -206,15 +168,7 @@ const AgentManagement: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <div className="status-section">
-                  <div className="status-indicator">
-                    <span className="status-icon">{getStatusIcon(agent.id)}</span>
-                    <span className="status-text">{getStatusText(agent.id)}</span>
-                  </div>
-                  {agent.version && (
-                    <div className="version">v{agent.version}</div>
-                  )}
-                </div>
+                {/* Status and version info hidden */}
               </div>
 
               <div className="card-content">
@@ -243,14 +197,6 @@ const AgentManagement: React.FC = () => {
                   >
                     {loadingPrompts.has(agent.id) ? '⏳' : expandedAgents.has(agent.id) ? '📖 Prompts ausblenden' : '📋 Prompts anzeigen'}
                   </button>
-                  {agent.apiHealthCheck && (
-                    <button 
-                      className="action-button secondary"
-                      onClick={() => window.open(`${API_BASE_URL}${agent.apiHealthCheck}`, '_blank')}
-                    >
-                      🔗 API testen
-                    </button>
-                  )}
                 </div>
 
                 {expandedAgents.has(agent.id) && agentPrompts[agent.id] && (

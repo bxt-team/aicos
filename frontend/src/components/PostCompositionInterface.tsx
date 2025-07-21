@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ProjectRequired from './ProjectRequired';
 import axios from 'axios';
 import './PostCompositionInterface.css';
 
@@ -252,6 +253,7 @@ const PostCompositionInterface: React.FC = () => {
   };
 
   return (
+    <ProjectRequired>
     <div className="post-composition-interface">
       <div className="header">
         <h2>🎨 Post Komposition</h2>
@@ -618,6 +620,7 @@ const PostCompositionInterface: React.FC = () => {
         </div>
       )}
     </div>
+    </ProjectRequired>
   );
 };
 

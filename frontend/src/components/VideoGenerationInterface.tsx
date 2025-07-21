@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ProjectRequired from './ProjectRequired';
 import axios from 'axios';
 import './VideoGenerationInterface.css';
 
@@ -273,6 +274,7 @@ const VideoGenerationInterface: React.FC = () => {
   }
 
   return (
+    <ProjectRequired>
     <div className="video-generation-interface">
       <div className="header">
         <h2>🎬 Video Generation</h2>
@@ -510,6 +512,7 @@ const VideoGenerationInterface: React.FC = () => {
         </div>
       </div>
     </div>
+    </ProjectRequired>
   );
 };
 

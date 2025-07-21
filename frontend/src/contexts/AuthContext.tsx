@@ -1,13 +1,20 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
+interface OrganizationMembership {
+  organization?: Organization;
+  role: string;
+  joined_at?: string;
+}
+
 interface User {
   id: string;
   email: string;
   name: string;
-  default_organization_id: string;
+  default_organization_id?: string;
+  avatar_url?: string;
   created_at: string;
-  organizations?: Organization[];
+  organizations?: (Organization | OrganizationMembership)[];
 }
 
 export interface Organization {
@@ -33,7 +40,7 @@ interface AuthContextType {
   currentProject: Project | null;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   signup: (email: string, password: string, name: string, organizationName: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
@@ -63,15 +70,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load token from localStorage on mount
+  // Load token from localStorage or sessionStorage on mount
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      setAccessToken(token);
-      fetchUserInfo(token);
-    } else {
-      setIsLoading(false);
-    }
+    const loadAuthState = async () => {
+      try {
+        // Check localStorage first (remember me), then sessionStorage
+        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+        
+        if (token) {
+          setAccessToken(token);
+          await fetchUserInfo(token);
+        } else {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Failed to restore auth state:', error);
+        setIsLoading(false);
+      }
+    };
+    
+    loadAuthState();
   }, []);
 
   // Set axios default headers when token changes
@@ -100,37 +118,95 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchUserInfo = async (token: string) => {
     try {
-      const response = await axios.get('/auth/me', {
+      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      console.log('AuthContext: Fetching user info from:', `${baseURL}/auth/me`);
+      const response = await axios.get(`${baseURL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log('AuthContext: User info response:', response.data);
       setUser(response.data);
       
-      // Set default organization if available
-      if (response.data.organizations && response.data.organizations.length > 0) {
-        setCurrentOrganization(response.data.organizations[0]);
+      // Restore saved organization or set default
+      const savedOrgId = localStorage.getItem('currentOrganizationId');
+      if (savedOrgId && response.data.organizations) {
+        const savedOrgMembership = response.data.organizations.find((membership: any) => {
+          const org = membership.organization || membership;
+          return org.id === savedOrgId;
+        });
+        if (savedOrgMembership) {
+          const org = savedOrgMembership.organization || savedOrgMembership;
+          setCurrentOrganization({
+            id: org.id,
+            name: org.name,
+            role: savedOrgMembership.role || org.role,
+            created_at: org.created_at
+          });
+        } else if (response.data.organizations.length > 0) {
+          const firstOrgMembership = response.data.organizations[0];
+          const org = firstOrgMembership.organization || firstOrgMembership;
+          setCurrentOrganization({
+            id: org.id,
+            name: org.name,
+            role: firstOrgMembership.role || org.role,
+            created_at: org.created_at
+          });
+        }
+      } else if (response.data.organizations && response.data.organizations.length > 0) {
+        const firstOrgMembership = response.data.organizations[0];
+        const org = firstOrgMembership.organization || firstOrgMembership;
+        setCurrentOrganization({
+          id: org.id,
+          name: org.name,
+          role: firstOrgMembership.role || org.role,
+          created_at: org.created_at
+        });
       }
     } catch (err) {
       console.error('Failed to fetch user info:', err);
       setAccessToken(null);
+      // Clear from both storages
       localStorage.removeItem('accessToken');
+      sessionStorage.removeItem('accessToken');
+      localStorage.removeItem('currentOrganizationId');
+      localStorage.removeItem('currentProjectId');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = true) => {
     setError(null);
     try {
-      const response = await axios.post('/auth/login', { email, password });
+      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await axios.post(`${baseURL}/auth/login`, { email, password });
+      console.log('AuthContext: Login response:', response.data);
       const { access_token, user: userData } = response.data;
       
       setAccessToken(access_token);
       setUser(userData);
-      localStorage.setItem('accessToken', access_token);
+      
+      // Store token based on remember me preference
+      if (rememberMe) {
+        localStorage.setItem('accessToken', access_token);
+        // Clear from sessionStorage if it exists
+        sessionStorage.removeItem('accessToken');
+      } else {
+        sessionStorage.setItem('accessToken', access_token);
+        // Clear from localStorage if it exists
+        localStorage.removeItem('accessToken');
+      }
       
       // Set default organization
       if (userData.organizations && userData.organizations.length > 0) {
-        setCurrentOrganization(userData.organizations[0]);
+        // Handle both nested and flat organization structure
+        const firstOrgMembership = userData.organizations[0];
+        const org = firstOrgMembership.organization || firstOrgMembership;
+        handleSetCurrentOrganization({
+          id: org.id,
+          name: org.name,
+          role: firstOrgMembership.role || org.role,
+          created_at: org.created_at
+        });
       }
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Login failed';
@@ -142,7 +218,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signup = async (email: string, password: string, name: string, organizationName: string) => {
     setError(null);
     try {
-      const response = await axios.post('/auth/signup', {
+      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await axios.post(`${baseURL}/auth/signup`, {
         email,
         password,
         name,
@@ -153,15 +230,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       setAccessToken(access_token);
       setUser(userData);
+      // Default to remembering signup tokens
       localStorage.setItem('accessToken', access_token);
       
       // Set the new organization as current
-      setCurrentOrganization({
-        id: organization.id,
-        name: organization.name,
-        role: 'owner',
-        created_at: organization.created_at
-      });
+      if (userData.organizations && userData.organizations.length > 0) {
+        // Handle the organization structure from signup response
+        const firstOrgMembership = userData.organizations[0];
+        const org = firstOrgMembership.organization || organization || firstOrgMembership;
+        handleSetCurrentOrganization({
+          id: org.id,
+          name: org.name,
+          role: firstOrgMembership.role || 'owner',
+          created_at: org.created_at
+        });
+      } else if (organization) {
+        // Fallback to the organization object directly
+        handleSetCurrentOrganization({
+          id: organization.id,
+          name: organization.name,
+          role: 'owner',
+          created_at: organization.created_at
+        });
+      }
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Signup failed';
       setError(errorMessage);
@@ -171,7 +262,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await axios.post('/auth/logout');
+      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      await axios.post(`${baseURL}/auth/logout`);
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
@@ -179,7 +271,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setAccessToken(null);
       setCurrentOrganization(null);
       setCurrentProject(null);
+      // Clear from both storages
       localStorage.removeItem('accessToken');
+      sessionStorage.removeItem('accessToken');
+      localStorage.removeItem('currentOrganizationId');
+      localStorage.removeItem('currentProjectId');
       delete axios.defaults.headers.common['Authorization'];
       delete axios.defaults.headers.common['X-Organization-ID'];
       delete axios.defaults.headers.common['X-Project-ID'];
@@ -188,13 +284,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const refreshToken = async () => {
     try {
-      const response = await axios.post('/auth/refresh');
+      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await axios.post(`${baseURL}/auth/refresh`);
       const { access_token } = response.data;
       setAccessToken(access_token);
-      localStorage.setItem('accessToken', access_token);
+      // Store in the same storage type as current token
+      const hasLocalStorage = localStorage.getItem('accessToken') !== null;
+      if (hasLocalStorage) {
+        localStorage.setItem('accessToken', access_token);
+      } else {
+        sessionStorage.setItem('accessToken', access_token);
+      }
     } catch (err) {
       console.error('Token refresh failed:', err);
       logout();
+    }
+  };
+
+  // Wrapped setters to persist to localStorage
+  const handleSetCurrentOrganization = (org: Organization | null) => {
+    setCurrentOrganization(org);
+    if (org) {
+      localStorage.setItem('currentOrganizationId', org.id);
+    } else {
+      localStorage.removeItem('currentOrganizationId');
+    }
+  };
+
+  const handleSetCurrentProject = (project: Project | null) => {
+    setCurrentProject(project);
+    if (project) {
+      localStorage.setItem('currentProjectId', project.id);
+    } else {
+      localStorage.removeItem('currentProjectId');
     }
   };
 
@@ -209,8 +331,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signup,
     logout,
     refreshToken,
-    setCurrentOrganization,
-    setCurrentProject
+    setCurrentOrganization: handleSetCurrentOrganization,
+    setCurrentProject: handleSetCurrentProject
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

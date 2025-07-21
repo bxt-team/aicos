@@ -176,7 +176,8 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
         # Only log write operations
         if request.method in self.LOGGED_METHODS and response.status_code < 400:
             # Get user and context info
-            user_id = getattr(request.state, "user", {}).get("id") if hasattr(request.state, "user") else None
+            user = getattr(request.state, "user", None) if hasattr(request.state, "user") else None
+            user_id = user.get("id") if user and isinstance(user, dict) else None
             org_id = getattr(request.state, "organization_id", None)
             project_id = getattr(request.state, "project_id", None)
             

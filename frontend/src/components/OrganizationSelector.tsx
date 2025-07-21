@@ -23,7 +23,7 @@ const OrganizationSelector: React.FC = () => {
   const { currentOrganization, setCurrentOrganization, currentProject, setCurrentProject, user } = useAuth();
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isLoadingOrgs, setIsLoadingOrgs] = useState(true);
+  const [isLoadingOrgs, setIsLoadingOrgs] = useState(false);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
@@ -31,21 +31,34 @@ const OrganizationSelector: React.FC = () => {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
 
-  // Load organizations
+  // Load organizations from user data
   useEffect(() => {
-    const loadOrganizations = async () => {
-      try {
-        const response = await axios.get('/api/organizations');
-        setOrganizations(response.data.organizations);
-      } catch (error) {
-        console.error('Failed to load organizations:', error);
-      } finally {
-        setIsLoadingOrgs(false);
+    console.log('OrganizationSelector: User data:', user);
+    console.log('OrganizationSelector: Current organization:', currentOrganization);
+    
+    if (user && user.organizations) {
+      // Transform the organizations from the user object to the expected format
+      const orgs = user.organizations.map((membership: any) => {
+        // Handle both nested and flat organization structure
+        const org = membership.organization || membership;
+        return {
+          id: org.id,
+          name: org.name,
+          description: org.description,
+          role: membership.role || org.role,
+          created_at: org.created_at
+        };
+      });
+      console.log('OrganizationSelector: Transformed organizations:', orgs);
+      setOrganizations(orgs);
+      
+      // If no current organization is set but we have organizations, set the first one
+      if (!currentOrganization && orgs.length > 0) {
+        console.log('OrganizationSelector: Setting first organization as current');
+        setCurrentOrganization(orgs[0]);
       }
-    };
-
-    if (user) {
-      loadOrganizations();
+    } else {
+      console.log('OrganizationSelector: No user or organizations data');
     }
   }, [user]);
 
@@ -54,16 +67,42 @@ const OrganizationSelector: React.FC = () => {
     const loadProjects = async () => {
       if (!currentOrganization) return;
       
+      console.log('OrganizationSelector: Loading projects for organization:', currentOrganization.id);
       setIsLoadingProjects(true);
       try {
-        const response = await axios.get('/api/projects', {
+        const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+        const response = await axios.get(`${baseURL}/api/projects`, {
           params: { organization_id: currentOrganization.id }
         });
+        console.log('OrganizationSelector: Projects loaded:', response.data.projects);
         setProjects(response.data.projects);
         
-        // Auto-select first project if none selected
-        if (response.data.projects.length > 0 && !currentProject) {
-          setCurrentProject(response.data.projects[0]);
+        // If no projects exist, create a default one
+        if (response.data.projects.length === 0) {
+          const newProjectResponse = await axios.post(`${baseURL}/api/projects`, {
+            name: 'Default Project',
+            description: 'Your first project - feel free to rename or create additional projects',
+            organization_id: currentOrganization.id
+          });
+          
+          const newProject = newProjectResponse.data.project;
+          setProjects([newProject]);
+          setCurrentProject(newProject);
+        } else {
+          // Try to restore saved project
+          const savedProjectId = localStorage.getItem('currentProjectId');
+          if (savedProjectId) {
+            const savedProject = response.data.projects.find((p: Project) => p.id === savedProjectId);
+            if (savedProject) {
+              setCurrentProject(savedProject);
+            } else if (!currentProject) {
+              // Saved project not found, select first
+              setCurrentProject(response.data.projects[0]);
+            }
+          } else if (!currentProject || !response.data.projects.find((p: Project) => p.id === currentProject.id)) {
+            // No saved project and no current project, select first
+            setCurrentProject(response.data.projects[0]);
+          }
         }
       } catch (error) {
         console.error('Failed to load projects:', error);
@@ -92,7 +131,8 @@ const OrganizationSelector: React.FC = () => {
 
   const handleCreateOrg = async () => {
     try {
-      const response = await axios.post('/api/organizations', {
+      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await axios.post(`${baseURL}/api/organizations`, {
         name: newOrgName
       });
       
@@ -111,7 +151,8 @@ const OrganizationSelector: React.FC = () => {
     if (!currentOrganization) return;
     
     try {
-      const response = await axios.post('/api/projects', {
+      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await axios.post(`${baseURL}/api/projects`, {
         name: newProjectName,
         description: newProjectDescription,
         organization_id: currentOrganization.id
@@ -148,7 +189,13 @@ const OrganizationSelector: React.FC = () => {
           value={currentOrganization?.id || ''}
           onChange={(e) => handleOrgChange(e.target.value)}
           label="Organisation"
+          displayEmpty
         >
+          {organizations.length === 0 && (
+            <MenuItem value="" disabled>
+              <em>Keine Organisation verfügbar</em>
+            </MenuItem>
+          )}
           {organizations.map((org) => (
             <MenuItem key={org.id} value={org.id}>
               {org.name}
@@ -177,13 +224,23 @@ const OrganizationSelector: React.FC = () => {
             onChange={(e) => handleProjectChange(e.target.value)}
             label="Projekt"
             disabled={isLoadingProjects}
+            displayEmpty
           >
+            {isLoadingProjects ? (
+              <MenuItem value="" disabled>
+                <em>Lade Projekte...</em>
+              </MenuItem>
+            ) : projects.length === 0 ? (
+              <MenuItem value="" disabled>
+                <em>Keine Projekte verfügbar</em>
+              </MenuItem>
+            ) : null}
             {projects.map((project) => (
               <MenuItem key={project.id} value={project.id}>
                 {project.name}
               </MenuItem>
             ))}
-            <Divider />
+            {projects.length > 0 && <Divider />}
             <MenuItem onClick={() => setCreateProjectOpen(true)}>
               <AddIcon fontSize="small" sx={{ mr: 1 }} />
               Neues Projekt

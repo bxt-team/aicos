@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ProjectRequired from './ProjectRequired';
 import './InstagramReelInterface.css';
 import VoiceOverInterface from './VoiceOverInterface';
 
@@ -526,6 +527,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
     : reels;
 
   return (
+    <ProjectRequired>
     <div className="instagram-reel-interface">
       <div className="header">
         <div className="header-content">
@@ -1188,6 +1190,7 @@ const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBase
         </div>
       )}
     </div>
+    </ProjectRequired>
   );
 };
 
