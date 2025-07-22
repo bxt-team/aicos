@@ -297,6 +297,55 @@ const Login: React.FC = () => {
             </Box>
           </Box>
         </Paper>
+        
+        {/* Footer with copyright and legal links */}
+        <Box
+          sx={{
+            mt: 4,
+            textAlign: 'center',
+            color: 'white',
+            '& a': {
+              color: 'white',
+              textDecoration: 'none',
+              mx: 1.5,
+              fontSize: '0.875rem',
+              opacity: 0.9,
+              '&:hover': {
+                opacity: 1,
+                textDecoration: 'underline'
+              }
+            }
+          }}
+        >
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            © {new Date().getFullYear()} buildnext GmbH. All rights reserved.
+          </Typography>
+          <Box>
+            <a 
+              href="https://buildnext.io/terms" 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              Terms and Conditions
+            </a>
+            <span style={{ opacity: 0.5 }}>•</span>
+            <a 
+              href="https://buildnext.io/privacy" 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              Privacy
+            </a>
+            <span style={{ opacity: 0.5 }}>•</span>
+            <a 
+              href="https://buildnext.io/imprint" 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              Imprint
+            </a>
+          </Box>
+        </Box>
       </Container>
     </Box>
   );

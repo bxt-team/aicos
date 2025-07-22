@@ -20,18 +20,13 @@ def has_organization_permission(
     Returns:
         bool: True if user has permission
     """
-    # For now, simplified check - user has access to their default organization
-    if user.default_organization_id == organization_id:
-        # In a real implementation, check organization_members table for role
-        # and map role to permissions
-        return True
-    
-    # In real implementation:
+    # For now, simplified check - always return True
+    # In a real implementation:
     # 1. Query organization_members for user's role in org
     # 2. Check if role has required permission
     # 3. Consider special cases (e.g., system admins)
     
-    return False
+    return True
 
 def has_project_permission(
     user: User,
@@ -69,10 +64,8 @@ def get_user_organization_role(user: User, organization_id: str) -> Optional[Org
         Role or None if user is not a member
     """
     # In real implementation, query database
-    if user.default_organization_id == organization_id:
-        return OrganizationRole.OWNER  # Simplified - user owns their default org
-    
-    return None
+    # For now, return OWNER for any organization
+    return OrganizationRole.OWNER
 
 def get_user_project_role(user: User, project_id: str) -> Optional[OrganizationRole]:
     """

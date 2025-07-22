@@ -170,22 +170,36 @@ async def get_organization(
 ):
     """Get organization details"""
     # Check if user has access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.READ):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_READ):
         raise HTTPException(status_code=403, detail="Access denied")
     
-    # In a real implementation, fetch from database
-    organization = {
-        "id": organization_id,
-        "name": "Organization Name",
-        "description": "Organization description",
-        "subscription_tier": "premium",
-        "created_at": datetime.now().isoformat()
-    }
-    
-    return {
-        "success": True,
-        "organization": organization
-    }
+    try:
+        from app.core.dependencies import get_supabase_client
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Fetch organization from database
+        result = supabase.table("organizations").select("*").eq("id", organization_id).single().execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        
+        organization = result.data
+        
+        return {
+            "success": True,
+            "organization": organization
+        }
+    except Exception as e:
+        if "404" not in str(e):
+            raise HTTPException(status_code=500, detail=str(e))
+        raise
 
 @router.put("/{organization_id}")
 async def update_organization(
@@ -195,7 +209,7 @@ async def update_organization(
 ):
     """Update organization details (requires admin permission)"""
     # Check if user has admin access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.WRITE):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_UPDATE):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     # In a real implementation, update in database
@@ -214,7 +228,7 @@ async def delete_organization(
 ):
     """Delete organization (requires owner permission)"""
     # Check if user is owner of this organization
-    if not has_organization_permission(current_user, organization_id, Permission.DELETE):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_DELETE):
         raise HTTPException(status_code=403, detail="Owner access required")
     
     # In a real implementation:
@@ -235,7 +249,7 @@ async def list_organization_members(
 ):
     """List organization members"""
     # Check if user has access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.READ):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_READ):
         raise HTTPException(status_code=403, detail="Access denied")
     
     # In a real implementation, fetch from database
@@ -263,7 +277,7 @@ async def invite_organization_member(
 ):
     """Invite a new member to organization (requires admin permission)"""
     # Check if user has admin access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.WRITE):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_UPDATE):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     # Validate role
@@ -297,7 +311,7 @@ async def update_organization_member(
 ):
     """Update member role (requires admin permission)"""
     # Check if user has admin access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.WRITE):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_UPDATE):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     # Can't change your own role if you're the only owner
@@ -323,7 +337,7 @@ async def remove_organization_member(
 ):
     """Remove member from organization (requires admin permission)"""
     # Check if user has admin access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.WRITE):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_UPDATE):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     # Can't remove yourself if you're the only owner
@@ -345,7 +359,7 @@ async def get_organization_settings(
 ):
     """Get organization settings"""
     # Check if user has access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.READ):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_READ):
         raise HTTPException(status_code=403, detail="Access denied")
     
     # In a real implementation, fetch from database
@@ -379,7 +393,7 @@ async def update_organization_settings(
 ):
     """Update organization settings (requires admin permission)"""
     # Check if user has admin access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.WRITE):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_UPDATE):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     # In a real implementation, validate and update settings
@@ -398,7 +412,7 @@ async def get_organization_usage(
 ):
     """Get organization usage statistics"""
     # Check if user has access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.READ):
+    if not has_organization_permission(current_user, organization_id, Permission.ORG_READ):
         raise HTTPException(status_code=403, detail="Access denied")
     
     # In a real implementation, calculate from database

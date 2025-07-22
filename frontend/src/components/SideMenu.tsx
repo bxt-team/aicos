@@ -28,6 +28,7 @@ const SideMenu: React.FC = () => {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [projectCheckComplete, setProjectCheckComplete] = useState(false);
 
   // Check if organization and project exist when user is logged in
   useEffect(() => {
@@ -35,20 +36,32 @@ const SideMenu: React.FC = () => {
     console.log('SideMenu: User:', user);
     console.log('SideMenu: Current organization:', currentOrganization);
     console.log('SideMenu: Current project:', currentProject);
-    console.log('SideMenu: Should show create org dialog:', !isLoading && user && !currentOrganization);
-    console.log('SideMenu: Should show create project dialog:', !isLoading && user && currentOrganization && !currentProject);
+    console.log('SideMenu: Project check complete:', projectCheckComplete);
     
     // Only show dialog after loading is complete
     if (!isLoading && user) {
       if (!currentOrganization) {
         console.log('SideMenu: Opening create organization dialog');
         setCreateOrgOpen(true);
-      } else if (!currentProject) {
-        console.log('SideMenu: Opening create project dialog');
-        setCreateProjectOpen(true);
+      } else if (currentOrganization && !projectCheckComplete) {
+        // Wait a bit for project to load from localStorage/API
+        const timer = setTimeout(() => {
+          setProjectCheckComplete(true);
+          if (!currentProject) {
+            console.log('SideMenu: Opening create project dialog after delay');
+            setCreateProjectOpen(true);
+          }
+        }, 1500); // 1.5 second delay to allow project loading
+        
+        return () => clearTimeout(timer);
       }
     }
-  }, [user, currentOrganization, currentProject, isLoading]);
+  }, [user, currentOrganization, currentProject, isLoading, projectCheckComplete]);
+  
+  // Reset project check when organization changes
+  useEffect(() => {
+    setProjectCheckComplete(false);
+  }, [currentOrganization]);
 
   // Close menu on route change for mobile
   useEffect(() => {
@@ -140,7 +153,7 @@ const SideMenu: React.FC = () => {
   };
 
   // Don't render agent menu if no organization or project is selected (after loading is complete)
-  if (!isLoading && user && (!currentOrganization || !currentProject)) {
+  if (!isLoading && user && (!currentOrganization || (!currentProject && projectCheckComplete))) {
     return (
       <>
         {/* Organization Creation Dialog */}

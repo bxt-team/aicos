@@ -79,15 +79,24 @@ const OrganizationSelector: React.FC = () => {
         
         // If no projects exist, create a default one
         if (response.data.projects.length === 0) {
-          const newProjectResponse = await axios.post(`${baseURL}/api/projects`, {
-            name: 'Default Project',
-            description: 'Your first project - feel free to rename or create additional projects',
-            organization_id: currentOrganization.id
-          });
-          
-          const newProject = newProjectResponse.data.project;
-          setProjects([newProject]);
-          setCurrentProject(newProject);
+          console.log('OrganizationSelector: No projects found, creating default project');
+          try {
+            const newProjectResponse = await axios.post(`${baseURL}/api/projects`, {
+              name: 'Default Project',
+              description: 'Your first project - feel free to rename or create additional projects',
+              organization_id: currentOrganization.id
+            });
+            
+            const newProject = newProjectResponse.data.project;
+            console.log('OrganizationSelector: Default project created:', newProject);
+            setProjects([newProject]);
+            setCurrentProject(newProject);
+            // Force save to localStorage immediately
+            localStorage.setItem('currentProjectId', newProject.id);
+          } catch (projectError) {
+            console.error('OrganizationSelector: Failed to create default project:', projectError);
+            // Don't block the UI if default project creation fails
+          }
         } else {
           // Try to restore saved project
           const savedProjectId = localStorage.getItem('currentProjectId');

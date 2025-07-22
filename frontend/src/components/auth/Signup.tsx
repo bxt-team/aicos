@@ -229,6 +229,54 @@ const Signup: React.FC = () => {
             </Typography>
           </Box>
         </Paper>
+        
+        {/* Footer with copyright and legal links */}
+        <Box
+          sx={{
+            mt: 4,
+            textAlign: 'center',
+            pb: 3,
+            '& a': {
+              color: 'text.secondary',
+              textDecoration: 'none',
+              mx: 1.5,
+              fontSize: '0.875rem',
+              '&:hover': {
+                color: 'primary.main',
+                textDecoration: 'underline'
+              }
+            }
+          }}
+        >
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            © {new Date().getFullYear()} buildnext GmbH. All rights reserved.
+          </Typography>
+          <Box>
+            <a 
+              href="https://buildnext.io/terms" 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              Terms and Conditions
+            </a>
+            <span style={{ color: 'text.disabled' }}>•</span>
+            <a 
+              href="https://buildnext.io/privacy" 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              Privacy
+            </a>
+            <span style={{ color: 'text.disabled' }}>•</span>
+            <a 
+              href="https://buildnext.io/imprint" 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              Imprint
+            </a>
+          </Box>
+        </Box>
       </Box>
     </Container>
   );
