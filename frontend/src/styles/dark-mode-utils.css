@@ -1,0 +1,253 @@
+/* Dark Mode Utility Classes */
+
+/* Container/Card Styles */
+body.dark-mode .content-container,
+body.dark-mode .interface-container,
+body.dark-mode .card,
+body.dark-mode .panel,
+body.dark-mode .box,
+body.dark-mode .MuiPaper-root {
+  background-color: var(--aicos-card-dark) !important;
+  border-color: var(--aicos-border-dark);
+  color: var(--aicos-text-dark);
+}
+
+/* Ensure Material-UI cards get dark background */
+body.dark-mode .MuiCard-root {
+  background-color: var(--aicos-card-dark) !important;
+  color: var(--aicos-text-dark) !important;
+}
+
+/* Input Elements */
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select,
+body.dark-mode .form-control {
+  background-color: var(--aicos-bg-dark);
+  border-color: var(--aicos-border-dark);
+  color: var(--aicos-text-dark);
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: var(--aicos-text-dark);
+  opacity: 0.5;
+}
+
+/* Buttons */
+body.dark-mode .btn,
+body.dark-mode button:not(.btn-primary) {
+  background-color: var(--aicos-card-dark);
+  border-color: var(--aicos-border-dark);
+  color: var(--aicos-text-dark);
+}
+
+body.dark-mode .btn:hover,
+body.dark-mode button:not(.btn-primary):hover {
+  background-color: var(--aicos-bg-dark);
+  border-color: var(--aicos-primary-dark);
+}
+
+/* Status Elements */
+body.dark-mode .status,
+body.dark-mode .badge {
+  background-color: var(--aicos-bg-dark);
+  color: var(--aicos-text-dark);
+}
+
+body.dark-mode .status.success,
+body.dark-mode .badge.success {
+  background-color: rgba(46, 160, 67, 0.2);
+  color: #46d160;
+}
+
+body.dark-mode .status.error,
+body.dark-mode .badge.error {
+  background-color: rgba(248, 81, 73, 0.2);
+  color: #f85149;
+}
+
+body.dark-mode .status.warning,
+body.dark-mode .badge.warning {
+  background-color: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+/* Code Blocks */
+body.dark-mode pre,
+body.dark-mode code {
+  background-color: #0d1117;
+  color: #c9d1d9;
+  border-color: var(--aicos-border-dark);
+}
+
+/* Tables */
+body.dark-mode table {
+  background-color: var(--aicos-card-dark);
+  color: var(--aicos-text-dark);
+}
+
+body.dark-mode th {
+  background-color: var(--aicos-bg-dark);
+  border-color: var(--aicos-border-dark);
+}
+
+body.dark-mode td {
+  border-color: var(--aicos-border-dark);
+}
+
+body.dark-mode tr:hover {
+  background-color: var(--aicos-bg-dark);
+}
+
+/* Lists */
+body.dark-mode .list-item,
+body.dark-mode li {
+  border-color: var(--aicos-border-dark);
+}
+
+body.dark-mode .list-item:hover {
+  background-color: var(--aicos-bg-dark);
+}
+
+/* Tabs */
+body.dark-mode .tab,
+body.dark-mode .nav-tab {
+  background-color: var(--aicos-card-dark);
+  border-color: var(--aicos-border-dark);
+  color: var(--aicos-text-dark);
+}
+
+body.dark-mode .tab.active,
+body.dark-mode .nav-tab.active {
+  background-color: var(--aicos-primary-dark);
+  color: white;
+}
+
+/* Modals/Dialogs */
+body.dark-mode .modal,
+body.dark-mode .dialog {
+  background-color: var(--aicos-card-dark);
+  color: var(--aicos-text-dark);
+}
+
+body.dark-mode .modal-overlay,
+body.dark-mode .dialog-overlay {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Progress Bars */
+body.dark-mode .progress {
+  background-color: var(--aicos-bg-dark);
+}
+
+body.dark-mode .progress-bar {
+  background-color: var(--aicos-primary-dark);
+}
+
+/* Tooltips */
+body.dark-mode .tooltip {
+  background-color: #1e2a3a;
+  color: var(--aicos-text-dark);
+  border-color: var(--aicos-border-dark);
+}
+
+/* Dropdowns */
+body.dark-mode .dropdown-menu {
+  background-color: var(--aicos-card-dark);
+  border-color: var(--aicos-border-dark);
+}
+
+body.dark-mode .dropdown-item {
+  color: var(--aicos-text-dark);
+}
+
+body.dark-mode .dropdown-item:hover {
+  background-color: var(--aicos-bg-dark);
+}
+
+/* Links */
+body.dark-mode a {
+  color: var(--aicos-primary-dark);
+}
+
+body.dark-mode a:hover {
+  color: #4a9eff;
+}
+
+/* Shadows */
+body.dark-mode .shadow {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-mode .shadow-lg {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Dividers */
+body.dark-mode hr {
+  border-color: var(--aicos-border-dark);
+}
+
+/* Section Headers */
+body.dark-mode .section-header,
+body.dark-mode .section-title {
+  color: var(--aicos-primary-dark);
+  border-color: var(--aicos-border-dark);
+}
+
+/* Error Messages */
+body.dark-mode .error-message {
+  background-color: rgba(248, 81, 73, 0.1);
+  border-color: #f85149;
+  color: #f85149;
+}
+
+/* Success Messages */
+body.dark-mode .success-message {
+  background-color: rgba(46, 160, 67, 0.1);
+  border-color: #46d160;
+  color: #46d160;
+}
+
+/* Warning Messages */
+body.dark-mode .warning-message {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-color: #ffc107;
+  color: #ffc107;
+}
+
+/* Info Messages */
+body.dark-mode .info-message {
+  background-color: rgba(47, 128, 237, 0.1);
+  border-color: var(--aicos-primary-dark);
+  color: var(--aicos-primary-dark);
+}
+
+/* Loading States */
+body.dark-mode .loading,
+body.dark-mode .spinner {
+  color: var(--aicos-primary-dark);
+}
+
+/* Disabled States */
+body.dark-mode .disabled,
+body.dark-mode :disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Focus States */
+body.dark-mode input:focus,
+body.dark-mode textarea:focus,
+body.dark-mode select:focus,
+body.dark-mode button:focus {
+  outline-color: var(--aicos-primary-dark);
+  border-color: var(--aicos-primary-dark);
+}
+
+/* Selection */
+body.dark-mode ::selection {
+  background-color: var(--aicos-primary-dark);
+  color: white;
+}

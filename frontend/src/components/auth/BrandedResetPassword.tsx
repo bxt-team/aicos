@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { supabase } from '../../lib/supabase'
 import '../../styles/auth-branded.css'
 
 export const BrandedResetPassword: React.FC = () => {
@@ -13,26 +14,66 @@ export const BrandedResetPassword: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [localError, setLocalError] = useState('')
   const [isValidToken, setIsValidToken] = useState(false)
+  const [checkingToken, setCheckingToken] = useState(true)
 
   useEffect(() => {
     // Apply auth page class to body
     document.body.classList.add('auth-page')
     
     // Check if we have a valid reset token in the URL
-    const hashParams = new URLSearchParams(location.hash.substring(1))
-    const accessToken = hashParams.get('access_token')
-    const type = hashParams.get('type')
-    
-    if (accessToken && type === 'recovery') {
-      setIsValidToken(true)
-    } else {
-      setLocalError('Invalid or expired reset link. Please request a new one.')
-    }
+    checkResetToken()
     
     return () => {
       document.body.classList.remove('auth-page')
     }
   }, [location])
+
+  const checkResetToken = async () => {
+    try {
+      setCheckingToken(true)
+      const hashParams = new URLSearchParams(location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const type = hashParams.get('type')
+      const errorCode = hashParams.get('error_code')
+      const errorDescription = hashParams.get('error_description')
+      
+      console.log('Reset password tokens:', { accessToken, type, errorCode })
+      
+      // Check for errors
+      if (errorCode || errorDescription) {
+        setLocalError(errorDescription || 'Invalid or expired reset link')
+        setIsValidToken(false)
+        return
+      }
+      
+      if (accessToken && refreshToken && type === 'recovery') {
+        // Set the session with the recovery tokens
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        })
+        
+        if (error) {
+          console.error('Error setting recovery session:', error)
+          setLocalError('Invalid or expired reset link. Please request a new one.')
+          setIsValidToken(false)
+        } else {
+          console.log('Recovery session established')
+          setIsValidToken(true)
+        }
+      } else {
+        setLocalError('Invalid or expired reset link. Please request a new one.')
+        setIsValidToken(false)
+      }
+    } catch (error) {
+      console.error('Error checking reset token:', error)
+      setLocalError('Invalid or expired reset link. Please request a new one.')
+      setIsValidToken(false)
+    } finally {
+      setCheckingToken(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +98,7 @@ export const BrandedResetPassword: React.FC = () => {
       alert('Password updated successfully!')
       navigate('/login')
     } catch (err: any) {
+      console.error('Password update error:', err)
       setLocalError(err.message || 'Failed to update password')
     } finally {
       setLoading(false)
@@ -64,6 +106,18 @@ export const BrandedResetPassword: React.FC = () => {
   }
 
   const displayError = localError || error?.message
+
+  if (checkingToken) {
+    return (
+      <div className="auth-page-container">
+        <div className="auth-card">
+          <div className="auth-content">
+            <p>Verifying reset link...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="auth-page-container">

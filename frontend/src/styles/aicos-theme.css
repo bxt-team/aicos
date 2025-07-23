@@ -1,0 +1,221 @@
+/* AICOS Theme Variables and Styles */
+
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+/* Import dark mode utilities */
+@import './dark-mode-utils.css';
+
+/* CSS Variables for theme */
+:root {
+  /* Light mode colors */
+  --aicos-bg-light: #f9f6f2;
+  --aicos-text-light: #4d5866;
+  --aicos-primary-light: #2f80ed;
+  --aicos-card-light: #ffffff;
+  --aicos-border-light: #e1e4e8;
+  
+  /* Dark mode colors */
+  --aicos-bg-dark: #0c1d36;
+  --aicos-text-dark: #e1e4e8;
+  --aicos-primary-dark: #2f80ed;
+  --aicos-card-dark: #1a2b47;
+  --aicos-border-dark: #2d3e5a;
+  
+  /* Typography */
+  --aicos-font-heading: 'Inter', sans-serif;
+  --aicos-font-body: 'IBM Plex Sans', sans-serif;
+  
+  /* Chrome logo colors */
+  --chrome-blue: #4285F4;
+  --chrome-red: #EA4335;
+  --chrome-yellow: #FBBC04;
+  --chrome-green: #34A853;
+}
+
+/* Light mode (default) */
+body {
+  background-color: var(--aicos-bg-light);
+  color: var(--aicos-text-light);
+  font-family: var(--aicos-font-body);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode */
+body.dark-mode {
+  background-color: var(--aicos-bg-dark);
+  color: var(--aicos-text-dark);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--aicos-font-heading);
+  font-weight: 700;
+  color: var(--aicos-primary-light);
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+  color: var(--aicos-primary-dark);
+}
+
+/* Body text */
+p, span, div {
+  font-family: var(--aicos-font-body);
+}
+
+/* Links */
+a {
+  color: var(--aicos-primary-light);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+body.dark-mode a {
+  color: var(--aicos-primary-dark);
+}
+
+/* Cards and containers */
+.card, .container, .panel {
+  background-color: var(--aicos-card-light);
+  border: 1px solid var(--aicos-border-light);
+  border-radius: 8px;
+  padding: 20px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+body.dark-mode .card,
+body.dark-mode .container,
+body.dark-mode .panel {
+  background-color: var(--aicos-card-dark);
+  border-color: var(--aicos-border-dark);
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--aicos-primary-light);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-family: var(--aicos-font-heading);
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+body.dark-mode .btn-primary {
+  background-color: var(--aicos-primary-dark);
+}
+
+/* Input fields */
+input, textarea, select {
+  background-color: var(--aicos-card-light);
+  border: 1px solid var(--aicos-border-light);
+  color: var(--aicos-text-light);
+  font-family: var(--aicos-font-body);
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select {
+  background-color: var(--aicos-card-dark);
+  border-color: var(--aicos-border-dark);
+  color: var(--aicos-text-dark);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--aicos-primary-light);
+}
+
+body.dark-mode input:focus,
+body.dark-mode textarea:focus,
+body.dark-mode select:focus {
+  border-color: var(--aicos-primary-dark);
+}
+
+/* Logo styling */
+.aicos-logo {
+  width: 48px;
+  height: 48px;
+  margin-right: 12px;
+  transition: filter 0.3s ease;
+}
+
+/* Brighten logo in dark mode for better visibility */
+body.dark-mode .aicos-logo {
+  filter: brightness(1.2);
+}
+
+.aicos-brand {
+  display: flex;
+  align-items: center;
+  font-family: var(--aicos-font-heading);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--aicos-primary-light);
+}
+
+body.dark-mode .aicos-brand {
+  color: var(--aicos-primary-dark);
+}
+
+/* Utility classes */
+.text-muted {
+  color: var(--aicos-text-light);
+  opacity: 0.7;
+}
+
+body.dark-mode .text-muted {
+  color: var(--aicos-text-dark);
+  opacity: 0.7;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--aicos-bg-light);
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+  background: var(--aicos-bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--aicos-border-light);
+  border-radius: 4px;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: var(--aicos-border-dark);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--aicos-primary-light);
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: var(--aicos-primary-dark);
+}

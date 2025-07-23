@@ -35,6 +35,7 @@ import { BrandedResetPassword } from './components/auth/BrandedResetPassword';
 import { AuthCallback } from './components/auth/AuthCallback';
 import { MFAChallenge } from './components/auth/MFAChallenge';
 import { AccountSettings } from './components/auth/AccountSettings';
+import { AuthDebug } from './components/auth/AuthDebug';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppHeader from './components/AppHeader';
 import { useSupabaseAuth } from './contexts/SupabaseAuthContext';
@@ -71,6 +72,7 @@ function AppContent() {
             <Route path="/reset-password" element={<BrandedResetPassword />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/mfa-challenge" element={<MFAChallenge />} />
+            <Route path="/auth-debug" element={<AuthDebug />} />
             <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
             
             {/* Protected routes */}
