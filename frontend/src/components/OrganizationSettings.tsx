@@ -26,7 +26,7 @@ import {
   InputLabel,
   Chip,
   CircularProgress,
-  Grid2 as Grid,
+  Grid,
   Card,
   CardContent
 } from '@mui/material';
@@ -263,7 +263,7 @@ const OrganizationSettings: React.FC = () => {
               </Box>
 
               <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
                     label="Name"
@@ -272,7 +272,7 @@ const OrganizationSettings: React.FC = () => {
                     disabled={!isEditingDetails}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
                     label="Website"
@@ -281,7 +281,7 @@ const OrganizationSettings: React.FC = () => {
                     disabled={!isEditingDetails}
                   />
                 </Grid>
-                <Grid size={12}>
+                <Grid item xs={12}>
                   <TextField
                     fullWidth
                     multiline
@@ -292,7 +292,7 @@ const OrganizationSettings: React.FC = () => {
                     disabled={!isEditingDetails}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
                     label="Abonnement"
@@ -300,7 +300,7 @@ const OrganizationSettings: React.FC = () => {
                     disabled
                   />
                 </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
                     label="Erstellt am"
@@ -382,7 +382,7 @@ const OrganizationSettings: React.FC = () => {
               <Typography variant="h5" gutterBottom>Nutzungsstatistik</Typography>
               
               <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+                <Grid item xs={12} md={6} lg={3}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -395,7 +395,7 @@ const OrganizationSettings: React.FC = () => {
                   </Card>
                 </Grid>
                 
-                <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+                <Grid item xs={12} md={6} lg={3}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -408,7 +408,7 @@ const OrganizationSettings: React.FC = () => {
                   </Card>
                 </Grid>
                 
-                <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+                <Grid item xs={12} md={6} lg={3}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -421,7 +421,7 @@ const OrganizationSettings: React.FC = () => {
                   </Card>
                 </Grid>
                 
-                <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+                <Grid item xs={12} md={6} lg={3}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
