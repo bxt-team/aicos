@@ -84,7 +84,7 @@ export const BrandedSupabaseSignup: React.FC = () => {
           <div className="auth-logo-container">
             <img src="/logo.svg" alt="AICOS Logo" className="auth-logo" />
             <h1 className="auth-brand-name">AICOS</h1>
-            <p className="auth-brand-tagline">AI Content Operating System</p>
+            <p className="auth-brand-tagline">Where AI runs your business.</p>
           </div>
         </div>
         

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AICOS (AI Content Operating System) is a comprehensive AI-powered content generation system for the "7 Cycles of Life" methodology. It uses CrewAI for multi-agent orchestration to create social media content, visual posts, videos, and more.
+AICOS is a comprehensive AI-powered business automation system for the "7 Cycles of Life" methodology. Where AI runs your business - it uses CrewAI for multi-agent orchestration to create social media content, visual posts, videos, and more.
 
 ## Essential Commands
 

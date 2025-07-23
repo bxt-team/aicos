@@ -1,4 +1,4 @@
-# AICOS - AI Content Operating System
+# AICOS - Where AI runs your business.
 
 A comprehensive AI-powered content generation system using CrewAI flows to create engaging social media content from knowledge files. AICOS generates both text content and visual assets, with a React frontend for management and approval.
 
