@@ -11,7 +11,6 @@ import {
   Avatar,
   Divider
 } from '@mui/material';
-import Grid2 from '@mui/material/Grid2';
 import {
   Person as PersonIcon,
   Email as EmailIcon,
@@ -81,8 +80,8 @@ const UserProfile: React.FC = () => {
         
         <Divider sx={{ my: 3 }} />
         
-        <Grid2 container spacing={3}>
-          <Grid2 size={{ xs: 12, md: 6 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <EmailIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -94,9 +93,9 @@ const UserProfile: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </Grid2>
+          </Box>
           
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <VerifiedIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -108,9 +107,9 @@ const UserProfile: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </Grid2>
+          </Box>
           
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <CalendarIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -122,9 +121,9 @@ const UserProfile: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </Grid2>
+          </Box>
           
-          <Grid2 size={{ xs: 12, md: 6 }}>
+          <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -136,8 +135,8 @@ const UserProfile: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </Grid2>
-        </Grid2>
+          </Box>
+        </Box>
         
         <Divider sx={{ my: 3 }} />
         

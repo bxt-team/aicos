@@ -29,7 +29,6 @@ import {
   Card,
   CardContent
 } from '@mui/material';
-import Grid2 from '@mui/material/Grid2';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -262,8 +261,8 @@ const OrganizationSettings: React.FC = () => {
                 )}
               </Box>
 
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
                   <TextField
                     fullWidth
                     label="Name"
@@ -271,8 +270,8 @@ const OrganizationSettings: React.FC = () => {
                     onChange={(e) => setOrgDetails({ ...orgDetails, name: e.target.value })}
                     disabled={!isEditingDetails}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                </Box>
+                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
                   <TextField
                     fullWidth
                     label="Website"
@@ -280,8 +279,8 @@ const OrganizationSettings: React.FC = () => {
                     onChange={(e) => setOrgDetails({ ...orgDetails, website: e.target.value })}
                     disabled={!isEditingDetails}
                   />
-                </Grid2>
-                <Grid2 size={12}>
+                </Box>
+                <Box sx={{ flex: '1 1 100%' }}>
                   <TextField
                     fullWidth
                     multiline
@@ -291,24 +290,24 @@ const OrganizationSettings: React.FC = () => {
                     onChange={(e) => setOrgDetails({ ...orgDetails, description: e.target.value })}
                     disabled={!isEditingDetails}
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                </Box>
+                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
                   <TextField
                     fullWidth
                     label="Abonnement"
                     value={orgDetails.subscription_tier || 'free'}
                     disabled
                   />
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                </Box>
+                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
                   <TextField
                     fullWidth
                     label="Erstellt am"
                     value={new Date(orgDetails.created_at).toLocaleDateString('de-DE')}
                     disabled
                   />
-                </Grid2>
-              </Grid2>
+                </Box>
+              </Box>
             </Box>
           ) : null}
         </TabPanel>
@@ -381,8 +380,8 @@ const OrganizationSettings: React.FC = () => {
             <Box>
               <Typography variant="h5" gutterBottom>Nutzungsstatistik</Typography>
               
-              <Grid2 container spacing={3}>
-                <Grid2 size={{ xs: 12, md: 6, lg: 3 }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' }, '@media (min-width: 1200px)': { flex: '1 1 22%' } }}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -393,9 +392,9 @@ const OrganizationSettings: React.FC = () => {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid2>
+                </Box>
                 
-                <Grid2 size={{ xs: 12, md: 6, lg: 3 }}>
+                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' }, '@media (min-width: 1200px)': { flex: '1 1 22%' } }}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -406,9 +405,9 @@ const OrganizationSettings: React.FC = () => {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid2>
+                </Box>
                 
-                <Grid2 size={{ xs: 12, md: 6, lg: 3 }}>
+                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' }, '@media (min-width: 1200px)': { flex: '1 1 22%' } }}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -419,9 +418,9 @@ const OrganizationSettings: React.FC = () => {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid2>
+                </Box>
                 
-                <Grid2 size={{ xs: 12, md: 6, lg: 3 }}>
+                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' }, '@media (min-width: 1200px)': { flex: '1 1 22%' } }}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -432,8 +431,8 @@ const OrganizationSettings: React.FC = () => {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid2>
-              </Grid2>
+                </Box>
+              </Box>
             </Box>
           ) : null}
         </TabPanel>
