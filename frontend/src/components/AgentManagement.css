@@ -112,31 +112,34 @@
 .agent-management {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 30px;
+  padding: 20px;
   font-family: var(--aicos-font-body);
   /* Remove background - use global app background */
 }
 
 .management-header {
-  text-align: center;
-  margin-bottom: 40px;
+  text-align: left;
+  margin-bottom: 32px;
   background: var(--bg-primary);
-  padding: 30px;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px var(--shadow-lg);
+  padding: 32px 40px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px var(--shadow-md);
+  border: 1px solid var(--border-primary);
 }
 
 .management-header h2 {
   color: var(--text-primary);
-  margin-bottom: 10px;
-  font-size: 2.2rem;
+  margin: 0 0 8px 0;
+  font-size: 1.875rem;
   font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 .management-header p {
   color: var(--text-secondary);
-  font-size: 1.1rem;
-  margin-bottom: 20px;
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.5;
 }
 
 .header-actions {
@@ -194,17 +197,17 @@
 
 .overview-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
 }
 
 .stat-card {
   background: var(--bg-primary);
-  padding: 25px;
-  border-radius: 15px;
+  padding: 32px;
+  border-radius: 16px;
   text-align: center;
-  box-shadow: 0 5px 20px var(--shadow-md);
+  box-shadow: 0 4px 12px var(--shadow-md);
   transition: transform 0.3s ease;
   border: 1px solid var(--border-primary);
 }
@@ -214,18 +217,19 @@
 }
 
 .stat-number {
-  font-size: 2.5rem;
+  font-size: 3rem;
   font-weight: 700;
   color: var(--accent-primary);
-  margin-bottom: 5px;
+  margin-bottom: 8px;
+  line-height: 1;
 }
 
 .stat-label {
   color: var(--text-secondary);
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  font-size: 0.875rem;
 }
 
 .agents-section, .upcoming-section {
@@ -234,30 +238,45 @@
 
 .agents-section h3, .upcoming-section h3 {
   color: var(--text-primary);
-  margin-bottom: 20px;
-  font-size: 1.5rem;
+  margin: 0 0 24px 0;
+  font-size: 1.25rem;
   font-weight: 600;
+  letter-spacing: -0.025em;
 }
 
 .agents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 25px;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 30px;
 }
 
 .agent-card {
   background: var(--bg-primary);
-  border-radius: 20px;
-  padding: 25px;
-  box-shadow: 0 8px 30px var(--shadow-lg);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 12px var(--shadow-md);
   transition: all 0.3s ease;
-  border-left: 5px solid var(--accent-primary);
   border: 1px solid var(--border-primary);
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent-primary);
 }
 
 .agent-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 15px 40px var(--shadow-xl);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px var(--shadow-lg);
 }
 
 .card-header {
@@ -274,15 +293,16 @@
 }
 
 .agent-title-section .agent-icon {
-  font-size: 2rem;
-  background: var(--chip-bg);
-  padding: 10px;
+  font-size: 1.75rem;
+  background: var(--bg-secondary);
+  padding: 12px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 50px;
-  height: 50px;
+  min-width: 48px;
+  height: 48px;
+  border: 1px solid var(--border-primary);
 }
 
 .agent-title-section h4 {
@@ -294,11 +314,13 @@
 
 .category-badge {
   display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
+  padding: 6px 14px;
+  border-radius: 12px;
   color: white;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 .category-badge.upcoming {
@@ -339,13 +361,15 @@
 .card-content {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 18px;
+  flex-grow: 1;
 }
 
 .agent-description {
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.7;
   margin: 0;
+  font-size: 1rem;
 }
 
 .features-section h5 {
@@ -364,12 +388,13 @@
 }
 
 .feature-chip {
-  background: var(--chip-bg);
-  color: var(--chip-color);
-  padding: 4px 10px;
-  border-radius: 15px;
-  font-size: 0.8rem;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
   font-weight: 500;
+  border: 1px solid var(--border-primary);
 }
 
 .feature-chip.upcoming {
@@ -379,20 +404,22 @@
 
 .card-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 15px;
 }
 
 .action-button {
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   text-decoration: none;
   text-align: center;
   flex: 1;
+  border: none;
 }
 
 .action-button.primary {
@@ -534,6 +561,12 @@
   
   .agents-grid {
     grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .agent-card {
+    min-height: auto;
+    padding: 25px;
   }
   
   .upcoming-grid {
@@ -542,6 +575,7 @@
   
   .card-actions {
     flex-direction: column;
+    gap: 10px;
   }
   
   .card-header {

@@ -28,8 +28,8 @@ const AgentManagement: React.FC = () => {
   // Removed health check - all agents are assumed to be always up
 
   const formatTimestamp = (timestamp?: string) => {
-    if (!timestamp) return 'Unbekannt';
-    return new Date(timestamp).toLocaleString('de-DE');
+    if (!timestamp) return 'Unknown';
+    return new Date(timestamp).toLocaleString('en-US');
   };
 
   const getStatusIcon = (agentId: string) => {
@@ -42,14 +42,14 @@ const AgentManagement: React.FC = () => {
 
   const getCategoryColor = (category: string) => {
     const colors: { [key: string]: string } = {
-      'Wissen & Forschung': '#667eea',
-      'Persönlichkeitsentwicklung': '#48bb78',
+      'Knowledge & Research': '#667eea',
+      'Personal Development': '#48bb78',
       'Social Media Marketing': '#ed8936',
       'Visual Content': '#9f7aea',
       'Content Creation': '#38b2ac',
-      'E-Mail Marketing': '#f56565',
+      'Email Marketing': '#f56565',
       'Video Content': '#ec4899',
-      'Bildung': '#3182ce',
+      'Education': '#3182ce',
       'Analytics': '#319795',
       'Quality Assurance': '#059669',
       'System Management': '#4b5563'
@@ -60,14 +60,14 @@ const AgentManagement: React.FC = () => {
   // Get CSS class for category instead of inline style
   const getCategoryClass = (category: string) => {
     const categoryMap: { [key: string]: string } = {
-      'Wissen & Forschung': 'category-knowledge',
-      'Persönlichkeitsentwicklung': 'category-personality',
+      'Knowledge & Research': 'category-knowledge',
+      'Personal Development': 'category-personality',
       'Social Media Marketing': 'category-social',
       'Visual Content': 'category-visual',
       'Content Creation': 'category-content',
-      'E-Mail Marketing': 'category-email',
+      'Email Marketing': 'category-email',
       'Video Content': 'category-video',
-      'Bildung': 'category-education',
+      'Education': 'category-education',
       'Analytics': 'category-analytics',
       'Quality Assurance': 'category-qa',
       'System Management': 'category-system'
@@ -149,7 +149,7 @@ const AgentManagement: React.FC = () => {
     <div className="agent-management">
       <div className="management-header">
         <h2>🤖 Agent Management Dashboard</h2>
-        <p>Übersicht und Status aller verfügbaren AI-Agenten</p>
+        <p>Overview and status of all available AI agents</p>
         {/* Removed refresh button - all agents are always up */}
       </div>
 
@@ -157,17 +157,17 @@ const AgentManagement: React.FC = () => {
         <div className="overview-stats">
           <div className="stat-card">
             <div className="stat-number">{agents.filter(a => a.enabled).length}</div>
-            <div className="stat-label">Aktive Agenten</div>
+            <div className="stat-label">Active Agents</div>
           </div>
           <div className="stat-card">
             <div className="stat-number">{Array.from(new Set(agents.map(a => a.category))).length}</div>
-            <div className="stat-label">Kategorien</div>
+            <div className="stat-label">Categories</div>
           </div>
         </div>
       </div>
 
       <div className="agents-section">
-        <h3>✅ Aktive Agenten</h3>
+        <h3>✅ Active Agents</h3>
         <div className="agents-grid">
           {agents
             .filter(agent => agent.enabled)
@@ -205,60 +205,60 @@ const AgentManagement: React.FC = () => {
                     href={agent.route} 
                     className="action-button primary"
                   >
-                    🚀 Agent öffnen
+                    🚀 Open Agent
                   </a>
                   <button 
                     className="action-button secondary"
                     onClick={() => toggleAgentExpansion(agent.id)}
                     disabled={loadingPrompts.has(agent.id)}
                   >
-                    {loadingPrompts.has(agent.id) ? '⏳' : expandedAgents.has(agent.id) ? '📖 Prompts ausblenden' : '📋 Prompts anzeigen'}
+                    {loadingPrompts.has(agent.id) ? '⏳' : expandedAgents.has(agent.id) ? '📖 Hide Prompts' : '📋 Show Prompts'}
                   </button>
                 </div>
 
                 {expandedAgents.has(agent.id) && agentPrompts[agent.id] && (
                   <div className="agent-prompt-section">
                     <div className="prompt-divider"></div>
-                    <h5>🤖 Agent Konfiguration</h5>
+                    <h5>🤖 Agent Configuration</h5>
                     
                     <div className="prompt-item">
-                      <h6>Rolle:</h6>
+                      <h6>Role:</h6>
                       <p>{agentPrompts[agent.id].role}</p>
                     </div>
 
                     <div className="prompt-item">
-                      <h6>Ziel:</h6>
+                      <h6>Goal:</h6>
                       <p>{agentPrompts[agent.id].goal}</p>
                     </div>
 
                     <div className="prompt-item">
-                      <h6>Hintergrund & Anweisungen:</h6>
+                      <h6>Background & Instructions:</h6>
                       <div className="backstory-content">
                         {formatBackstory(agentPrompts[agent.id].backstory)}
                       </div>
                     </div>
 
                     <div className="prompt-item">
-                      <h6>Einstellungen:</h6>
+                      <h6>Settings:</h6>
                       <div className="settings-grid">
                         <div className="setting-item">
                           <span className="setting-label">Verbose:</span>
                           <span className={`setting-value ${agentPrompts[agent.id].settings.verbose ? 'true' : 'false'}`}>
-                            {agentPrompts[agent.id].settings.verbose ? 'Ja' : 'Nein'}
+                            {agentPrompts[agent.id].settings.verbose ? 'Yes' : 'No'}
                           </span>
                         </div>
                         <div className="setting-item">
-                          <span className="setting-label">Delegation erlaubt:</span>
+                          <span className="setting-label">Allow Delegation:</span>
                           <span className={`setting-value ${agentPrompts[agent.id].settings.allow_delegation ? 'true' : 'false'}`}>
-                            {agentPrompts[agent.id].settings.allow_delegation ? 'Ja' : 'Nein'}
+                            {agentPrompts[agent.id].settings.allow_delegation ? 'Yes' : 'No'}
                           </span>
                         </div>
                         <div className="setting-item">
-                          <span className="setting-label">Max. Iterationen:</span>
+                          <span className="setting-label">Max Iterations:</span>
                           <span className="setting-value">{agentPrompts[agent.id].settings.max_iter}</span>
                         </div>
                         <div className="setting-item">
-                          <span className="setting-label">Max. Ausführungszeit:</span>
+                          <span className="setting-label">Max Execution Time:</span>
                           <span className="setting-value">{agentPrompts[agent.id].settings.max_execution_time}s</span>
                         </div>
                       </div>
@@ -279,7 +279,7 @@ const AgentManagement: React.FC = () => {
             <strong>Backend URL:</strong> {API_BASE_URL}
           </div>
           <div className="info-item">
-            <strong>Letzte Überprüfung:</strong> {formatTimestamp(new Date().toISOString())}
+            <strong>Last Check:</strong> {formatTimestamp(new Date().toISOString())}
           </div>
           <div className="info-item">
             <strong>Frontend Version:</strong> 1.0.0
