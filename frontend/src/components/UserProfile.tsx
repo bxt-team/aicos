@@ -9,9 +9,9 @@ import {
   Alert,
   CircularProgress,
   Avatar,
-  Grid,
   Divider
 } from '@mui/material';
+import Grid2 from '@mui/material/Grid2';
 import {
   Person as PersonIcon,
   Email as EmailIcon,
@@ -81,8 +81,8 @@ const UserProfile: React.FC = () => {
         
         <Divider sx={{ my: 3 }} />
         
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+        <Grid2 container spacing={3}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <EmailIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -94,9 +94,9 @@ const UserProfile: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </Grid>
+          </Grid2>
           
-          <Grid item xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <VerifiedIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -108,9 +108,9 @@ const UserProfile: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </Grid>
+          </Grid2>
           
-          <Grid item xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <CalendarIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -122,9 +122,9 @@ const UserProfile: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </Grid>
+          </Grid2>
           
-          <Grid item xs={12} md={6}>
+          <Grid2 size={{ xs: 12, md: 6 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -136,8 +136,8 @@ const UserProfile: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
         
         <Divider sx={{ my: 3 }} />
         

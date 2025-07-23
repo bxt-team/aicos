@@ -92,7 +92,7 @@
                                                 <td style="padding: 20px;">
                                                     <p style="margin: 0 0 10px; font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 14px; line-height: 20px; color: #4d5866;">
                                                         <strong>Current email:</strong><br>
-                                                        {{ .OldEmail }}
+                                                        {{ .Email }}
                                                     </p>
                                                     <div style="width: 100%; height: 1px; background-color: #e1e4e8; margin: 10px 0;"></div>
                                                     <p style="margin: 10px 0 0; font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 14px; line-height: 20px; color: #4d5866;">
@@ -107,7 +107,7 @@
                                         <table class="button" align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                                             <tr>
                                                 <td align="center" style="border-radius: 8px; background-color: #2f80ed;">
-                                                    <a href="{{ .ConfirmationLink }}" target="_blank" style="display: inline-block; padding: 14px 32px; font-family: 'Inter', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; background-color: #2f80ed;">
+                                                    <a href="{{ .ConfirmationURL }}" target="_blank" style="display: inline-block; padding: 14px 32px; font-family: 'Inter', Arial, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; background-color: #2f80ed;">
                                                         Confirm Email Change
                                                     </a>
                                                 </td>
@@ -136,7 +136,7 @@
                                 <tr>
                                     <td align="center" valign="top" style="padding: 30px 40px; background-color: #f9f6f2; border-top: 1px solid #e1e4e8;">
                                         <p class="darkmode-text-light" style="margin: 0 0 10px; font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 14px; color: #718096;">
-                                            This email was sent to both {{ .OldEmail }} and {{ .NewEmail }}
+                                            This email was sent to both {{ .Email }} and {{ .NewEmail }}
                                         </p>
                                         <p class="darkmode-text-light" style="margin: 0; font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 14px; color: #718096;">
                                             If you didn't request this change, please contact support immediately.

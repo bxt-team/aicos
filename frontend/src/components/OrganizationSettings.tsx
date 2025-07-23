@@ -26,10 +26,10 @@ import {
   InputLabel,
   Chip,
   CircularProgress,
-  Grid,
   Card,
   CardContent
 } from '@mui/material';
+import Grid2 from '@mui/material/Grid2';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -262,8 +262,8 @@ const OrganizationSettings: React.FC = () => {
                 )}
               </Box>
 
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+              <Grid2 container spacing={3}>
+                <Grid2 size={{ xs: 12, md: 6 }}>
                   <TextField
                     fullWidth
                     label="Name"
@@ -271,8 +271,8 @@ const OrganizationSettings: React.FC = () => {
                     onChange={(e) => setOrgDetails({ ...orgDetails, name: e.target.value })}
                     disabled={!isEditingDetails}
                   />
-                </Grid>
-                <Grid item xs={12} md={6}>
+                </Grid2>
+                <Grid2 size={{ xs: 12, md: 6 }}>
                   <TextField
                     fullWidth
                     label="Website"
@@ -280,8 +280,8 @@ const OrganizationSettings: React.FC = () => {
                     onChange={(e) => setOrgDetails({ ...orgDetails, website: e.target.value })}
                     disabled={!isEditingDetails}
                   />
-                </Grid>
-                <Grid item xs={12}>
+                </Grid2>
+                <Grid2 size={12}>
                   <TextField
                     fullWidth
                     multiline
@@ -291,24 +291,24 @@ const OrganizationSettings: React.FC = () => {
                     onChange={(e) => setOrgDetails({ ...orgDetails, description: e.target.value })}
                     disabled={!isEditingDetails}
                   />
-                </Grid>
-                <Grid item xs={12} md={6}>
+                </Grid2>
+                <Grid2 size={{ xs: 12, md: 6 }}>
                   <TextField
                     fullWidth
                     label="Abonnement"
                     value={orgDetails.subscription_tier || 'free'}
                     disabled
                   />
-                </Grid>
-                <Grid item xs={12} md={6}>
+                </Grid2>
+                <Grid2 size={{ xs: 12, md: 6 }}>
                   <TextField
                     fullWidth
                     label="Erstellt am"
                     value={new Date(orgDetails.created_at).toLocaleDateString('de-DE')}
                     disabled
                   />
-                </Grid>
-              </Grid>
+                </Grid2>
+              </Grid2>
             </Box>
           ) : null}
         </TabPanel>
@@ -381,8 +381,8 @@ const OrganizationSettings: React.FC = () => {
             <Box>
               <Typography variant="h5" gutterBottom>Nutzungsstatistik</Typography>
               
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6} lg={3}>
+              <Grid2 container spacing={3}>
+                <Grid2 size={{ xs: 12, md: 6, lg: 3 }}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -393,9 +393,9 @@ const OrganizationSettings: React.FC = () => {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid>
+                </Grid2>
                 
-                <Grid item xs={12} md={6} lg={3}>
+                <Grid2 size={{ xs: 12, md: 6, lg: 3 }}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -406,9 +406,9 @@ const OrganizationSettings: React.FC = () => {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid>
+                </Grid2>
                 
-                <Grid item xs={12} md={6} lg={3}>
+                <Grid2 size={{ xs: 12, md: 6, lg: 3 }}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -419,9 +419,9 @@ const OrganizationSettings: React.FC = () => {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid>
+                </Grid2>
                 
-                <Grid item xs={12} md={6} lg={3}>
+                <Grid2 size={{ xs: 12, md: 6, lg: 3 }}>
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
@@ -432,8 +432,8 @@ const OrganizationSettings: React.FC = () => {
                       </Typography>
                     </CardContent>
                   </Card>
-                </Grid>
-              </Grid>
+                </Grid2>
+              </Grid2>
             </Box>
           ) : null}
         </TabPanel>
