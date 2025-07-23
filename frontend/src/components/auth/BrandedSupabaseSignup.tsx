@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { RateLimitError } from './RateLimitError'
 import '../../styles/auth-branded.css'
 
 export const BrandedSupabaseSignup: React.FC = () => {
@@ -92,11 +93,7 @@ export const BrandedSupabaseSignup: React.FC = () => {
           <h2 className="auth-title">Create your account</h2>
           <p className="auth-subtitle">Start creating AI-powered content today</p>
           
-          {displayError && (
-            <div className="auth-error">
-              {displayError}
-            </div>
-          )}
+          <RateLimitError error={displayError} />
           
           {successMessage && (
             <div className="auth-success">

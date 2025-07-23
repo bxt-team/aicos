@@ -14,6 +14,7 @@ import {
 import { Google, GitHub, Apple } from '@mui/icons-material'
 import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { RateLimitAlert } from './RateLimitAlert'
 
 export const SupabaseSignup: React.FC = () => {
   const navigate = useNavigate()
@@ -98,11 +99,10 @@ export const SupabaseSignup: React.FC = () => {
             Create Account
           </Typography>
           
-          {(error || validationError) && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {validationError || error?.message}
-            </Alert>
-          )}
+          <RateLimitAlert 
+            error={validationError || error?.message} 
+            sx={{ mt: 2 }}
+          />
           
           {successMessage && (
             <Alert severity="success" sx={{ mt: 2 }}>

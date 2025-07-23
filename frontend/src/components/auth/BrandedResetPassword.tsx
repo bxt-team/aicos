@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { RateLimitError } from './RateLimitError'
 import '../../styles/auth-branded.css'
 
 export const BrandedResetPassword: React.FC = () => {
@@ -136,11 +137,7 @@ export const BrandedResetPassword: React.FC = () => {
             Choose a strong password for your account
           </p>
           
-          {displayError && (
-            <div className="auth-error">
-              {displayError}
-            </div>
-          )}
+          <RateLimitError error={displayError} />
           
           {isValidToken ? (
             <form onSubmit={handleSubmit} className="auth-form">

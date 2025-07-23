@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { MenuProvider } from './contexts/MenuContext';
 import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
+import { OrganizationProvider } from './contexts/OrganizationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import './App.css';
 import LoadingScreen from './components/LoadingScreen';
@@ -36,11 +37,11 @@ import { AuthCallback } from './components/auth/AuthCallback';
 import { MFAChallenge } from './components/auth/MFAChallenge';
 import { AccountSettings } from './components/auth/AccountSettings';
 import { AuthDebug } from './components/auth/AuthDebug';
+import UserProfile from './components/UserProfile';
+import OrganizationSettings from './components/OrganizationSettings';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppHeader from './components/AppHeader';
 import { useSupabaseAuth } from './contexts/SupabaseAuthContext';
-import UserProfile from './components/UserProfile';
-import OrganizationSettings from './components/OrganizationSettings';
 import ProjectManagement from './components/ProjectManagement';
 
 function AppContent() {
@@ -113,7 +114,9 @@ function App() {
     <Router>
       <ThemeProvider>
         <SupabaseAuthProvider>
-          <AppContent />
+          <OrganizationProvider>
+            <AppContent />
+          </OrganizationProvider>
         </SupabaseAuthProvider>
       </ThemeProvider>
     </Router>

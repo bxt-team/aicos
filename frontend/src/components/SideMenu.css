@@ -49,6 +49,13 @@
   box-shadow: 0 2px 8px var(--menu-toggle-shadow, rgba(0, 0, 0, 0.2));
 }
 
+/* Organization Section */
+.organization-section {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--divider-color, #e0e0e0);
+  background: var(--side-menu-bg, #ffffff);
+}
+
 .no-org-message {
   text-align: center;
   padding: 1rem;

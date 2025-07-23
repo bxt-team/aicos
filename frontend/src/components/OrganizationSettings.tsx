@@ -26,7 +26,7 @@ import {
   InputLabel,
   Chip,
   CircularProgress,
-  Grid,
+  Grid2 as Grid,
   Card,
   CardContent
 } from '@mui/material';
@@ -37,6 +37,7 @@ import {
   Save as SaveIcon
 } from '@mui/icons-material';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { apiService } from '../services/api';
 
 interface TabPanelProps {
@@ -62,9 +63,19 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const OrganizationSettings: React.FC = () => {
-  const { } = useSupabaseAuth();
-  // TODO: Add organization support later
-  const currentOrganization: any = null;
+  const { user } = useSupabaseAuth();
+  const {
+    currentOrganization,
+    members,
+    loading: orgLoading,
+    error: orgError,
+    updateOrganization,
+    loadMembers,
+    inviteMember,
+    removeMember,
+    updateMemberRole
+  } = useOrganization();
+  
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -74,8 +85,7 @@ const OrganizationSettings: React.FC = () => {
   const [orgDetails, setOrgDetails] = useState<any>(null);
   const [isEditingDetails, setIsEditingDetails] = useState(false);
   
-  // Members
-  const [members, setMembers] = useState<any[]>([]);
+  // Invite dialog
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
@@ -89,6 +99,19 @@ const OrganizationSettings: React.FC = () => {
     }
   }, [currentOrganization, tabValue]);
 
+  useEffect(() => {
+    // Initialize org details when currentOrganization changes
+    if (currentOrganization) {
+      setOrgDetails({
+        name: currentOrganization.name,
+        description: currentOrganization.description || '',
+        website: currentOrganization.website || '',
+        subscription_tier: currentOrganization.subscription_tier,
+        created_at: currentOrganization.created_at
+      });
+    }
+  }, [currentOrganization]);
+
   const loadOrganizationData = async () => {
     if (!currentOrganization) return;
     
@@ -97,16 +120,15 @@ const OrganizationSettings: React.FC = () => {
     
     try {
       switch (tabValue) {
-        case 0: // General
-          const orgResponse = await apiService.organizations.get(currentOrganization.id);
-          setOrgDetails(orgResponse.data.organization);
+        case 0: // General - already loaded from context
           break;
-        case 1: // Members
-          const membersResponse = await apiService.organizations.getMembers(currentOrganization.id);
-          setMembers(membersResponse.data.members);
+        case 1: // Members - loaded from context
+          if (members.length === 0) {
+            await loadMembers();
+          }
           break;
         case 2: // Usage
-          const usageResponse = await apiService.organizations.get(`${currentOrganization.id}/usage`);
+          const usageResponse = await apiService.organizations.getUsage(currentOrganization.id);
           setUsage(usageResponse.data.usage);
           break;
       }
@@ -122,9 +144,10 @@ const OrganizationSettings: React.FC = () => {
     
     setLoading(true);
     setError('');
+    setSuccess('');
     
     try {
-      await apiService.organizations.update(currentOrganization.id, {
+      await updateOrganization(currentOrganization.id, {
         name: orgDetails.name,
         description: orgDetails.description,
         website: orgDetails.website
@@ -140,22 +163,17 @@ const OrganizationSettings: React.FC = () => {
   };
 
   const handleInviteMember = async () => {
-    if (!currentOrganization) return;
-    
     setLoading(true);
     setError('');
+    setSuccess('');
     
     try {
-      await apiService.organizations.inviteMember(currentOrganization.id, {
-        email: inviteEmail,
-        role: inviteRole
-      });
+      await inviteMember(inviteEmail, inviteRole);
       
       setSuccess('Einladung erfolgreich versendet');
       setInviteDialogOpen(false);
       setInviteEmail('');
       setInviteRole('member');
-      loadOrganizationData(); // Reload members
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Fehler beim Einladen');
     } finally {
@@ -164,29 +182,26 @@ const OrganizationSettings: React.FC = () => {
   };
 
   const handleUpdateMemberRole = async (memberId: string, newRole: string) => {
-    if (!currentOrganization) return;
+    setError('');
+    setSuccess('');
     
     try {
-      await apiService.organizations.update(`${currentOrganization.id}/members/${memberId}`, {
-        role: newRole
-      });
-      
+      await updateMemberRole(memberId, newRole);
       setSuccess('Rolle erfolgreich aktualisiert');
-      loadOrganizationData();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Fehler beim Aktualisieren der Rolle');
     }
   };
 
   const handleRemoveMember = async (memberId: string) => {
-    if (!currentOrganization) return;
-    
     if (!window.confirm('Möchten Sie dieses Mitglied wirklich entfernen?')) return;
     
+    setError('');
+    setSuccess('');
+    
     try {
-      await apiService.organizations.delete(`${currentOrganization.id}/members/${memberId}`);
+      await removeMember(memberId);
       setSuccess('Mitglied erfolgreich entfernt');
-      loadOrganizationData();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Fehler beim Entfernen');
     }
@@ -225,7 +240,7 @@ const OrganizationSettings: React.FC = () => {
         {success && <Alert severity="success" sx={{ m: 2 }}>{success}</Alert>}
 
         <TabPanel value={tabValue} index={0}>
-          {loading ? (
+          {(loading || orgLoading) ? (
             <CircularProgress />
           ) : orgDetails ? (
             <Box>
@@ -328,7 +343,7 @@ const OrganizationSettings: React.FC = () => {
                   <TableBody>
                     {members.map((member) => (
                       <TableRow key={member.id}>
-                        <TableCell>{member.name}</TableCell>
+                        <TableCell>{member.name || member.email.split('@')[0]}</TableCell>
                         <TableCell>{member.email}</TableCell>
                         <TableCell>
                           <Chip
@@ -341,7 +356,7 @@ const OrganizationSettings: React.FC = () => {
                           {new Date(member.joined_at).toLocaleDateString('de-DE')}
                         </TableCell>
                         <TableCell align="right">
-                          {member.role !== 'owner' && (
+                          {member.role !== 'owner' && member.user_id !== user?.id && (
                             <IconButton
                               size="small"
                               onClick={() => handleRemoveMember(member.id)}

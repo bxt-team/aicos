@@ -13,6 +13,7 @@ import {
 import { ArrowBack } from '@mui/icons-material'
 import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext'
 import { Link as RouterLink } from 'react-router-dom'
+import { RateLimitAlert } from './RateLimitAlert'
 
 export const ForgotPassword: React.FC = () => {
   const { resetPassword, error } = useSupabaseAuth()
@@ -62,11 +63,10 @@ export const ForgotPassword: React.FC = () => {
             Enter your email address and we'll send you a link to reset your password.
           </Typography>
           
-          {(error || validationError) && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {validationError || error?.message}
-            </Alert>
-          )}
+          <RateLimitAlert 
+            error={validationError || error?.message} 
+            sx={{ mt: 2 }}
+          />
           
           {successMessage && (
             <Alert severity="success" sx={{ mt: 2 }}>

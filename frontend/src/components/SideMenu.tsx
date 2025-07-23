@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { getEnabledAgents, getAgentsByCategory, getAgentByRoute } from '../config/agents';
 import { useMenu } from '../contexts/MenuContext';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
+import OrganizationSelector from './OrganizationSelector';
 import {
   Dialog,
   DialogTitle,
@@ -16,17 +18,24 @@ import {
 } from '@mui/material';
 import { Business as BusinessIcon, FolderOpen as ProjectIcon } from '@mui/icons-material';
 import axios from 'axios';
+import { supabase } from '../lib/supabase';
 import './SideMenu.css';
 
 const SideMenu: React.FC = () => {
   const { isMenuOpen: isExpanded, toggleMenu, isMobile } = useMenu();
   const location = useLocation();
   const { user, loading } = useSupabaseAuth();
-  // TODO: Add organization support later
-  const currentOrganization: any = null;
+  const { 
+    currentOrganization, 
+    organizations,
+    loading: orgLoading,
+    createOrganization 
+  } = useOrganization();
+  
+  // TODO: Add project support later
   const currentProject: any = null;
-  const setCurrentOrganization = (org: any) => {};
   const setCurrentProject = (project: any) => {};
+  
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
@@ -37,15 +46,15 @@ const SideMenu: React.FC = () => {
 
   // Check if organization and project exist when user is logged in
   useEffect(() => {
-    console.log('SideMenu: Loading:', loading);
+    console.log('SideMenu: Loading:', loading, 'OrgLoading:', orgLoading);
     console.log('SideMenu: User:', user);
-    // console.log('SideMenu: Current organization:', currentOrganization);
-    // console.log('SideMenu: Current project:', currentProject);
+    console.log('SideMenu: Organizations:', organizations);
+    console.log('SideMenu: Current organization:', currentOrganization);
     console.log('SideMenu: Project check complete:', projectCheckComplete);
     
     // Only show dialog after loading is complete
-    if (!loading && user) {
-      if (!currentOrganization) {
+    if (!loading && !orgLoading && user) {
+      if (organizations.length === 0 && !createOrgOpen) {
         console.log('SideMenu: Opening create organization dialog');
         setCreateOrgOpen(true);
       } else if (currentOrganization && !projectCheckComplete) {
@@ -61,7 +70,7 @@ const SideMenu: React.FC = () => {
         return () => clearTimeout(timer);
       }
     }
-  }, [user, currentOrganization, currentProject, loading, projectCheckComplete]);
+  }, [user, organizations, currentOrganization, currentProject, loading, orgLoading, projectCheckComplete, createOrgOpen]);
   
   // Reset project check when organization changes
   useEffect(() => {
@@ -114,18 +123,9 @@ const SideMenu: React.FC = () => {
     
     setIsCreating(true);
     try {
-      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-      const response = await axios.post(`${baseURL}/api/organizations`, {
-        name: newOrgName
-      });
-      
-      const newOrg = response.data.organization;
-      setCurrentOrganization(newOrg);
+      await createOrganization({ name: newOrgName });
       setCreateOrgOpen(false);
       setNewOrgName('');
-      
-      // Reload to get updated user data with new organization
-      window.location.reload();
     } catch (error) {
       console.error('Failed to create organization:', error);
     } finally {
@@ -139,11 +139,19 @@ const SideMenu: React.FC = () => {
     setIsCreating(true);
     try {
       const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      
+      // Get Supabase session token
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: any = {};
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+      
       const response = await axios.post(`${baseURL}/api/projects`, {
         name: newProjectName,
         description: newProjectDescription,
         organization_id: currentOrganization.id
-      });
+      }, { headers });
       
       const newProject = response.data.project;
       setCurrentProject(newProject);
@@ -158,12 +166,12 @@ const SideMenu: React.FC = () => {
   };
 
   // Don't render agent menu if no organization or project is selected (after loading is complete)
-  if (!loading && user && (!currentOrganization || (!currentProject && projectCheckComplete))) {
+  if (!loading && !orgLoading && user && (organizations.length === 0 || (!currentProject && projectCheckComplete))) {
     return (
       <>
         {/* Organization Creation Dialog */}
         <Dialog 
-          open={createOrgOpen && !currentOrganization} 
+          open={createOrgOpen && organizations.length === 0} 
           onClose={() => {}} // Prevent closing by clicking outside
           disableEscapeKeyDown // Prevent closing with ESC key
           fullWidth
@@ -260,7 +268,7 @@ const SideMenu: React.FC = () => {
           <div className="side-menu-header">
             <div className="no-org-message">
               <Typography variant="body2" color="text.secondary">
-                {!currentOrganization 
+                {organizations.length === 0 
                   ? 'Bitte erstellen Sie eine Organisation'
                   : 'Bitte erstellen Sie ein Projekt'
                 }
@@ -304,6 +312,13 @@ const SideMenu: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Organization Selector */}
+      {isExpanded && (
+        <div className="organization-section">
+          <OrganizationSelector />
+        </div>
+      )}
 
       <nav className="side-menu-nav">
         {isExpanded ? (

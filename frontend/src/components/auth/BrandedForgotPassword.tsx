@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext'
 import { Link as RouterLink } from 'react-router-dom'
+import { RateLimitError } from './RateLimitError'
 import '../../styles/auth-branded.css'
 
 export const BrandedForgotPassword: React.FC = () => {
@@ -53,11 +54,7 @@ export const BrandedForgotPassword: React.FC = () => {
             Enter your email address and we'll send you a link to reset your password
           </p>
           
-          {displayError && (
-            <div className="auth-error">
-              {displayError}
-            </div>
-          )}
+          <RateLimitError error={displayError} />
           
           {successMessage && (
             <div className="auth-success">

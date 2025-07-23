@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
+import { supabase } from '../lib/supabase';
 
 // Create axios instance with default config
 const api: AxiosInstance = axios.create({
@@ -10,10 +11,17 @@ const api: AxiosInstance = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    // Try to get Supabase session first
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
+    } else {
+      // Fall back to legacy token if no Supabase session
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     
     // Add organization/project headers if they exist
@@ -120,6 +128,15 @@ export const apiService = {
     
     inviteMember: (id: string, data: { email: string; role: string }) =>
       api.post(`/api/organizations/${id}/members`, data),
+    
+    removeMember: (orgId: string, memberId: string) =>
+      api.delete(`/api/organizations/${orgId}/members/${memberId}`),
+    
+    updateMemberRole: (orgId: string, memberId: string, data: { role: string }) =>
+      api.put(`/api/organizations/${orgId}/members/${memberId}`, data),
+    
+    getUsage: (id: string) =>
+      api.get(`/api/organizations/${id}/usage`),
   },
 
   // Project endpoints

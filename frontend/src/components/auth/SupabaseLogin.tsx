@@ -16,6 +16,7 @@ import {
 import { Google, GitHub, Apple, Email } from '@mui/icons-material'
 import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { RateLimitAlert } from './RateLimitAlert'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -140,11 +141,10 @@ export const SupabaseLogin: React.FC = () => {
             </Tabs>
           </Box>
           
-          {(error || validationError) && (
-            <Alert severity="error" sx={{ mx: 3, mt: 2 }}>
-              {validationError || error?.message}
-            </Alert>
-          )}
+          <RateLimitAlert 
+            error={validationError || error?.message} 
+            sx={{ mx: 3, mt: 2 }}
+          />
           
           {successMessage && (
             <Alert severity="success" sx={{ mx: 3, mt: 2 }}>
