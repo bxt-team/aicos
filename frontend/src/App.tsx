@@ -28,10 +28,10 @@ import AgentManagement from './components/AgentManagement';
 import AgentPromptsDisplay from './components/AgentPromptsDisplay';
 import Header from './components/Header';
 import SideMenu from './components/SideMenu';
-import { SupabaseLogin } from './components/auth/SupabaseLogin';
-import { SupabaseSignup } from './components/auth/SupabaseSignup';
-import { ForgotPassword } from './components/auth/ForgotPassword';
-import { ResetPassword } from './components/auth/ResetPassword';
+import { BrandedSupabaseLogin } from './components/auth/BrandedSupabaseLogin';
+import { BrandedSupabaseSignup } from './components/auth/BrandedSupabaseSignup';
+import { BrandedForgotPassword } from './components/auth/BrandedForgotPassword';
+import { BrandedResetPassword } from './components/auth/BrandedResetPassword';
 import { AuthCallback } from './components/auth/AuthCallback';
 import { MFAChallenge } from './components/auth/MFAChallenge';
 import { AccountSettings } from './components/auth/AccountSettings';
@@ -65,10 +65,10 @@ function AppContent() {
           <main className="main-content" style={{ marginTop: (user && !isAuthPage) ? '64px' : '0' }}>
             <Routes>
             {/* Public routes */}
-            <Route path="/login" element={<SupabaseLogin />} />
-            <Route path="/signup" element={<SupabaseSignup />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/login" element={<BrandedSupabaseLogin />} />
+            <Route path="/signup" element={<BrandedSupabaseSignup />} />
+            <Route path="/forgot-password" element={<BrandedForgotPassword />} />
+            <Route path="/reset-password" element={<BrandedResetPassword />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/mfa-challenge" element={<MFAChallenge />} />
             <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
