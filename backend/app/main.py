@@ -22,8 +22,11 @@ from app.api.routers import (
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Set to DEBUG for more detailed logs
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)  # Ensure logs go to stdout
+    ],
     force=True  # Force reconfiguration of logging
 )
 logger = logging.getLogger(__name__)
@@ -31,6 +34,10 @@ logger = logging.getLogger(__name__)
 # Also configure the dependencies logger
 deps_logger = logging.getLogger('app.core.dependencies')
 deps_logger.setLevel(logging.INFO)
+
+# Configure organizations router logger
+org_logger = logging.getLogger('app.api.routers.organizations')
+org_logger.setLevel(logging.DEBUG)
 
 # Lifespan context manager for startup and shutdown
 @asynccontextmanager

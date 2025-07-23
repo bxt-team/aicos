@@ -113,28 +113,28 @@ const UserMenu: React.FC = () => {
           <ListItemIcon>
             <PersonIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Mein Profil</ListItemText>
+          <ListItemText>My Profile</ListItemText>
         </MenuItem>
         
         <MenuItem onClick={() => handleNavigate('/organization-settings')}>
           <ListItemIcon>
             <BusinessIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Organisation verwalten</ListItemText>
+          <ListItemText>Manage Organization</ListItemText>
         </MenuItem>
         
         <MenuItem onClick={() => handleNavigate('/projects')}>
           <ListItemIcon>
             <FolderIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Projekte verwalten</ListItemText>
+          <ListItemText>Manage Projects</ListItemText>
         </MenuItem>
         
         <MenuItem onClick={() => handleNavigate('/settings')}>
           <ListItemIcon>
             <SettingsIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Einstellungen</ListItemText>
+          <ListItemText>Settings</ListItemText>
         </MenuItem>
         
         <Divider />
@@ -143,7 +143,7 @@ const UserMenu: React.FC = () => {
           <ListItemIcon>
             <LogoutIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Abmelden</ListItemText>
+          <ListItemText>Sign Out</ListItemText>
         </MenuItem>
       </Menu>
     </>

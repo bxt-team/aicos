@@ -24,7 +24,7 @@ class SupabaseAuth(HTTPBearer):
         
         if not self.jwt_secret:
             logger.warning("SUPABASE_JWT_SECRET not set - JWT verification will fail")
-            raise ValueError("SUPABASE_JWT_SECRET (JWT_SECRET_KEY in .env) is required for JWT verification")
+            raise ValueError("SUPABASE_JWT_SECRET is required for JWT verification")
         
     async def __call__(self, request: Request) -> Optional[Dict[str, Any]]:
         """Validate the authorization header and extract user info"""

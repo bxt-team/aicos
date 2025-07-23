@@ -108,6 +108,7 @@ async def signup(request: SignupRequest):
             "id": str(project_id),
             "organization_id": organization["id"],
             "name": "Default Project",
+            "slug": "default-project",
             "description": "Your first project - feel free to rename or create additional projects",
             "created_by": user["id"],
             "created_at": datetime.utcnow().isoformat(),

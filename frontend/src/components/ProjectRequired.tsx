@@ -11,7 +11,7 @@ interface ProjectRequiredProps {
 
 const ProjectRequired: React.FC<ProjectRequiredProps> = ({ 
   children, 
-  message = "Sie müssen ein Projekt auswählen, um diese Funktion zu nutzen." 
+  message = "You must select a project to use this feature." 
 }) => {
   const { loading } = useSupabaseAuth();
   // TODO: Add organization support later
@@ -22,7 +22,7 @@ const ProjectRequired: React.FC<ProjectRequiredProps> = ({
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-        <Typography color="text.secondary">Lade...</Typography>
+        <Typography color="text.secondary">Loading...</Typography>
       </Box>
     );
   }
@@ -34,20 +34,20 @@ const ProjectRequired: React.FC<ProjectRequiredProps> = ({
         <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
           <ProjectIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
           <Typography variant="h5" gutterBottom>
-            Kein Projekt ausgewählt
+            No Project Selected
           </Typography>
           <Alert severity="info" sx={{ mt: 2, mb: 3 }}>
             {message}
           </Alert>
           <Typography variant="body1" color="text.secondary" paragraph>
-            Bitte wählen Sie ein Projekt aus dem Dropdown-Menü in der Kopfzeile aus oder erstellen Sie ein neues Projekt.
+            Please select a project from the dropdown menu in the header or create a new project.
           </Typography>
           <Button 
             variant="contained" 
             onClick={() => navigate('/')}
             sx={{ mt: 2 }}
           >
-            Zurück zur Übersicht
+            Back to Overview
           </Button>
         </Paper>
       </Box>

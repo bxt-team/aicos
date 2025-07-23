@@ -14,13 +14,18 @@ api.interceptors.request.use(
   async (config) => {
     // Try to get Supabase session first
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('[API Interceptor] Supabase session:', session ? 'Found' : 'Not found');
     if (session?.access_token) {
       config.headers.Authorization = `Bearer ${session.access_token}`;
+      console.log('[API Interceptor] Added Supabase token to request');
     } else {
       // Fall back to legacy token if no Supabase session
       const token = localStorage.getItem('accessToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('[API Interceptor] Added legacy token to request');
+      } else {
+        console.log('[API Interceptor] No auth token found');
       }
     }
     
@@ -35,6 +40,7 @@ api.interceptors.request.use(
       config.headers['X-Project-ID'] = projectId;
     }
     
+    console.log('[API Interceptor] Request:', config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => {

@@ -5,10 +5,16 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime
+import logging
+import traceback
 
 from app.core.supabase_auth import get_current_user
 from app.models.auth import Permission, OrganizationRole
 from app.core.dependencies import get_supabase_client
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 # from app.core.security.permissions import has_organization_permission
 
 # Temporary permission check until permissions.py is updated for Supabase
@@ -46,6 +52,7 @@ async def list_organizations(
 ):
     """List all organizations the user belongs to"""
     try:
+        logger.info(f"Listing organizations for user: {current_user['user_id']}")
         supabase_client = get_supabase_client()
         supabase = supabase_client.client
         
@@ -55,10 +62,23 @@ async def list_organizations(
                 detail="Database connection not available"
             )
         
-        # Get user's organization memberships from database
+        # First, get the public user ID from the Supabase auth user email
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        # If we have an email, try to find the corresponding public user
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+                logger.info(f"Mapped auth user {current_user['user_id']} to public user {public_user_id}")
+        
+        # Get user's organization memberships from database with joined organization data
         result = supabase.table("organization_members").select(
-            "role, created_at, organizations(id, name, description, created_at)"
-        ).eq("user_id", str(current_user["user_id"])).execute()
+            "role, created_at, organizations(*)"
+        ).eq("user_id", public_user_id).execute()
+        
+        logger.info(f"Organization memberships query result: {result.data}")
         
         organizations = []
         for membership in result.data:
@@ -68,9 +88,15 @@ async def list_organizations(
                     "id": org["id"],
                     "name": org["name"],
                     "description": org.get("description"),
+                    "website": org.get("website"),
+                    "subscription_tier": org.get("subscription_tier", "free"),
+                    "owner_id": org.get("created_by"),  # created_by is the owner_id
                     "role": membership["role"],
-                    "created_at": org["created_at"]
+                    "created_at": org["created_at"],
+                    "updated_at": org.get("updated_at", org["created_at"])
                 })
+        
+        logger.info(f"Returning {len(organizations)} organizations for user {current_user['user_id']}")
         
         return {
             "success": True,
@@ -78,6 +104,8 @@ async def list_organizations(
             "count": len(organizations)
         }
     except Exception as e:
+        logger.error(f"Error listing organizations: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/")
@@ -86,22 +114,72 @@ async def create_organization(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Create a new organization"""
+    logger.info(f"Creating organization: {request.name} for user: {current_user}")
+    
     try:
         from uuid import uuid4
         import re
+        import random
         
+        logger.debug("Getting Supabase client")
         supabase_client = get_supabase_client()
         supabase = supabase_client.client
         
         if not supabase:
+            logger.error("Database connection not available")
             raise HTTPException(
                 status_code=503,
                 detail="Database connection not available"
             )
         
-        # Create organization
+        # Ensure user exists in users table
+        auth_user_id = str(current_user["user_id"])
+        user_email = current_user.get("email", "")
+        logger.debug(f"Auth User ID: {auth_user_id}, Email: {user_email}")
+        
+        # First check if user exists by email (this handles both old and new auth systems)
+        if user_email:
+            email_result = supabase.table("users").select("id").eq("email", user_email).execute()
+            if email_result.data:
+                # User exists, use their ID
+                user_id = email_result.data[0]["id"]
+                logger.info(f"Found existing user by email: {user_id}")
+            else:
+                # Create new user with auth user ID
+                user_id = auth_user_id
+                user_data = {
+                    "id": user_id,
+                    "email": user_email,
+                    "name": user_email.split('@')[0] if user_email else "User",
+                    "auth_provider": "supabase",
+                    "created_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.utcnow().isoformat()
+                }
+                supabase.table("users").insert(user_data).execute()
+                logger.info(f"Created new user: {user_id}")
+        else:
+            # No email, just use auth user ID
+            user_id = auth_user_id
+        
+        # Create organization with unique slug
         org_id = str(uuid4())
-        slug = re.sub(r'[^a-z0-9-]', '-', request.name.lower()).strip('-')
+        base_slug = re.sub(r'[^a-z0-9-]', '-', request.name.lower()).strip('-')
+        logger.debug(f"Generated org_id: {org_id}, base_slug: {base_slug}")
+        
+        # Ensure slug is unique by adding random suffix if needed
+        slug = base_slug
+        counter = 0
+        while True:
+            logger.debug(f"Checking if slug '{slug}' exists")
+            existing = supabase.table("organizations").select("id").eq("slug", slug).execute()
+            if not existing.data:
+                logger.debug(f"Slug '{slug}' is unique")
+                break
+            counter += 1
+            # Add random 4-character suffix
+            random_suffix = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=4))
+            slug = f"{base_slug}-{random_suffix}"
+            logger.debug(f"Slug exists, trying new slug: {slug}")
         
         org_data = {
             "id": org_id,
@@ -110,47 +188,85 @@ async def create_organization(
             "description": request.description,
             "website": request.website,
             "subscription_tier": request.subscription_tier or "free",
-            "created_by": str(current_user["user_id"]),
+            "created_by": user_id,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
-        supabase.table("organizations").insert(org_data).execute()
+        logger.info(f"Creating organization with data: {org_data}")
+        
+        try:
+            supabase.table("organizations").insert(org_data).execute()
+            logger.info("Organization created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create organization: {str(e)}")
+            raise
         
         # Add user as owner
         membership_data = {
             "id": str(uuid4()),
             "organization_id": org_id,
-            "user_id": str(current_user["user_id"]),
+            "user_id": user_id,
             "role": "owner",
             "accepted_at": datetime.utcnow().isoformat(),
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
-        supabase.table("organization_members").insert(membership_data).execute()
+        logger.info(f"Adding user as organization owner: {membership_data}")
         
-        # Create default project
+        try:
+            supabase.table("organization_members").insert(membership_data).execute()
+            logger.info("User added as organization owner")
+        except Exception as e:
+            logger.error(f"Failed to add user as organization member: {str(e)}")
+            raise
+        
+        # Create default project with slug
         project_id = str(uuid4())
+        project_slug = "default-project"
+        
+        # Ensure project slug is unique within organization
+        counter = 0
+        while True:
+            existing = supabase.table("projects").select("id").eq("slug", project_slug).eq("organization_id", org_id).execute()
+            if not existing.data:
+                break
+            counter += 1
+            project_slug = f"default-project-{counter}"
+        
         project_data = {
             "id": project_id,
             "organization_id": org_id,
             "name": "Default Project",
+            "slug": project_slug,
             "description": "Your first project - feel free to rename or create additional projects",
-            "created_by": str(current_user["user_id"]),
+            "created_by": user_id,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
-        supabase.table("projects").insert(project_data).execute()
+        try:
+            supabase.table("projects").insert(project_data).execute()
+            logger.info("Default project created successfully")
+        except Exception as e:
+            logger.error(f"Failed to create default project: {str(e)}")
+            raise
         
         # Add user as project admin
         project_membership_data = {
             "id": str(uuid4()),
             "project_id": project_id,
-            "user_id": str(current_user["user_id"]),
+            "user_id": user_id,
             "role": "admin",
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
-        supabase.table("project_members").insert(project_membership_data).execute()
+        logger.info(f"Adding user as project admin: {project_membership_data}")
+        
+        try:
+            supabase.table("project_members").insert(project_membership_data).execute()
+            logger.info("User added as project admin")
+        except Exception as e:
+            logger.error(f"Failed to add user as project member: {str(e)}")
+            raise
         
         return {
             "success": True,
@@ -161,12 +277,27 @@ async def create_organization(
                 "description": request.description,
                 "website": request.website,
                 "subscription_tier": request.subscription_tier or "free",
-                "created_at": org_data["created_at"]
+                "owner_id": user_id,
+                "created_at": org_data["created_at"],
+                "updated_at": org_data["updated_at"]
             },
             "message": "Organization created successfully"
         }
+    except HTTPException:
+        # Re-raise HTTP exceptions as they are
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to create organization: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Return detailed error in development
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": str(e),
+                "type": type(e).__name__,
+                "traceback": traceback.format_exc().split('\n')
+            }
+        )
 
 @router.get("/{organization_id}")
 async def get_organization(

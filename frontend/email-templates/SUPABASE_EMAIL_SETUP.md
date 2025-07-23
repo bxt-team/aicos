@@ -64,7 +64,7 @@ Each template uses Supabase's template variables. Here's what's available for ea
 The templates reference a logo URL that needs to be updated:
 
 1. Upload your logo to a public CDN or your Supabase Storage bucket
-2. Replace `https://raw.githubusercontent.com/yourusername/aicos/main/logo.svg` with your actual logo URL in all templates
+2. Replace `https://aicos-public.s3.eu-central-1.amazonaws.com/logo.svg` with your actual logo URL in all templates
 
 Alternatively, you can convert the logo to a base64 data URL:
 1. Use a tool to convert your logo.svg to base64

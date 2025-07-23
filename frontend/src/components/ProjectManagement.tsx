@@ -124,7 +124,7 @@ const ProjectManagement: React.FC = () => {
       const response = await apiService.projects.list(currentOrganization.id);
       setProjects(response.data.projects || []);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Laden der Projekte');
+      setError(err.response?.data?.detail || 'Error loading projects');
     } finally {
       setLoading(false);
     }
@@ -148,7 +148,7 @@ const ProjectManagement: React.FC = () => {
           break;
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Laden der Daten');
+      setError(err.response?.data?.detail || 'Error loading data');
     } finally {
       setLoading(false);
     }
@@ -178,7 +178,7 @@ const ProjectManagement: React.FC = () => {
         organization_id: currentOrganization.id
       });
       
-      setSuccess('Projekt erfolgreich erstellt');
+      setSuccess('Project successfully created');
       setCreateDialogOpen(false);
       setNewProjectName('');
       setNewProjectDescription('');
@@ -187,7 +187,7 @@ const ProjectManagement: React.FC = () => {
       // Set as current project
       setCurrentProject(response.data.project);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Erstellen des Projekts');
+      setError(err.response?.data?.detail || 'Error creating project');
     } finally {
       setLoading(false);
     }
@@ -196,7 +196,7 @@ const ProjectManagement: React.FC = () => {
   const handleSelectProject = (project: any) => {
     setCurrentProject(project);
     localStorage.setItem('currentProjectId', project.id);
-    setSuccess(`Projekt "${project.name}" ausgewählt`);
+    setSuccess(`Project "${project.name}" selected`);
   };
 
   const handleSaveDetails = async () => {
@@ -212,13 +212,13 @@ const ProjectManagement: React.FC = () => {
         settings: projectDetails.settings
       });
       
-      setSuccess('Projekt erfolgreich aktualisiert');
+      setSuccess('Project successfully updated');
       setIsEditingDetails(false);
       
       // Update current project in context
       setCurrentProject({ ...currentProject, name: projectDetails.name });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Speichern');
+      setError(err.response?.data?.detail || 'Error saving');
     } finally {
       setLoading(false);
     }
@@ -236,13 +236,13 @@ const ProjectManagement: React.FC = () => {
         role: selectedRole
       });
       
-      setSuccess('Mitglied erfolgreich hinzugefügt');
+      setSuccess('Member added successfully');
       setAddMemberDialogOpen(false);
       setSelectedUserId('');
       setSelectedRole('member');
       loadProjectData(); // Reload members
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Hinzufügen des Mitglieds');
+      setError(err.response?.data?.detail || 'Error adding member');
     } finally {
       setLoading(false);
     }
@@ -251,24 +251,24 @@ const ProjectManagement: React.FC = () => {
   const handleRemoveMember = async (memberId: string) => {
     if (!currentProject) return;
     
-    if (!window.confirm('Möchten Sie dieses Mitglied wirklich aus dem Projekt entfernen?')) return;
+    if (!window.confirm('Are you sure you want to remove this member from the project?')) return;
     
     try {
       // Note: This endpoint might need to be added to the backend
       await apiService.projects.delete(`${currentProject.id}/members/${memberId}`);
-      setSuccess('Mitglied erfolgreich entfernt');
+      setSuccess('Member removed successfully');
       loadProjectData();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Entfernen');
+      setError(err.response?.data?.detail || 'Error removing member');
     }
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    if (!window.confirm('Möchten Sie dieses Projekt wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
+    if (!window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) return;
     
     try {
       await apiService.projects.delete(projectId);
-      setSuccess('Projekt erfolgreich gelöscht');
+      setSuccess('Project successfully deleted');
       
       // If deleted project was current, clear selection
       if (currentProject?.id === projectId) {
@@ -278,7 +278,7 @@ const ProjectManagement: React.FC = () => {
       
       loadProjects();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Löschen des Projekts');
+      setError(err.response?.data?.detail || 'Error deleting project');
     }
   };
 
@@ -301,7 +301,7 @@ const ProjectManagement: React.FC = () => {
   if (!currentOrganization) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Alert severity="info">Bitte wählen Sie eine Organisation aus</Alert>
+        <Alert severity="info">Please select an organization</Alert>
       </Container>
     );
   }
@@ -311,7 +311,7 @@ const ProjectManagement: React.FC = () => {
       <Paper elevation={3}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
-            <Tab label="Projekte" icon={<FolderIcon />} iconPosition="start" />
+            <Tab label="Projects" icon={<FolderIcon />} iconPosition="start" />
             <Tab 
               label="Details" 
               icon={<EditIcon />} 
@@ -319,7 +319,7 @@ const ProjectManagement: React.FC = () => {
               disabled={!currentProject}
             />
             <Tab 
-              label="Mitglieder" 
+              label="Members" 
               icon={<GroupIcon />} 
               iconPosition="start"
               disabled={!currentProject}
@@ -333,13 +333,13 @@ const ProjectManagement: React.FC = () => {
         <TabPanel value={tabValue} index={0}>
           <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h5">Projekte in {currentOrganization.name}</Typography>
+              <Typography variant="h5">Projects in {currentOrganization.name}</Typography>
               <Button
                 startIcon={<AddIcon />}
                 variant="contained"
                 onClick={() => setCreateDialogOpen(true)}
               >
-                Neues Projekt
+                New Project
               </Button>
             </Box>
 
@@ -347,7 +347,7 @@ const ProjectManagement: React.FC = () => {
               <CircularProgress />
             ) : projects.length === 0 ? (
               <Alert severity="info">
-                Noch keine Projekte vorhanden. Erstellen Sie Ihr erstes Projekt!
+                No projects yet. Create your first project!
               </Alert>
             ) : (
               <Grid container spacing={3}>
@@ -409,7 +409,7 @@ const ProjectManagement: React.FC = () => {
           ) : projectDetails ? (
             <Box>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h5">Projektdetails</Typography>
+                <Typography variant="h5">Project Details</Typography>
                 {!isEditingDetails ? (
                   <IconButton onClick={() => setIsEditingDetails(true)}>
                     <EditIcon />
@@ -421,7 +421,7 @@ const ProjectManagement: React.FC = () => {
                     onClick={handleSaveDetails}
                     disabled={loading}
                   >
-                    Speichern
+                    Save
                   </Button>
                 )}
               </Box>
@@ -458,7 +458,7 @@ const ProjectManagement: React.FC = () => {
                 <Grid size={{ xs: 12, md: 6 }}>
                   <TextField
                     fullWidth
-                    label="Ihre Rolle"
+                    label="Your Role"
                     value={projectDetails.role || 'member'}
                     disabled
                   />
@@ -471,7 +471,7 @@ const ProjectManagement: React.FC = () => {
         <TabPanel value={tabValue} index={2}>
           <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h5">Projektmitglieder</Typography>
+              <Typography variant="h5">Project Members</Typography>
               <Button
                 startIcon={<PersonAddIcon />}
                 variant="contained"
@@ -480,7 +480,7 @@ const ProjectManagement: React.FC = () => {
                   setAddMemberDialogOpen(true);
                 }}
               >
-                Mitglied hinzufügen
+                Add Member
               </Button>
             </Box>
 
@@ -529,50 +529,61 @@ const ProjectManagement: React.FC = () => {
 
       {/* Create Project Dialog */}
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Neues Projekt erstellen</DialogTitle>
+        <DialogTitle>Create New Project</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Projektname"
+            label="Project Name"
             fullWidth
             variant="outlined"
             value={newProjectName}
             onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && newProjectName.trim() && !loading) {
+                handleCreateProject();
+              }
+            }}
           />
           <TextField
             margin="dense"
-            label="Beschreibung (optional)"
+            label="Description (optional)"
             fullWidth
             multiline
             rows={3}
             variant="outlined"
             value={newProjectDescription}
             onChange={(e) => setNewProjectDescription(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && newProjectName.trim() && !loading) {
+                e.preventDefault();
+                handleCreateProject();
+              }
+            }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Abbrechen</Button>
+          <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
           <Button 
             onClick={handleCreateProject} 
             variant="contained" 
             disabled={!newProjectName.trim() || loading}
           >
-            Erstellen
+            Create
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Add Member Dialog */}
       <Dialog open={addMemberDialogOpen} onClose={() => setAddMemberDialogOpen(false)}>
-        <DialogTitle>Mitglied hinzufügen</DialogTitle>
+        <DialogTitle>Add Member</DialogTitle>
         <DialogContent>
           <FormControl fullWidth margin="dense">
-            <InputLabel>Mitglied auswählen</InputLabel>
+            <InputLabel>Select Member</InputLabel>
             <Select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              label="Mitglied auswählen"
+              label="Select Member"
             >
               {getAvailableMembers().map((member) => (
                 <MenuItem key={member.id} value={member.id}>
@@ -582,26 +593,26 @@ const ProjectManagement: React.FC = () => {
             </Select>
           </FormControl>
           <FormControl fullWidth margin="dense">
-            <InputLabel>Rolle</InputLabel>
+            <InputLabel>Role</InputLabel>
             <Select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              label="Rolle"
+              label="Role"
             >
-              <MenuItem value="viewer">Betrachter</MenuItem>
-              <MenuItem value="member">Mitglied</MenuItem>
+              <MenuItem value="viewer">Viewer</MenuItem>
+              <MenuItem value="member">Member</MenuItem>
               <MenuItem value="admin">Administrator</MenuItem>
             </Select>
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddMemberDialogOpen(false)}>Abbrechen</Button>
+          <Button onClick={() => setAddMemberDialogOpen(false)}>Cancel</Button>
           <Button 
             onClick={handleAddMember} 
             variant="contained" 
             disabled={!selectedUserId || loading}
           >
-            Hinzufügen
+            Add
           </Button>
         </DialogActions>
       </Dialog>

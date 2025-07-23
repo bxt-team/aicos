@@ -132,7 +132,7 @@ const OrganizationSettings: React.FC = () => {
           break;
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Laden der Daten');
+      setError(err.response?.data?.detail || 'Error loading data');
     } finally {
       setLoading(false);
     }
@@ -152,10 +152,10 @@ const OrganizationSettings: React.FC = () => {
         website: orgDetails.website
       });
       
-      setSuccess('Organisation erfolgreich aktualisiert');
+      setSuccess('Organization successfully updated');
       setIsEditingDetails(false);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Speichern');
+      setError(err.response?.data?.detail || 'Error saving');
     } finally {
       setLoading(false);
     }
@@ -169,12 +169,12 @@ const OrganizationSettings: React.FC = () => {
     try {
       await inviteMember(inviteEmail, inviteRole);
       
-      setSuccess('Einladung erfolgreich versendet');
+      setSuccess('Invitation sent successfully');
       setInviteDialogOpen(false);
       setInviteEmail('');
       setInviteRole('member');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Einladen');
+      setError(err.response?.data?.detail || 'Error inviting');
     } finally {
       setLoading(false);
     }
@@ -186,23 +186,23 @@ const OrganizationSettings: React.FC = () => {
     
     try {
       await updateMemberRole(memberId, newRole);
-      setSuccess('Rolle erfolgreich aktualisiert');
+      setSuccess('Role successfully updated');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Aktualisieren der Rolle');
+      setError(err.response?.data?.detail || 'Error updating role');
     }
   };
 
   const handleRemoveMember = async (memberId: string) => {
-    if (!window.confirm('Möchten Sie dieses Mitglied wirklich entfernen?')) return;
+    if (!window.confirm('Are you sure you want to remove this member?')) return;
     
     setError('');
     setSuccess('');
     
     try {
       await removeMember(memberId);
-      setSuccess('Mitglied erfolgreich entfernt');
+      setSuccess('Member successfully removed');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Fehler beim Entfernen');
+      setError(err.response?.data?.detail || 'Error removing member');
     }
   };
 
@@ -219,7 +219,7 @@ const OrganizationSettings: React.FC = () => {
   if (!currentOrganization) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Alert severity="info">Bitte wählen Sie eine Organisation aus</Alert>
+        <Alert severity="info">Please select an organization</Alert>
       </Container>
     );
   }
@@ -230,7 +230,7 @@ const OrganizationSettings: React.FC = () => {
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
             <Tab label="Allgemein" />
-            <Tab label="Mitglieder" />
+            <Tab label="Members" />
             <Tab label="Nutzung" />
           </Tabs>
         </Box>
@@ -244,7 +244,7 @@ const OrganizationSettings: React.FC = () => {
           ) : orgDetails ? (
             <Box>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h5">Organisationsdetails</Typography>
+                <Typography variant="h5">Organization Details</Typography>
                 {!isEditingDetails ? (
                   <IconButton onClick={() => setIsEditingDetails(true)}>
                     <EditIcon />
@@ -256,7 +256,7 @@ const OrganizationSettings: React.FC = () => {
                     onClick={handleSaveDetails}
                     disabled={loading}
                   >
-                    Speichern
+                    Save
                   </Button>
                 )}
               </Box>
@@ -315,13 +315,13 @@ const OrganizationSettings: React.FC = () => {
         <TabPanel value={tabValue} index={1}>
           <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h5">Mitglieder</Typography>
+              <Typography variant="h5">Members</Typography>
               <Button
                 startIcon={<PersonAddIcon />}
                 variant="contained"
                 onClick={() => setInviteDialogOpen(true)}
               >
-                Mitglied einladen
+                Invite Member
               </Button>
             </Box>
 
@@ -385,7 +385,7 @@ const OrganizationSettings: React.FC = () => {
                   <Card>
                     <CardContent>
                       <Typography color="textSecondary" gutterBottom>
-                        Projekte
+                        Projects
                       </Typography>
                       <Typography variant="h4">
                         {usage.projects.current}/{usage.projects.limit}
@@ -440,35 +440,40 @@ const OrganizationSettings: React.FC = () => {
 
       {/* Invite Member Dialog */}
       <Dialog open={inviteDialogOpen} onClose={() => setInviteDialogOpen(false)}>
-        <DialogTitle>Mitglied einladen</DialogTitle>
+        <DialogTitle>Invite Member</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="E-Mail Adresse"
+            label="Email Address"
             type="email"
             fullWidth
             variant="outlined"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && inviteEmail && !loading) {
+                handleInviteMember();
+              }
+            }}
           />
           <FormControl fullWidth margin="dense">
-            <InputLabel>Rolle</InputLabel>
+            <InputLabel>Role</InputLabel>
             <Select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
-              label="Rolle"
+              label="Role"
             >
-              <MenuItem value="viewer">Betrachter</MenuItem>
-              <MenuItem value="member">Mitglied</MenuItem>
+              <MenuItem value="viewer">Viewer</MenuItem>
+              <MenuItem value="member">Member</MenuItem>
               <MenuItem value="admin">Administrator</MenuItem>
             </Select>
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setInviteDialogOpen(false)}>Abbrechen</Button>
+          <Button onClick={() => setInviteDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleInviteMember} variant="contained" disabled={!inviteEmail || loading}>
-            Einladen
+            Invite
           </Button>
         </DialogActions>
       </Dialog>

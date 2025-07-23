@@ -93,7 +93,7 @@ class AuthAdapter:
         # Sign with the same secret for now
         token = jwt.encode(
             payload,
-            settings.JWT_SECRET_KEY,
+            settings.SUPABASE_JWT_SECRET,
             algorithm="HS256"
         )
         

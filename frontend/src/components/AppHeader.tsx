@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import OrganizationSelector from './OrganizationSelector';
+import ProjectSelector from './ProjectSelector';
 import UserMenu from './UserMenu';
 import ThemeToggle from './ThemeToggle';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
@@ -57,6 +58,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
         
         <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
           <OrganizationSelector />
+          <ProjectSelector />
         </Box>
         
         <ThemeToggle />

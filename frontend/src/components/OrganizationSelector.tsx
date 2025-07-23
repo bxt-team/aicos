@@ -200,6 +200,11 @@ const OrganizationSelector: React.FC = () => {
             variant="outlined"
             value={newOrgName}
             onChange={(e) => setNewOrgName(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && newOrgName.trim() && !creating) {
+                handleCreateOrganization();
+              }
+            }}
             disabled={creating}
             required
             sx={{ mb: 2 }}
@@ -214,6 +219,12 @@ const OrganizationSelector: React.FC = () => {
             rows={3}
             value={newOrgDescription}
             onChange={(e) => setNewOrgDescription(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && newOrgName.trim() && !creating) {
+                e.preventDefault();
+                handleCreateOrganization();
+              }
+            }}
             disabled={creating}
           />
         </DialogContent>

@@ -40,6 +40,7 @@ interface OrganizationContextType {
   inviteMember: (email: string, role: string) => Promise<void>;
   removeMember: (memberId: string) => Promise<void>;
   updateMemberRole: (memberId: string, role: string) => Promise<void>;
+  createProject: (data: { name: string; description?: string; organization_id: string }) => Promise<any>;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
@@ -102,35 +103,52 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const loadOrganizations = async () => {
     if (!user) return;
     
+    console.log('[OrganizationContext] Loading organizations for user:', user);
     setLoading(true);
     setError(null);
     
     try {
       const response = await apiService.organizations.list();
-      setOrganizations(response.data.organizations || []);
+      console.log('[OrganizationContext] Organizations API response:', response);
+      const orgs = response.data.organizations || [];
+      console.log('[OrganizationContext] Setting organizations:', orgs);
+      setOrganizations(orgs);
     } catch (err: any) {
+      console.error('[OrganizationContext] Error loading organizations:', err);
+      console.error('[OrganizationContext] Error response:', err.response);
       setError(err.response?.data?.detail || 'Failed to load organizations');
-      console.error('Error loading organizations:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const createOrganization = async (data: { name: string; description?: string }) => {
+    console.log('[OrganizationContext] Creating organization:', data);
     setLoading(true);
     setError(null);
     
     try {
       const response = await apiService.organizations.create(data);
+      console.log('[OrganizationContext] Create organization response:', response);
       const newOrg = response.data.organization;
-      setOrganizations([...organizations, newOrg]);
+      console.log('[OrganizationContext] New organization:', newOrg);
+      
+      // Update the organizations list
+      const updatedOrgs = [...organizations, newOrg];
+      console.log('[OrganizationContext] Updated organizations list:', updatedOrgs);
+      setOrganizations(updatedOrgs);
       
       // Automatically set as current organization
       setCurrentOrganization(newOrg);
       localStorage.setItem('currentOrganizationId', newOrg.id);
       
+      // Reload organizations to ensure consistency
+      await loadOrganizations();
+      
       return newOrg;
     } catch (err: any) {
+      console.error('[OrganizationContext] Error creating organization:', err);
+      console.error('[OrganizationContext] Error response:', err.response);
       setError(err.response?.data?.detail || 'Failed to create organization');
       throw err;
     } finally {
@@ -257,6 +275,21 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
     }
   };
 
+  const createProject = async (data: { name: string; description?: string; organization_id: string }) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiService.projects.create(data);
+      return response.data.project;
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to create project');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSetCurrentOrganization = (org: Organization | null) => {
     setCurrentOrganization(org);
     if (org) {
@@ -281,6 +314,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
     inviteMember,
     removeMember,
     updateMemberRole,
+    createProject,
   };
 
   return (

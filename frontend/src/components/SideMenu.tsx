@@ -4,21 +4,6 @@ import { getEnabledAgents, getAgentsByCategory, getAgentByRoute } from '../confi
 import { useMenu } from '../contexts/MenuContext';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
-import OrganizationSelector from './OrganizationSelector';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  Alert,
-  Box,
-  Typography
-} from '@mui/material';
-import { Business as BusinessIcon, FolderOpen as ProjectIcon } from '@mui/icons-material';
-import axios from 'axios';
-import { supabase } from '../lib/supabase';
 import './SideMenu.css';
 
 const SideMenu: React.FC = () => {
@@ -28,54 +13,9 @@ const SideMenu: React.FC = () => {
   const { 
     currentOrganization, 
     organizations,
-    loading: orgLoading,
-    createOrganization 
+    loading: orgLoading
   } = useOrganization();
-  
-  // TODO: Add project support later
-  const currentProject: any = null;
-  const setCurrentProject = (project: any) => {};
-  
-  const [createOrgOpen, setCreateOrgOpen] = useState(false);
-  const [createProjectOpen, setCreateProjectOpen] = useState(false);
-  const [newOrgName, setNewOrgName] = useState('');
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectDescription, setNewProjectDescription] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
-  const [projectCheckComplete, setProjectCheckComplete] = useState(false);
 
-  // Check if organization and project exist when user is logged in
-  useEffect(() => {
-    console.log('SideMenu: Loading:', loading, 'OrgLoading:', orgLoading);
-    console.log('SideMenu: User:', user);
-    console.log('SideMenu: Organizations:', organizations);
-    console.log('SideMenu: Current organization:', currentOrganization);
-    console.log('SideMenu: Project check complete:', projectCheckComplete);
-    
-    // Only show dialog after loading is complete
-    if (!loading && !orgLoading && user) {
-      if (organizations.length === 0 && !createOrgOpen) {
-        console.log('SideMenu: Opening create organization dialog');
-        setCreateOrgOpen(true);
-      } else if (currentOrganization && !projectCheckComplete) {
-        // Wait a bit for project to load from localStorage/API
-        const timer = setTimeout(() => {
-          setProjectCheckComplete(true);
-          if (!currentProject) {
-            console.log('SideMenu: Opening create project dialog after delay');
-            setCreateProjectOpen(true);
-          }
-        }, 1500); // 1.5 second delay to allow project loading
-        
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [user, organizations, currentOrganization, currentProject, loading, orgLoading, projectCheckComplete, createOrgOpen]);
-  
-  // Reset project check when organization changes
-  useEffect(() => {
-    setProjectCheckComplete(false);
-  }, [currentOrganization]);
 
   // Close menu on route change for mobile
   useEffect(() => {
@@ -118,166 +58,11 @@ const SideMenu: React.FC = () => {
     toggleMenu();
   };
 
-  const handleCreateOrg = async () => {
-    if (!newOrgName.trim()) return;
-    
-    setIsCreating(true);
-    try {
-      await createOrganization({ name: newOrgName });
-      setCreateOrgOpen(false);
-      setNewOrgName('');
-    } catch (error) {
-      console.error('Failed to create organization:', error);
-    } finally {
-      setIsCreating(false);
-    }
-  };
 
-  const handleCreateProject = async () => {
-    if (!newProjectName.trim() || !currentOrganization) return;
-    
-    setIsCreating(true);
-    try {
-      const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-      
-      // Get Supabase session token
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: any = {};
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`;
-      }
-      
-      const response = await axios.post(`${baseURL}/api/projects`, {
-        name: newProjectName,
-        description: newProjectDescription,
-        organization_id: currentOrganization.id
-      }, { headers });
-      
-      const newProject = response.data.project;
-      setCurrentProject(newProject);
-      setCreateProjectOpen(false);
-      setNewProjectName('');
-      setNewProjectDescription('');
-    } catch (error) {
-      console.error('Failed to create project:', error);
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  // Don't render agent menu if no organization or project is selected (after loading is complete)
-  if (!loading && !orgLoading && user && (organizations.length === 0 || (!currentProject && projectCheckComplete))) {
-    return (
-      <>
-        {/* Organization Creation Dialog */}
-        <Dialog 
-          open={createOrgOpen && organizations.length === 0} 
-          onClose={() => {}} // Prevent closing by clicking outside
-          disableEscapeKeyDown // Prevent closing with ESC key
-          fullWidth
-          maxWidth="sm"
-        >
-          <DialogTitle>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <BusinessIcon color="primary" />
-              <Typography variant="h6">Organisation erstellen</Typography>
-            </Box>
-          </DialogTitle>
-          <DialogContent>
-            <Alert severity="info" sx={{ mb: 3 }}>
-              Sie müssen zuerst eine Organisation erstellen, bevor Sie die AI-Agenten nutzen können.
-            </Alert>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Organisationsname"
-              fullWidth
-              variant="outlined"
-              value={newOrgName}
-              onChange={(e) => setNewOrgName(e.target.value)}
-              placeholder="z.B. Meine Firma, Persönlicher Workspace"
-              disabled={isCreating}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              onClick={handleCreateOrg} 
-              variant="contained" 
-              disabled={!newOrgName.trim() || isCreating}
-              size="large"
-            >
-              {isCreating ? 'Wird erstellt...' : 'Organisation erstellen'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-        
-        {/* Project Creation Dialog */}
-        <Dialog 
-          open={createProjectOpen && !!currentOrganization && !currentProject} 
-          onClose={() => {}} // Prevent closing by clicking outside
-          disableEscapeKeyDown // Prevent closing with ESC key
-          fullWidth
-          maxWidth="sm"
-        >
-          <DialogTitle>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ProjectIcon color="primary" />
-              <Typography variant="h6">Projekt erstellen</Typography>
-            </Box>
-          </DialogTitle>
-          <DialogContent>
-            <Alert severity="info" sx={{ mb: 3 }}>
-              Sie müssen ein Projekt erstellen, um die AI-Agenten nutzen zu können.
-            </Alert>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Projektname"
-              fullWidth
-              variant="outlined"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              placeholder="z.B. Marketing Kampagne, Content Strategie"
-              disabled={isCreating}
-            />
-            <TextField
-              margin="dense"
-              label="Beschreibung (optional)"
-              fullWidth
-              variant="outlined"
-              multiline
-              rows={3}
-              value={newProjectDescription}
-              onChange={(e) => setNewProjectDescription(e.target.value)}
-              disabled={isCreating}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              onClick={handleCreateProject} 
-              variant="contained" 
-              disabled={!newProjectName.trim() || isCreating}
-              size="large"
-            >
-              {isCreating ? 'Wird erstellt...' : 'Projekt erstellen'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-        
-        <aside className="side-menu collapsed">
-          <div className="side-menu-header">
-            <div className="no-org-message">
-              <Typography variant="body2" color="text.secondary">
-                {organizations.length === 0 
-                  ? 'Bitte erstellen Sie eine Organisation'
-                  : 'Bitte erstellen Sie ein Projekt'
-                }
-              </Typography>
-            </div>
-          </div>
-        </aside>
-      </>
-    );
+  // Don't render agent menu if no organization exists (after loading is complete)
+  // The OnboardingCheck component will handle showing the onboarding wizard
+  if (!loading && !orgLoading && user && organizations.length === 0) {
+    return null;
   }
 
   return (
@@ -292,19 +77,19 @@ const SideMenu: React.FC = () => {
         <button 
           className="menu-toggle"
           onClick={handleToggleClick}
-          aria-label={isExpanded ? 'Menü einklappen' : 'Menü ausklappen'}
+          aria-label={isExpanded ? 'Collapse menu' : 'Expand menu'}
         >
           {isExpanded ? '◀' : '▶'}
         </button>
         {isExpanded && (
           <div className="menu-title">
-            <h3>🤖 AI Agenten</h3>
-            <p className="agent-count">{agents.length} verfügbar</p>
+            <h3>🤖 AI Agents</h3>
+            <p className="agent-count">{agents.length} available</p>
             {isMobile && (
               <button 
                 className="menu-close"
                 onClick={handleToggleClick}
-                aria-label="Menü schließen"
+                aria-label="Close menu"
               >
                 ✕
               </button>
@@ -313,12 +98,6 @@ const SideMenu: React.FC = () => {
         )}
       </div>
 
-      {/* Organization Selector */}
-      {isExpanded && (
-        <div className="organization-section">
-          <OrganizationSelector />
-        </div>
-      )}
 
       <nav className="side-menu-nav">
         {isExpanded ? (

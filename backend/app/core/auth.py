@@ -16,9 +16,9 @@ from app.models.auth import User, RequestContext, Permission, OrganizationRole
 
 
 # Configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+SECRET_KEY = os.getenv("SUPABASE_JWT_SECRET")
 if not SECRET_KEY:
-    raise ValueError("JWT_SECRET_KEY environment variable must be set")
+    raise ValueError("SUPABASE_JWT_SECRET environment variable must be set")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))

@@ -43,6 +43,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppHeader from './components/AppHeader';
 import { useSupabaseAuth } from './contexts/SupabaseAuthContext';
 import ProjectManagement from './components/ProjectManagement';
+import OnboardingCheck from './components/OnboardingCheck';
 
 function AppContent() {
   const { user, loading } = useSupabaseAuth();
@@ -57,7 +58,8 @@ function AppContent() {
     return <LoadingScreen fadeOut={fadeOut} />;
   }
   
-  return (
+  // Wrap with OnboardingCheck only if user is logged in and not on auth pages
+  const appContent = (
     <MenuProvider>
       <div className="App">
         {user && !isAuthPage && <SideMenu />}
@@ -107,6 +109,13 @@ function AppContent() {
         </div>
       </MenuProvider>
   );
+  
+  // If user is logged in and not on auth page, check for onboarding
+  if (user && !isAuthPage) {
+    return <OnboardingCheck>{appContent}</OnboardingCheck>;
+  }
+  
+  return appContent;
 }
 
 function App() {
