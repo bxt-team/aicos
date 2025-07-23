@@ -14,18 +14,18 @@ import {
   CircularProgress
 } from '@mui/material';
 import { Edit as EditIcon, Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import axios from 'axios';
 
 const UserProfile: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
   const [formData, setFormData] = useState({
-    name: user?.name || '',
+    name: user?.user_metadata?.name || '',
     email: user?.email || '',
   });
 
@@ -44,7 +44,7 @@ const UserProfile: React.FC = () => {
   const handleCancel = () => {
     setIsEditing(false);
     setFormData({
-      name: user?.name || '',
+      name: user?.user_metadata?.name || '',
       email: user?.email || '',
     });
     setPasswordData({
@@ -133,10 +133,10 @@ const UserProfile: React.FC = () => {
 
         <Box display="flex" alignItems="center" mb={4}>
           <Avatar sx={{ width: 80, height: 80, mr: 3, bgcolor: 'primary.main' }}>
-            {getInitials(user.name)}
+            {getInitials(user?.user_metadata?.name || user?.email || 'User')}
           </Avatar>
           <Box>
-            <Typography variant="h5">{user.name}</Typography>
+            <Typography variant="h5">{user?.user_metadata?.name || user?.email?.split('@')[0] || 'User'}</Typography>
             <Typography variant="body1" color="text.secondary">{user.email}</Typography>
             <Typography variant="caption" color="text.secondary">
               Mitglied seit {new Date(user.created_at).toLocaleDateString('de-DE')}
@@ -214,20 +214,7 @@ const UserProfile: React.FC = () => {
         <Divider sx={{ my: 3 }} />
 
         <Typography variant="h6" gutterBottom>Organisationen</Typography>
-        {user.organizations && user.organizations.length > 0 ? (
-          <Box>
-            {user.organizations.map((org: any) => (
-              <Box key={org.id} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                <Typography variant="subtitle1">{org.name}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Rolle: {org.role} • Beigetreten: {new Date(org.created_at).toLocaleDateString('de-DE')}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        ) : (
-          <Typography color="text.secondary">Keine Organisationen</Typography>
-        )}
+        <Typography variant="body2" color="text.secondary">Organization support coming soon</Typography>
       </Paper>
     </Container>
   );

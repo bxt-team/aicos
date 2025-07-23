@@ -20,11 +20,11 @@ import {
 import {
   Visibility,
   VisibilityOff,
-  BusinessCenter,
   Email,
   Lock
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import './auth.css';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -98,26 +98,29 @@ const Login: React.FC = () => {
           }}
         >
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <BusinessCenter 
-              sx={{ 
-                fontSize: 48, 
-                color: theme.palette.primary.main,
-                mb: 2
-              }} 
-            />
+            <Box sx={{ mb: 2 }}>
+              <img 
+                src="/logo.svg" 
+                alt="AICOS Logo" 
+                className="auth-logo-image"
+                style={{ 
+                  width: 80, 
+                  height: 80,
+                  filter: theme.palette.mode === 'dark' ? 'brightness(1.2)' : 'none'
+                }} 
+              />
+            </Box>
             <Typography 
               component="h1" 
               variant="h4" 
               sx={{ 
                 fontWeight: 700,
-                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                fontFamily: 'Inter, sans-serif',
+                color: theme.palette.primary.main,
                 mb: 1
               }}
             >
-              AI Company
+              AICOS
             </Typography>
             <Typography 
               variant="body1" 

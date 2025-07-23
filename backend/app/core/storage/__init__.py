@@ -1,4 +1,4 @@
-"""Storage abstraction layer for 7cycles-ai"""
+"""Storage abstraction layer for AICOS"""
 
 from .base import StorageAdapter
 from .json_adapter import JSONAdapter

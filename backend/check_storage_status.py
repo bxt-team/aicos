@@ -15,7 +15,7 @@ from app.core.storage.factory import StorageFactory
 
 
 async def main():
-    print("🔍 7cycles-ai Storage Status Check")
+    print("🔍 AICOS Storage Status Check")
     print("=" * 50)
     
     # Configuration

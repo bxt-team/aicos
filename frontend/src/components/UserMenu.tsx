@@ -19,11 +19,11 @@ import {
   Folder as FolderIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 
 const UserMenu: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { user, logout, currentOrganization } = useAuth();
+  const { user, signOut } = useSupabaseAuth();
   const navigate = useNavigate();
   const open = Boolean(anchorEl);
 
@@ -37,7 +37,7 @@ const UserMenu: React.FC = () => {
 
   const handleLogout = async () => {
     handleClose();
-    await logout();
+    await signOut();
     navigate('/login');
   };
 
@@ -49,13 +49,9 @@ const UserMenu: React.FC = () => {
   if (!user) return null;
 
   // Get initials for avatar
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  const getInitials = (email: string) => {
+    if (!email) return '?';
+    return email[0].toUpperCase();
   };
 
   return (
@@ -69,7 +65,7 @@ const UserMenu: React.FC = () => {
         aria-expanded={open ? 'true' : undefined}
       >
         <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-          {user.name ? getInitials(user.name) : <AccountCircleIcon />}
+          {user.email ? getInitials(user.email) : <AccountCircleIcon />}
         </Avatar>
       </IconButton>
       
@@ -98,16 +94,17 @@ const UserMenu: React.FC = () => {
       >
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="subtitle1" noWrap>
-            {user.name}
+            {user.user_metadata?.name || user.email?.split('@')[0] || 'User'}
           </Typography>
           <Typography variant="body2" color="text.secondary" noWrap>
             {user.email}
           </Typography>
-          {currentOrganization && (
+          {/* TODO: Add organization support later */}
+          {/* currentOrganization && (
             <Typography variant="caption" color="text.secondary" noWrap>
               {currentOrganization.name}
             </Typography>
-          )}
+          ) */}
         </Box>
         
         <Divider />

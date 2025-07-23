@@ -11,14 +11,15 @@ import {
 import { Menu as MenuIcon } from '@mui/icons-material';
 import OrganizationSelector from './OrganizationSelector';
 import UserMenu from './UserMenu';
-import { useAuth } from '../contexts/AuthContext';
+import ThemeToggle from './ThemeToggle';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 
 interface AppHeaderProps {
   onMenuToggle?: () => void;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -47,14 +48,18 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
           </IconButton>
         )}
         
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 0, mr: 4, fontWeight: 600 }}>
-          AI Company
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mr: 4 }}>
+          <img src="/logo.svg" alt="AICOS Logo" style={{ width: 32, height: 32, marginRight: 8 }} />
+          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
+            AICOS
+          </Typography>
+        </Box>
         
         <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
           <OrganizationSelector />
         </Box>
         
+        <ThemeToggle />
         <UserMenu />
       </Toolbar>
     </AppBar>

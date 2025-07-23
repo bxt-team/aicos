@@ -2,9 +2,8 @@
   max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
+  font-family: var(--aicos-font-body);
+  /* Remove background - use global app background */
 }
 
 .posting-header {

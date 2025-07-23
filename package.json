@@ -1,7 +1,7 @@
 {
-  "name": "instagram-content-generator",
+  "name": "aicos",
   "version": "1.0.0",
-  "description": "CrewAI-powered Instagram content generator with React frontend",
+  "description": "AICOS - AI-powered content generation system with React frontend",
   "main": "index.js",
   "scripts": {
     "install-frontend": "cd frontend && npm install",
@@ -10,7 +10,7 @@
     "dev-backend": "cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
     "setup": "pip install -r requirements.txt && npm run install-frontend"
   },
-  "keywords": ["crewai", "instagram", "content-generation", "ai"],
+  "keywords": ["aicos", "crewai", "content-generation", "ai", "automation"],
   "author": "",
   "license": "MIT"
 }

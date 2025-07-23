@@ -1,12 +1,21 @@
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background-color: var(--aicos-card-light);
+  color: var(--aicos-text-light);
   padding: 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
   backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--aicos-border-light);
+  transition: all 0.3s ease;
+}
+
+body.dark-mode .header {
+  background-color: var(--aicos-card-dark);
+  color: var(--aicos-text-dark);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-bottom-color: var(--aicos-border-dark);
 }
 
 .header-container {
@@ -22,7 +31,7 @@
 
 .header-title {
   text-decoration: none;
-  color: white;
+  color: inherit;
   transition: transform 0.3s ease;
 }
 
@@ -55,10 +64,11 @@
   font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: -0.5px;
-  background: linear-gradient(45deg, #ffffff, #e2e8f0);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--aicos-primary-light);
+}
+
+body.dark-mode .header-title h1 {
+  color: var(--aicos-primary-dark);
 }
 
 /* Hamburger menu button */
@@ -83,19 +93,31 @@
 }
 
 .hamburger-menu:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--aicos-bg-light);
+}
+
+body.dark-mode .hamburger-menu:hover {
+  background-color: var(--aicos-bg-dark);
 }
 
 .hamburger-menu:active {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--aicos-border-light);
+}
+
+body.dark-mode .hamburger-menu:active {
+  background-color: var(--aicos-border-dark);
 }
 
 .hamburger-line {
   width: 24px;
   height: 3px;
-  background-color: white;
+  background-color: var(--aicos-text-light);
   border-radius: 2px;
   transition: all 0.3s ease;
+}
+
+body.dark-mode .hamburger-line {
+  background-color: var(--aicos-text-dark);
 }
 
 /* Mobile responsiveness */

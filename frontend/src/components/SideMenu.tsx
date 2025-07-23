@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getEnabledAgents, getAgentsByCategory, getAgentByRoute } from '../config/agents';
 import { useMenu } from '../contexts/MenuContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import {
   Dialog,
   DialogTitle,
@@ -21,7 +21,12 @@ import './SideMenu.css';
 const SideMenu: React.FC = () => {
   const { isMenuOpen: isExpanded, toggleMenu, isMobile } = useMenu();
   const location = useLocation();
-  const { currentOrganization, setCurrentOrganization, currentProject, setCurrentProject, user, isLoading } = useAuth();
+  const { user, loading } = useSupabaseAuth();
+  // TODO: Add organization support later
+  const currentOrganization: any = null;
+  const currentProject: any = null;
+  const setCurrentOrganization = (org: any) => {};
+  const setCurrentProject = (project: any) => {};
   const [createOrgOpen, setCreateOrgOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
@@ -32,14 +37,14 @@ const SideMenu: React.FC = () => {
 
   // Check if organization and project exist when user is logged in
   useEffect(() => {
-    console.log('SideMenu: Loading:', isLoading);
+    console.log('SideMenu: Loading:', loading);
     console.log('SideMenu: User:', user);
-    console.log('SideMenu: Current organization:', currentOrganization);
-    console.log('SideMenu: Current project:', currentProject);
+    // console.log('SideMenu: Current organization:', currentOrganization);
+    // console.log('SideMenu: Current project:', currentProject);
     console.log('SideMenu: Project check complete:', projectCheckComplete);
     
     // Only show dialog after loading is complete
-    if (!isLoading && user) {
+    if (!loading && user) {
       if (!currentOrganization) {
         console.log('SideMenu: Opening create organization dialog');
         setCreateOrgOpen(true);
@@ -56,7 +61,7 @@ const SideMenu: React.FC = () => {
         return () => clearTimeout(timer);
       }
     }
-  }, [user, currentOrganization, currentProject, isLoading, projectCheckComplete]);
+  }, [user, currentOrganization, currentProject, loading, projectCheckComplete]);
   
   // Reset project check when organization changes
   useEffect(() => {
@@ -153,7 +158,7 @@ const SideMenu: React.FC = () => {
   };
 
   // Don't render agent menu if no organization or project is selected (after loading is complete)
-  if (!isLoading && user && (!currentOrganization || (!currentProject && projectCheckComplete))) {
+  if (!loading && user && (!currentOrganization || (!currentProject && projectCheckComplete))) {
     return (
       <>
         {/* Organization Creation Dialog */}

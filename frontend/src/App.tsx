@@ -1,8 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { MenuProvider } from './contexts/MenuContext';
-import { AuthProvider } from './contexts/AuthContext';
+import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import './App.css';
+import LoadingScreen from './components/LoadingScreen';
+import { useLoadingScreen } from './hooks/useLoadingScreen';
 import ContentGenerator from './components/ContentGenerator';
 import ContentViewer from './components/ContentViewer';
 import QAInterface from './components/QAInterface';
@@ -25,21 +28,32 @@ import AgentManagement from './components/AgentManagement';
 import AgentPromptsDisplay from './components/AgentPromptsDisplay';
 import Header from './components/Header';
 import SideMenu from './components/SideMenu';
-import Login from './components/auth/Login';
-import Signup from './components/auth/Signup';
+import { SupabaseLogin } from './components/auth/SupabaseLogin';
+import { SupabaseSignup } from './components/auth/SupabaseSignup';
+import { ForgotPassword } from './components/auth/ForgotPassword';
+import { ResetPassword } from './components/auth/ResetPassword';
+import { AuthCallback } from './components/auth/AuthCallback';
+import { MFAChallenge } from './components/auth/MFAChallenge';
+import { AccountSettings } from './components/auth/AccountSettings';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppHeader from './components/AppHeader';
-import { useAuth } from './contexts/AuthContext';
+import { useSupabaseAuth } from './contexts/SupabaseAuthContext';
 import UserProfile from './components/UserProfile';
 import OrganizationSettings from './components/OrganizationSettings';
 import ProjectManagement from './components/ProjectManagement';
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading } = useSupabaseAuth();
   const location = useLocation();
+  const { showLoadingScreen, fadeOut } = useLoadingScreen(loading);
   
-  // Check if we're on an auth page (login or signup)
-  const isAuthPage = ['/login', '/signup'].includes(location.pathname);
+  // Check if we're on an auth page
+  const isAuthPage = ['/login', '/signup', '/forgot-password', '/reset-password', '/auth/callback', '/mfa-challenge'].includes(location.pathname);
+  
+  // Show loading screen while checking auth state
+  if (showLoadingScreen) {
+    return <LoadingScreen fadeOut={fadeOut} />;
+  }
   
   return (
     <MenuProvider>
@@ -51,8 +65,13 @@ function AppContent() {
           <main className="main-content" style={{ marginTop: (user && !isAuthPage) ? '64px' : '0' }}>
             <Routes>
             {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<SupabaseLogin />} />
+            <Route path="/signup" element={<SupabaseSignup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/mfa-challenge" element={<MFAChallenge />} />
+            <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
             
             {/* Protected routes */}
             <Route path="/" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
@@ -90,9 +109,11 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <ThemeProvider>
+        <SupabaseAuthProvider>
+          <AppContent />
+        </SupabaseAuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }

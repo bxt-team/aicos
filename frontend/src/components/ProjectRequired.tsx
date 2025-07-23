@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { Box, Paper, Typography, Alert, Button } from '@mui/material';
 import { FolderOpen as ProjectIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -13,11 +13,13 @@ const ProjectRequired: React.FC<ProjectRequiredProps> = ({
   children, 
   message = "Sie müssen ein Projekt auswählen, um diese Funktion zu nutzen." 
 }) => {
-  const { currentProject, isLoading } = useAuth();
+  const { loading } = useSupabaseAuth();
+  // TODO: Add organization support later
+  const currentProject: any = null;
   const navigate = useNavigate();
 
   // Still loading, show nothing or a loader
-  if (isLoading) {
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
         <Typography color="text.secondary">Lade...</Typography>

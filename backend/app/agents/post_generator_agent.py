@@ -299,7 +299,7 @@ class PostGeneratorAgent(BaseCrew):
         return [
             {
                 "content": f"🌟 Periode {period}: {period_name}\n\nJede Phase unseres Lebens hat ihre eigene Energie und Weisheit. In der {period_name}-Phase geht es darum, diese Kraft bewusst zu nutzen.\n\nWelche Energie spürst du gerade in deinem Leben?",
-                "hashtags": ["#7Cycles", f"#{period_name}", "#Lebensrhythmus", "#Spiritualität", "#Transformation"],
+                "hashtags": ["#AICOS", f"#{period_name}", "#Lebensrhythmus", "#Spiritualität", "#Transformation"],
                 "period": period,
                 "visual_prompt": f"Minimalist spiritual design representing {period_name} energy",
                 "post_type": "educational",
@@ -307,7 +307,7 @@ class PostGeneratorAgent(BaseCrew):
             },
             {
                 "content": f"✨ Tagesaffirmation für {period_name}:\n\n'Ich bin im Einklang mit meinem natürlichen Rhythmus und nutze die Kraft dieser Phase für mein Wachstum.'\n\nWiederhole diese Affirmation heute dreimal und spüre die Veränderung.",
-                "hashtags": ["#Affirmation", f"#{period_name}", "#7Zyklen", "#Selbstliebe", "#TäglichePraxis"],
+                "hashtags": ["#Affirmation", f"#{period_name}", "#AICOS", "#Selbstliebe", "#TäglichePraxis"],
                 "period": period,
                 "visual_prompt": f"Calming nature scene with affirmation text overlay",
                 "post_type": "affirmation",
@@ -315,7 +315,7 @@ class PostGeneratorAgent(BaseCrew):
             },
             {
                 "content": f"🎯 Aktivität für heute:\n\nNimm dir 10 Minuten Zeit für eine {period_name}-Meditation. Setze dich ruhig hin, atme tief und visualisiere die Energie dieser Phase in deinem Leben.\n\nBereit für diese kraftvolle Übung?",
-                "hashtags": ["#Meditation", "#7CyclesAktivität", f"#{period_name}", "#Achtsamkeit", "#DailyPractice"],
+                "hashtags": ["#Meditation", "#AICOSActivity", f"#{period_name}", "#Achtsamkeit", "#DailyPractice"],
                 "period": period,
                 "visual_prompt": f"Person meditating with {period_name} energy visualization",
                 "post_type": "activity",
@@ -335,7 +335,7 @@ class PostGeneratorAgent(BaseCrew):
             7: ["#UMSICHT", "#Weisheit", "#Planung"]
         }
         
-        base_hashtags = ["#7Cycles", "#7Zyklen", "#Lebensrhythmus"]
+        base_hashtags = ["#AICOS", "#AICOSLife", "#Lebensrhythmus"]
         return base_hashtags + period_hashtags.get(period, ["#Spiritualität"])
     
     def _save_posts(self, posts: List[Dict[str, Any]]):

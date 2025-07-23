@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useMenu } from '../contexts/MenuContext';
+import ThemeToggle from './ThemeToggle';
 import './Header.css';
 
 const Header: React.FC = () => {
@@ -21,11 +22,12 @@ const Header: React.FC = () => {
           </button>
         )}
         <Link to="/" className="header-title">
-          <div className="title-content">
-            <span className="title-icon">🏢</span>
-            <h1>AI Company</h1>
+          <div className="title-content aicos-brand">
+            <img src="/logo.svg" alt="AICOS Logo" className="aicos-logo" />
+            <h1>AICOS</h1>
           </div>
         </Link>
+        <ThemeToggle />
       </div>
     </header>
   );

@@ -1,17 +1,17 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { CircularProgress, Box } from '@mui/material';
-import { useAuth } from '../../contexts/AuthContext';
+import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useSupabaseAuth();
   const location = useLocation();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Box
         display="flex"

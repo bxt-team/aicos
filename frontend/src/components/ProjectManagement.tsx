@@ -46,7 +46,7 @@ import {
   Person as PersonIcon,
   Group as GroupIcon
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { apiService } from '../services/api';
 
 interface TabPanelProps {
@@ -72,7 +72,11 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const ProjectManagement: React.FC = () => {
-  const { currentOrganization, currentProject, setCurrentProject } = useAuth();
+  const { } = useSupabaseAuth();
+  // TODO: Add organization support later
+  const currentOrganization: any = null;
+  const currentProject: any = null;
+  const setCurrentProject = (project: any) => {};
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

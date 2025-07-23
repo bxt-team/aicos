@@ -8,12 +8,12 @@ router = APIRouter(tags=["Health"])
 @router.get("/", summary="API Root", description="Welcome endpoint with API information and documentation links")
 async def root():
     """
-    Welcome to the 7 Cycles AI Assistant API.
+    Welcome to the AICOS AI Assistant API.
     
     This endpoint provides information about the API and links to documentation.
     """
     return {
-        "message": "7 Cycles of Life AI Assistant API",
+        "message": "AICOS AI Assistant API",
         "version": "2.0.0",
         "status": "active",
         "documentation": {
@@ -37,7 +37,7 @@ async def root():
 async def health_check():
     return {
         "status": "healthy",
-        "service": "7cycles-backend",
+        "service": "aicos-backend",
         "timestamp": datetime.now().isoformat()
     }
 

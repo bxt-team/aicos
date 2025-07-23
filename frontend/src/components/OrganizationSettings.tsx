@@ -36,7 +36,7 @@ import {
   PersonAdd as PersonAddIcon,
   Save as SaveIcon
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { apiService } from '../services/api';
 
 interface TabPanelProps {
@@ -62,7 +62,9 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const OrganizationSettings: React.FC = () => {
-  const { currentOrganization } = useAuth();
+  const { } = useSupabaseAuth();
+  // TODO: Add organization support later
+  const currentOrganization: any = null;
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

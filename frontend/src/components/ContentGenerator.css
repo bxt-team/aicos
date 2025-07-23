@@ -5,25 +5,40 @@
 }
 
 .generator-container {
-  background: white;
+  background: var(--aicos-card-light);
   border-radius: 1rem;
   padding: 2rem;
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+body.dark-mode .generator-container {
+  background: var(--aicos-card-dark);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
 
 .generator-container h2 {
-  color: #333;
+  color: var(--aicos-text-light);
   margin-bottom: 1rem;
   font-size: 2rem;
   text-align: center;
 }
 
+body.dark-mode .generator-container h2 {
+  color: var(--aicos-text-dark);
+}
+
 .generator-description {
-  color: #666;
+  color: var(--aicos-text-light);
+  opacity: 0.8;
   font-size: 1.1rem;
   text-align: center;
   margin-bottom: 2rem;
   line-height: 1.6;
+}
+
+body.dark-mode .generator-description {
+  color: var(--aicos-text-dark);
 }
 
 .generator-features {
@@ -34,20 +49,34 @@
 }
 
 .feature {
-  background: #f8f9fa;
+  background: var(--aicos-bg-light);
   padding: 1.5rem;
   border-radius: 0.5rem;
   text-align: center;
+  transition: background-color 0.3s ease;
+}
+
+body.dark-mode .feature {
+  background: var(--aicos-bg-dark);
 }
 
 .feature h3 {
-  color: #333;
+  color: var(--aicos-text-light);
   margin-bottom: 0.5rem;
   font-size: 1.1rem;
 }
 
+body.dark-mode .feature h3 {
+  color: var(--aicos-text-dark);
+}
+
 .feature p {
-  color: #666;
+  color: var(--aicos-text-light);
+  opacity: 0.8;
+}
+
+body.dark-mode .feature p {
+  color: var(--aicos-text-dark);
   font-size: 0.9rem;
   margin: 0;
 }

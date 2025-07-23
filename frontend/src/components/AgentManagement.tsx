@@ -57,6 +57,24 @@ const AgentManagement: React.FC = () => {
     return colors[category] || '#718096';
   };
 
+  // Get CSS class for category instead of inline style
+  const getCategoryClass = (category: string) => {
+    const categoryMap: { [key: string]: string } = {
+      'Wissen & Forschung': 'category-knowledge',
+      'Persönlichkeitsentwicklung': 'category-personality',
+      'Social Media Marketing': 'category-social',
+      'Visual Content': 'category-visual',
+      'Content Creation': 'category-content',
+      'E-Mail Marketing': 'category-email',
+      'Video Content': 'category-video',
+      'Bildung': 'category-education',
+      'Analytics': 'category-analytics',
+      'Quality Assurance': 'category-qa',
+      'System Management': 'category-system'
+    };
+    return categoryMap[category] || 'category-default';
+  };
+
   const loadAgentPrompt = async (agentId: string) => {
     // Map frontend agent IDs to backend agent IDs
     const agentIdMap: { [key: string]: string } = {
@@ -161,8 +179,7 @@ const AgentManagement: React.FC = () => {
                   <div>
                     <h4>{agent.name}</h4>
                     <span 
-                      className="category-badge"
-                      style={{ backgroundColor: getCategoryColor(agent.category) }}
+                      className={`category-badge ${getCategoryClass(agent.category)}`}
                     >
                       {agent.category}
                     </span>

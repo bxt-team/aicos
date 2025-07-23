@@ -6,7 +6,10 @@
         "-y",
         "@supabase/mcp-server-supabase@latest",
         "--project-ref=jozhoacicfupvjduswio"
-      ]
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "sbp_50deda0bbac4251d45c6337d26d0fd6ddbf2e031"
+      }
     }
   }
 }

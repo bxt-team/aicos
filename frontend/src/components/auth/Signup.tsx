@@ -195,12 +195,23 @@ const Signup: React.FC = () => {
         }}
       >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-          <Typography component="h1" variant="h4" align="center" gutterBottom>
-            AI Company
-          </Typography>
-          <Typography component="h2" variant="h6" align="center" color="text.secondary" gutterBottom>
-            Konto erstellen
-          </Typography>
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <img 
+              src="/logo.svg" 
+              alt="AICOS Logo" 
+              style={{ 
+                width: 60, 
+                height: 60,
+                marginBottom: 16
+              }} 
+            />
+            <Typography component="h1" variant="h4" align="center" gutterBottom sx={{ fontFamily: 'Inter, sans-serif', fontWeight: 700 }}>
+              AICOS
+            </Typography>
+            <Typography component="h2" variant="h6" align="center" color="text.secondary" gutterBottom>
+              Konto erstellen
+            </Typography>
+          </Box>
           
           <Stepper activeStep={activeStep} sx={{ mt: 3, mb: 3 }}>
             {steps.map((label) => (

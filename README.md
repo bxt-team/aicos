@@ -1,6 +1,6 @@
-# Instagram Content Generator with CrewAI
+# AICOS - AI Content Operating System
 
-A state-of-the-art content generation system using CrewAI flows to create engaging Instagram posts from knowledge files. The system generates both text content and images, with a React frontend for preview and approval.
+A comprehensive AI-powered content generation system using CrewAI flows to create engaging social media content from knowledge files. AICOS generates both text content and visual assets, with a React frontend for management and approval.
 
 ## Features
 
@@ -35,7 +35,7 @@ A state-of-the-art content generation system using CrewAI flows to create engagi
 1. **Clone and setup the project**:
 ```bash
 git clone <repository-url>
-cd 7cycles-ai
+cd aicos
 ```
 
 2. **Install Python dependencies**:
