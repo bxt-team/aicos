@@ -52,6 +52,7 @@ class Settings:
     SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
     SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY")
     SUPABASE_SERVICE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_KEY")
+    SUPABASE_JWT_SECRET: Optional[str] = os.getenv("JWT_SECRET_KEY")  # JWT secret for verifying tokens
     DUAL_WRITE_READ_FROM: str = os.getenv("DUAL_WRITE_READ_FROM", "json")  # json or supabase
     
     # File Storage Settings

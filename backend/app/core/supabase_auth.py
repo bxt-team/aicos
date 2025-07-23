@@ -20,7 +20,11 @@ class SupabaseAuth(HTTPBearer):
         super().__init__(auto_error=auto_error)
         self.supabase_url = settings.SUPABASE_URL
         self.supabase_anon_key = settings.SUPABASE_ANON_KEY
-        self.jwt_secret = settings.SUPABASE_SERVICE_KEY or settings.SUPABASE_ANON_KEY
+        self.jwt_secret = settings.SUPABASE_JWT_SECRET
+        
+        if not self.jwt_secret:
+            logger.warning("SUPABASE_JWT_SECRET not set - JWT verification will fail")
+            raise ValueError("SUPABASE_JWT_SECRET (JWT_SECRET_KEY in .env) is required for JWT verification")
         
     async def __call__(self, request: Request) -> Optional[Dict[str, Any]]:
         """Validate the authorization header and extract user info"""
@@ -39,17 +43,15 @@ class SupabaseAuth(HTTPBearer):
         token = credentials.credentials
         
         try:
-            # First try to decode without verification to check the token structure
-            # In production, you should use the actual JWT secret from Supabase project settings
-            unverified_payload = jwt.decode(
+            # Decode and verify the JWT token
+            payload = jwt.decode(
                 token,
-                options={"verify_signature": False}
+                self.jwt_secret,
+                algorithms=["HS256"],
+                options={"verify_aud": False}  # Supabase doesn't use audience claim
             )
             
-            # For development/testing, decode without signature verification
-            # TODO: Get the actual JWT secret from Supabase project settings
-            logger.warning("JWT signature verification disabled - for development only!")
-            payload = unverified_payload
+            logger.debug("JWT successfully verified")
             
             # Check if token is expired
             exp = payload.get("exp")
