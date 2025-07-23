@@ -9,7 +9,7 @@ import {
   Alert,
   CircularProgress,
   Avatar,
-  Grid2 as Grid,
+  Grid,
   Divider
 } from '@mui/material';
 import {
@@ -82,7 +82,7 @@ const UserProfile: React.FC = () => {
         <Divider sx={{ my: 3 }} />
         
         <Grid container spacing={3}>
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <EmailIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -96,7 +96,7 @@ const UserProfile: React.FC = () => {
             </Box>
           </Grid>
           
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <VerifiedIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -110,7 +110,7 @@ const UserProfile: React.FC = () => {
             </Box>
           </Grid>
           
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <CalendarIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
@@ -124,7 +124,7 @@ const UserProfile: React.FC = () => {
             </Box>
           </Grid>
           
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <PersonIcon sx={{ mr: 1, color: 'text.secondary' }} />
               <Box>
