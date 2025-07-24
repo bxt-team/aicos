@@ -74,9 +74,10 @@ async def list_organizations(
                 logger.info(f"Mapped auth user {current_user['user_id']} to public user {public_user_id}")
         
         # Get user's organization memberships from database with joined organization data
+        # Exclude soft-deleted organizations
         result = supabase.table("organization_members").select(
-            "role, created_at, organizations(*)"
-        ).eq("user_id", public_user_id).execute()
+            "role, created_at, organizations!inner(*)"
+        ).eq("user_id", public_user_id).is_("organizations.deleted_at", "null").execute()
         
         logger.info(f"Organization memberships query result: {result.data}")
         
@@ -321,7 +322,7 @@ async def get_organization(
             )
         
         # Fetch organization from database
-        result = supabase.table("organizations").select("*").eq("id", organization_id).single().execute()
+        result = supabase.table("organizations").select("*").eq("id", organization_id).is_("deleted_at", "null").single().execute()
         
         if not result.data:
             raise HTTPException(status_code=404, detail="Organization not found")
@@ -363,19 +364,194 @@ async def delete_organization(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Delete organization (requires owner permission)"""
-    # Check if user is owner of this organization
-    if not has_organization_permission(current_user, organization_id, Permission.ORG_DELETE):
-        raise HTTPException(status_code=403, detail="Owner access required")
-    
-    # In a real implementation:
-    # 1. Check if organization has active projects/data
-    # 2. Soft delete or archive organization
-    # 3. Remove all members
-    
-    return {
-        "success": True,
-        "message": "Organization deleted successfully"
-    }
+    try:
+        logger.info(f"Deleting organization {organization_id} by user {current_user['user_id']}")
+        
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user is owner of this organization
+        membership_result = supabase.table("organization_members").select("role").eq(
+            "organization_id", organization_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not membership_result.data:
+            raise HTTPException(status_code=403, detail="You are not a member of this organization")
+        
+        if membership_result.data[0]["role"] != "owner":
+            raise HTTPException(status_code=403, detail="Only organization owners can delete the organization")
+        
+        # Check if there are other owners
+        other_owners = supabase.table("organization_members").select("id").eq(
+            "organization_id", organization_id
+        ).eq("role", "owner").neq("user_id", public_user_id).execute()
+        
+        if other_owners.data:
+            raise HTTPException(
+                status_code=400, 
+                detail="Cannot delete organization with multiple owners. Transfer ownership first."
+            )
+        
+        # Check if organization exists and is not already deleted
+        org_result = supabase.table("organizations").select("id, name, deleted_at").eq(
+            "id", organization_id
+        ).execute()
+        
+        if not org_result.data:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        
+        if org_result.data[0].get("deleted_at"):
+            raise HTTPException(status_code=400, detail="Organization is already deleted")
+        
+        # Get count of active projects
+        projects_result = supabase.table("projects").select("id").eq(
+            "organization_id", organization_id
+        ).is_("deleted_at", "null").execute()
+        
+        active_projects_count = len(projects_result.data) if projects_result.data else 0
+        
+        # Perform soft delete by setting deleted_at timestamp
+        delete_result = supabase.table("organizations").update({
+            "deleted_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }).eq("id", organization_id).execute()
+        
+        if not delete_result.data:
+            raise HTTPException(status_code=500, detail="Failed to delete organization")
+        
+        # Log the deletion in audit logs if the table exists
+        try:
+            audit_data = {
+                "event_type": "organization.deleted",
+                "organization_id": organization_id,
+                "user_id": public_user_id,
+                "metadata": {
+                    "organization_name": org_result.data[0]["name"],
+                    "active_projects_count": active_projects_count
+                }
+            }
+            supabase.table("audit_logs").insert(audit_data).execute()
+        except Exception as e:
+            # Log error but don't fail the operation
+            logger.warning(f"Failed to create audit log: {str(e)}")
+        
+        return {
+            "success": True,
+            "message": "Organization deleted successfully",
+            "organization": {
+                "id": organization_id,
+                "name": org_result.data[0]["name"],
+                "deleted_at": delete_result.data[0]["deleted_at"]
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete organization: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{organization_id}/restore")
+async def restore_organization(
+    organization_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Restore a soft-deleted organization (requires owner permission)"""
+    try:
+        logger.info(f"Restoring organization {organization_id} by user {current_user['user_id']}")
+        
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if organization exists and is deleted
+        org_result = supabase.table("organizations").select("id, name, deleted_at").eq(
+            "id", organization_id
+        ).execute()
+        
+        if not org_result.data:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        
+        if not org_result.data[0].get("deleted_at"):
+            raise HTTPException(status_code=400, detail="Organization is not deleted")
+        
+        # Check if user was an owner of this organization
+        membership_result = supabase.table("organization_members").select("role").eq(
+            "organization_id", organization_id
+        ).eq("user_id", public_user_id).eq("role", "owner").execute()
+        
+        if not membership_result.data:
+            raise HTTPException(status_code=403, detail="Only former organization owners can restore the organization")
+        
+        # Restore organization by clearing deleted_at
+        restore_result = supabase.table("organizations").update({
+            "deleted_at": None,
+            "updated_at": datetime.utcnow().isoformat()
+        }).eq("id", organization_id).execute()
+        
+        if not restore_result.data:
+            raise HTTPException(status_code=500, detail="Failed to restore organization")
+        
+        # Log the restoration in audit logs
+        try:
+            audit_data = {
+                "event_type": "organization.restored",
+                "organization_id": organization_id,
+                "user_id": public_user_id,
+                "metadata": {
+                    "organization_name": org_result.data[0]["name"]
+                }
+            }
+            supabase.table("audit_logs").insert(audit_data).execute()
+        except Exception as e:
+            logger.warning(f"Failed to create audit log: {str(e)}")
+        
+        return {
+            "success": True,
+            "message": "Organization restored successfully",
+            "organization": {
+                "id": organization_id,
+                "name": org_result.data[0]["name"],
+                "updated_at": restore_result.data[0]["updated_at"]
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to restore organization: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Member management endpoints
 @router.get("/{organization_id}/members")

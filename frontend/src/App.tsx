@@ -28,6 +28,7 @@ import XInterface from './components/XInterface';
 import AgentManagement from './components/AgentManagement';
 import AgentPromptsDisplay from './components/AgentPromptsDisplay';
 import Header from './components/Header';
+import ProjectDetail from './components/ProjectDetail';
 import SideMenu from './components/SideMenu';
 import { BrandedSupabaseLogin } from './components/auth/BrandedSupabaseLogin';
 import { BrandedSupabaseSignup } from './components/auth/BrandedSupabaseSignup';
@@ -103,6 +104,7 @@ function AppContent() {
             <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
             <Route path="/organization-settings" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
             <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
+            <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
             </Routes>
           </main>
           </div>

@@ -161,8 +161,23 @@ export const apiService = {
     
     getMembers: (id: string) => api.get(`/api/projects/${id}/members`),
     
-    addMember: (id: string, data: { user_id: string; role: string }) =>
+    addMember: (id: string, data: { user_id?: string; email?: string; role: string }) =>
       api.post(`/api/projects/${id}/members`, data),
+    
+    updateMemberRole: (projectId: string, memberId: string, role: string) =>
+      api.put(`/api/projects/${projectId}/members/${memberId}`, { role }),
+    
+    removeMember: (projectId: string, memberId: string) =>
+      api.delete(`/api/projects/${projectId}/members/${memberId}`),
+    
+    getActivity: (id: string) => api.get(`/api/projects/${id}/activity`),
+    
+    getStats: (id: string) => api.get(`/api/projects/${id}/stats`),
+    
+    getSettings: (id: string) => api.get(`/api/projects/${id}/settings`),
+    
+    updateSettings: (id: string, settings: any) =>
+      api.put(`/api/projects/${id}/settings`, settings),
   },
 
   // Q&A endpoints

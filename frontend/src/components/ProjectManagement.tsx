@@ -44,10 +44,13 @@ import {
   Add as AddIcon,
   Folder as FolderIcon,
   Person as PersonIcon,
-  Group as GroupIcon
+  Group as GroupIcon,
+  Visibility as VisibilityIcon
 } from '@mui/icons-material';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { apiService } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -72,9 +75,9 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const ProjectManagement: React.FC = () => {
-  const { } = useSupabaseAuth();
-  // TODO: Add organization support later
-  const currentOrganization: any = null;
+  const navigate = useNavigate();
+  const { user } = useSupabaseAuth();
+  const { currentOrganization } = useOrganization();
   const currentProject: any = null;
   const setCurrentProject = (project: any) => {};
   const [tabValue, setTabValue] = useState(0);
@@ -374,17 +377,31 @@ const ProjectManagement: React.FC = () => {
                               Erstellt: {new Date(project.created_at).toLocaleDateString('de-DE')}
                             </Typography>
                           </Box>
-                          {project.role === 'owner' && (
+                          <Box>
                             <IconButton
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteProject(project.id);
+                                navigate(`/projects/${project.id}`);
                               }}
+                              title="View Details"
                             >
-                              <DeleteIcon />
+                              <VisibilityIcon />
                             </IconButton>
-                          )}
+                            {project.role === 'owner' && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteProject(project.id);
+                                }}
+                                color="error"
+                                title="Delete Project"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            )}
+                          </Box>
                         </Box>
                         {currentProject?.id === project.id && (
                           <Chip

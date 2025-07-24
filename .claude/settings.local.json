@@ -40,7 +40,9 @@
       "Bash(else echo \"No .env file found\")",
       "Bash(fi)",
       "mcp__supabase__search_docs",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(cp:*)",
+      "Bash(git reset:*)"
     ],
     "deny": []
   },

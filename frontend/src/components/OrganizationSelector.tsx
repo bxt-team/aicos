@@ -21,8 +21,7 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
-  Business as BusinessIcon,
-  Settings as SettingsIcon
+  Business as BusinessIcon
 } from '@mui/icons-material';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
@@ -79,9 +78,6 @@ const OrganizationSelector: React.FC = () => {
     }
   };
 
-  const handleOpenSettings = () => {
-    navigate('/organization-settings');
-  };
 
   if (!user) {
     return null;
@@ -147,16 +143,6 @@ const OrganizationSelector: React.FC = () => {
             </Select>
           </FormControl>
 
-          {currentOrganization && (
-            <Button
-              size="small"
-              startIcon={<SettingsIcon />}
-              onClick={handleOpenSettings}
-              sx={{ justifyContent: 'flex-start' }}
-            >
-              Organization Settings
-            </Button>
-          )}
         </Stack>
 
         {organizations.length === 0 && !loading && (

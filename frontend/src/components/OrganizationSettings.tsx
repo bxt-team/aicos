@@ -38,6 +38,7 @@ import {
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { apiService } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -62,6 +63,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const OrganizationSettings: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useSupabaseAuth();
   const {
     currentOrganization,
@@ -72,7 +74,8 @@ const OrganizationSettings: React.FC = () => {
     loadMembers,
     inviteMember,
     removeMember,
-    updateMemberRole
+    updateMemberRole,
+    deleteOrganization
   } = useOrganization();
   
   const [tabValue, setTabValue] = useState(0);
@@ -86,6 +89,10 @@ const OrganizationSettings: React.FC = () => {
   
   // Invite dialog
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  
+  // Delete organization dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
   
@@ -215,6 +222,31 @@ const OrganizationSettings: React.FC = () => {
       default: return 'default';
     }
   };
+  
+  const handleDeleteOrganization = async () => {
+    if (!currentOrganization) return;
+    
+    if (deleteConfirmation !== currentOrganization.name) {
+      setError('Please type the organization name correctly to confirm deletion');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      await deleteOrganization(currentOrganization.id);
+      setSuccess('Organization deleted successfully');
+      
+      // Redirect to home or organizations list after a short delay
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete organization');
+      setLoading(false);
+    }
+  };
 
   if (!currentOrganization) {
     return (
@@ -232,6 +264,7 @@ const OrganizationSettings: React.FC = () => {
             <Tab label="Allgemein" />
             <Tab label="Members" />
             <Tab label="Nutzung" />
+            <Tab label="Danger Zone" sx={{ color: 'error.main' }} />
           </Tabs>
         </Box>
 
@@ -436,6 +469,45 @@ const OrganizationSettings: React.FC = () => {
             </Box>
           ) : null}
         </TabPanel>
+
+        <TabPanel value={tabValue} index={3}>
+          <Box>
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom>Danger Zone</Typography>
+              <Typography variant="body2">
+                The following actions are irreversible. Please proceed with caution.
+              </Typography>
+            </Alert>
+
+            <Card sx={{ border: 1, borderColor: 'error.main', bgcolor: 'error.50' }}>
+              <CardContent>
+                <Typography variant="h6" color="error" gutterBottom>
+                  Delete Organization
+                </Typography>
+                <Typography variant="body2" paragraph>
+                  Once you delete an organization, there is no going back. All data including projects, 
+                  content, and settings will be permanently deleted.
+                </Typography>
+                
+                {/* Only show delete button if user is owner */}
+                {members.find(m => m.user_id === user?.id)?.role === 'owner' ? (
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={() => setDeleteDialogOpen(true)}
+                    disabled={loading}
+                  >
+                    Delete This Organization
+                  </Button>
+                ) : (
+                  <Alert severity="info">
+                    Only organization owners can delete the organization.
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </Box>
+        </TabPanel>
       </Paper>
 
       {/* Invite Member Dialog */}
@@ -474,6 +546,63 @@ const OrganizationSettings: React.FC = () => {
           <Button onClick={() => setInviteDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleInviteMember} variant="contained" disabled={!inviteEmail || loading}>
             Invite
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Organization Dialog */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setDeleteConfirmation('');
+        }}
+      >
+        <DialogTitle color="error">Delete Organization</DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Warning:</strong> This action cannot be undone. This will permanently delete:
+            </Typography>
+            <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+              <li>The organization "{currentOrganization?.name}"</li>
+              <li>All projects within this organization</li>
+              <li>All content and data associated with these projects</li>
+              <li>All member access and permissions</li>
+            </ul>
+          </Alert>
+          
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Please type <strong>{currentOrganization?.name}</strong> to confirm:
+          </Typography>
+          
+          <TextField
+            fullWidth
+            variant="outlined"
+            value={deleteConfirmation}
+            onChange={(e) => setDeleteConfirmation(e.target.value)}
+            placeholder="Type organization name here"
+            error={!!error && deleteConfirmation !== currentOrganization?.name}
+            helperText={error && deleteConfirmation !== currentOrganization?.name ? error : ''}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              setDeleteConfirmation('');
+              setError('');
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteOrganization}
+            color="error"
+            variant="contained"
+            disabled={deleteConfirmation !== currentOrganization?.name || loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Delete Organization'}
           </Button>
         </DialogActions>
       </Dialog>
