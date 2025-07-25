@@ -2,43 +2,22 @@ import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
-  Typography,
   Tabs,
   Tab,
   Box,
-  TextField,
-  Button,
-  Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Chip,
-  CircularProgress,
-  Card,
-  CardContent
+  Alert
 } from '@mui/material';
-import {
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  PersonAdd as PersonAddIcon,
-  Save as SaveIcon
-} from '@mui/icons-material';
-import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { apiService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import {
+  OrganizationDetails,
+  OrganizationMembers,
+  OrganizationUsage,
+  OrganizationDangerZone,
+  InviteMemberDialog,
+  DeleteOrganizationDialog
+} from './organization';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -64,12 +43,10 @@ function TabPanel(props: TabPanelProps) {
 
 const OrganizationSettings: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useSupabaseAuth();
   const {
     currentOrganization,
     members,
     loading: orgLoading,
-    error: orgError,
     updateOrganization,
     loadMembers,
     inviteMember,
@@ -82,6 +59,9 @@ const OrganizationSettings: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Store previous tab value to prevent unnecessary reloads
+  const previousTabRef = React.useRef(tabValue);
   
   // Organization details
   const [orgDetails, setOrgDetails] = useState<any>(null);
@@ -100,7 +80,9 @@ const OrganizationSettings: React.FC = () => {
   const [usage, setUsage] = useState<any>(null);
 
   useEffect(() => {
-    if (currentOrganization) {
+    if (currentOrganization && tabValue !== previousTabRef.current) {
+      console.log('[OrganizationSettings] Tab changed from', previousTabRef.current, 'to', tabValue);
+      previousTabRef.current = tabValue;
       loadOrganizationData();
     }
   }, [currentOrganization, tabValue]);
@@ -128,9 +110,15 @@ const OrganizationSettings: React.FC = () => {
       switch (tabValue) {
         case 0: // General - already loaded from context
           break;
-        case 1: // Members - loaded from context
-          if (members.length === 0) {
+        case 1: // Members - always reload to ensure fresh data
+          console.log('[OrganizationSettings] Loading members for tab change');
+          try {
             await loadMembers();
+            console.log('[OrganizationSettings] Members loaded successfully');
+          } catch (memberErr: any) {
+            console.error('[OrganizationSettings] Error loading members:', memberErr);
+            // Don't throw the error, just set it in state
+            setError(memberErr.response?.data?.detail || memberErr.message || 'Error loading members');
           }
           break;
         case 2: // Usage
@@ -139,7 +127,11 @@ const OrganizationSettings: React.FC = () => {
           break;
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error loading data');
+      console.error('[OrganizationSettings] Error in loadOrganizationData:', err);
+      // Don't set generic errors for specific tab failures - they're handled above
+      if (tabValue !== 1) { // Don't overwrite member loading errors
+        setError(err.response?.data?.detail || err.message || 'Error loading data');
+      }
     } finally {
       setLoading(false);
     }
@@ -187,18 +179,6 @@ const OrganizationSettings: React.FC = () => {
     }
   };
 
-  const handleUpdateMemberRole = async (memberId: string, newRole: string) => {
-    setError('');
-    setSuccess('');
-    
-    try {
-      await updateMemberRole(memberId, newRole);
-      setSuccess('Role successfully updated');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error updating role');
-    }
-  };
-
   const handleRemoveMember = async (memberId: string) => {
     if (!window.confirm('Are you sure you want to remove this member?')) return;
     
@@ -210,6 +190,25 @@ const OrganizationSettings: React.FC = () => {
       setSuccess('Member successfully removed');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error removing member');
+    }
+  };
+
+  const handleUpdateMemberRole = async (memberId: string, newRole: string) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      await updateMemberRole(memberId, newRole);
+      
+      setSuccess('Member role updated successfully');
+      // Reload members to show updated roles
+      await loadMembers();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Error updating member role');
+      // Reload to revert the UI change
+      await loadMembers();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -256,15 +255,28 @@ const OrganizationSettings: React.FC = () => {
     );
   }
 
+  const currentUserRole = members.find(m => m.is_current_user)?.role;
+  const isOwner = currentUserRole === 'owner';
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
       <Paper elevation={3}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
-            <Tab label="Allgemein" />
-            <Tab label="Members" />
-            <Tab label="Nutzung" />
-            <Tab label="Danger Zone" sx={{ color: 'error.main' }} />
+          <Tabs 
+            value={tabValue} 
+            onChange={(_event, newValue) => {
+              // Clear any previous errors when switching tabs
+              setError('');
+              setSuccess('');
+              // Update the tab value
+              setTabValue(newValue);
+            }}
+            aria-label="organization settings tabs"
+          >
+            <Tab label="Allgemein" id="org-tab-0" aria-controls="org-tabpanel-0" />
+            <Tab label="Members" id="org-tab-1" aria-controls="org-tabpanel-1" />
+            <Tab label="Nutzung" id="org-tab-2" aria-controls="org-tabpanel-2" />
+            <Tab label="Danger Zone" id="org-tab-3" aria-controls="org-tabpanel-3" sx={{ color: 'error.main' }} />
           </Tabs>
         </Box>
 
@@ -272,340 +284,72 @@ const OrganizationSettings: React.FC = () => {
         {success && <Alert severity="success" sx={{ m: 2 }}>{success}</Alert>}
 
         <TabPanel value={tabValue} index={0}>
-          {(loading || orgLoading) ? (
-            <CircularProgress />
-          ) : orgDetails ? (
-            <Box>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h5">Organization Details</Typography>
-                {!isEditingDetails ? (
-                  <IconButton onClick={() => setIsEditingDetails(true)}>
-                    <EditIcon />
-                  </IconButton>
-                ) : (
-                  <Button
-                    startIcon={<SaveIcon />}
-                    variant="contained"
-                    onClick={handleSaveDetails}
-                    disabled={loading}
-                  >
-                    Save
-                  </Button>
-                )}
-              </Box>
-
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
-                  <TextField
-                    fullWidth
-                    label="Name"
-                    value={orgDetails.name || ''}
-                    onChange={(e) => setOrgDetails({ ...orgDetails, name: e.target.value })}
-                    disabled={!isEditingDetails}
-                  />
-                </Box>
-                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
-                  <TextField
-                    fullWidth
-                    label="Website"
-                    value={orgDetails.website || ''}
-                    onChange={(e) => setOrgDetails({ ...orgDetails, website: e.target.value })}
-                    disabled={!isEditingDetails}
-                  />
-                </Box>
-                <Box sx={{ flex: '1 1 100%' }}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={4}
-                    label="Beschreibung"
-                    value={orgDetails.description || ''}
-                    onChange={(e) => setOrgDetails({ ...orgDetails, description: e.target.value })}
-                    disabled={!isEditingDetails}
-                  />
-                </Box>
-                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
-                  <TextField
-                    fullWidth
-                    label="Abonnement"
-                    value={orgDetails.subscription_tier || 'free'}
-                    disabled
-                  />
-                </Box>
-                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' } }}>
-                  <TextField
-                    fullWidth
-                    label="Erstellt am"
-                    value={new Date(orgDetails.created_at).toLocaleDateString('de-DE')}
-                    disabled
-                  />
-                </Box>
-              </Box>
-            </Box>
-          ) : null}
+          <OrganizationDetails
+            organization={currentOrganization}
+            orgDetails={orgDetails}
+            setOrgDetails={setOrgDetails}
+            isEditingDetails={isEditingDetails}
+            setIsEditingDetails={setIsEditingDetails}
+            handleSaveDetails={handleSaveDetails}
+            loading={loading}
+            orgLoading={orgLoading}
+          />
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          <Box>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h5">Members</Typography>
-              <Button
-                startIcon={<PersonAddIcon />}
-                variant="contained"
-                onClick={() => setInviteDialogOpen(true)}
-              >
-                Invite Member
-              </Button>
-            </Box>
-
-            {loading ? (
-              <CircularProgress />
-            ) : (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>E-Mail</TableCell>
-                      <TableCell>Rolle</TableCell>
-                      <TableCell>Beigetreten</TableCell>
-                      <TableCell align="right">Aktionen</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {members.map((member) => (
-                      <TableRow key={member.id}>
-                        <TableCell>{member.name || member.email.split('@')[0]}</TableCell>
-                        <TableCell>{member.email}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={member.role}
-                            color={getRoleColor(member.role)}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {new Date(member.joined_at).toLocaleDateString('de-DE')}
-                        </TableCell>
-                        <TableCell align="right">
-                          {member.role !== 'owner' && member.user_id !== user?.id && (
-                            <IconButton
-                              size="small"
-                              onClick={() => handleRemoveMember(member.id)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </Box>
+          <OrganizationMembers
+            members={members}
+            loading={loading}
+            currentUserRole={currentUserRole}
+            onInviteMember={() => setInviteDialogOpen(true)}
+            onUpdateMemberRole={handleUpdateMemberRole}
+            onRemoveMember={handleRemoveMember}
+            getRoleColor={getRoleColor}
+          />
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          {loading ? (
-            <CircularProgress />
-          ) : usage ? (
-            <Box>
-              <Typography variant="h5" gutterBottom>Nutzungsstatistik</Typography>
-              
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' }, '@media (min-width: 1200px)': { flex: '1 1 22%' } }}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
-                        Projects
-                      </Typography>
-                      <Typography variant="h4">
-                        {usage.projects.current}/{usage.projects.limit}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Box>
-                
-                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' }, '@media (min-width: 1200px)': { flex: '1 1 22%' } }}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
-                        Benutzer
-                      </Typography>
-                      <Typography variant="h4">
-                        {usage.users.current}/{usage.users.limit}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Box>
-                
-                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' }, '@media (min-width: 1200px)': { flex: '1 1 22%' } }}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
-                        Speicher (GB)
-                      </Typography>
-                      <Typography variant="h4">
-                        {usage.storage.current_gb}/{usage.storage.limit_gb}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Box>
-                
-                <Box sx={{ flex: '1 1 100%', '@media (min-width: 900px)': { flex: '1 1 45%' }, '@media (min-width: 1200px)': { flex: '1 1 22%' } }}>
-                  <Card>
-                    <CardContent>
-                      <Typography color="textSecondary" gutterBottom>
-                        API-Aufrufe (Monat)
-                      </Typography>
-                      <Typography variant="h4">
-                        {usage.api_calls.current_month.toLocaleString('de-DE')}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Box>
-              </Box>
-            </Box>
-          ) : null}
+          <OrganizationUsage
+            usage={usage}
+            loading={loading}
+          />
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <Box>
-            <Alert severity="warning" sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>Danger Zone</Typography>
-              <Typography variant="body2">
-                The following actions are irreversible. Please proceed with caution.
-              </Typography>
-            </Alert>
-
-            <Card sx={{ border: 1, borderColor: 'error.main', bgcolor: 'error.50' }}>
-              <CardContent>
-                <Typography variant="h6" color="error" gutterBottom>
-                  Delete Organization
-                </Typography>
-                <Typography variant="body2" paragraph>
-                  Once you delete an organization, there is no going back. All data including projects, 
-                  content, and settings will be permanently deleted.
-                </Typography>
-                
-                {/* Only show delete button if user is owner */}
-                {members.find(m => m.user_id === user?.id)?.role === 'owner' ? (
-                  <Button
-                    variant="contained"
-                    color="error"
-                    onClick={() => setDeleteDialogOpen(true)}
-                    disabled={loading}
-                  >
-                    Delete This Organization
-                  </Button>
-                ) : (
-                  <Alert severity="info">
-                    Only organization owners can delete the organization.
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-          </Box>
+          <OrganizationDangerZone
+            isOwner={isOwner}
+            loading={loading}
+            onDeleteOrganization={() => setDeleteDialogOpen(true)}
+          />
         </TabPanel>
       </Paper>
 
-      {/* Invite Member Dialog */}
-      <Dialog open={inviteDialogOpen} onClose={() => setInviteDialogOpen(false)}>
-        <DialogTitle>Invite Member</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Email Address"
-            type="email"
-            fullWidth
-            variant="outlined"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && inviteEmail && !loading) {
-                handleInviteMember();
-              }
-            }}
-          />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Role</InputLabel>
-            <Select
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value)}
-              label="Role"
-            >
-              <MenuItem value="viewer">Viewer</MenuItem>
-              <MenuItem value="member">Member</MenuItem>
-              <MenuItem value="admin">Administrator</MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setInviteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleInviteMember} variant="contained" disabled={!inviteEmail || loading}>
-            Invite
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Dialogs */}
+      <InviteMemberDialog
+        open={inviteDialogOpen}
+        inviteEmail={inviteEmail}
+        inviteRole={inviteRole}
+        loading={loading}
+        onClose={() => setInviteDialogOpen(false)}
+        onEmailChange={setInviteEmail}
+        onRoleChange={setInviteRole}
+        onInvite={handleInviteMember}
+      />
 
-      {/* Delete Organization Dialog */}
-      <Dialog 
-        open={deleteDialogOpen} 
+      <DeleteOrganizationDialog
+        open={deleteDialogOpen}
+        organizationName={currentOrganization?.name || ''}
+        deleteConfirmation={deleteConfirmation}
+        loading={loading}
+        error={error}
         onClose={() => {
           setDeleteDialogOpen(false);
           setDeleteConfirmation('');
+          setError('');
         }}
-      >
-        <DialogTitle color="error">Delete Organization</DialogTitle>
-        <DialogContent>
-          <Alert severity="error" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              <strong>Warning:</strong> This action cannot be undone. This will permanently delete:
-            </Typography>
-            <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-              <li>The organization "{currentOrganization?.name}"</li>
-              <li>All projects within this organization</li>
-              <li>All content and data associated with these projects</li>
-              <li>All member access and permissions</li>
-            </ul>
-          </Alert>
-          
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Please type <strong>{currentOrganization?.name}</strong> to confirm:
-          </Typography>
-          
-          <TextField
-            fullWidth
-            variant="outlined"
-            value={deleteConfirmation}
-            onChange={(e) => setDeleteConfirmation(e.target.value)}
-            placeholder="Type organization name here"
-            error={!!error && deleteConfirmation !== currentOrganization?.name}
-            helperText={error && deleteConfirmation !== currentOrganization?.name ? error : ''}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => {
-              setDeleteDialogOpen(false);
-              setDeleteConfirmation('');
-              setError('');
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteOrganization}
-            color="error"
-            variant="contained"
-            disabled={deleteConfirmation !== currentOrganization?.name || loading}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Delete Organization'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onConfirmationChange={setDeleteConfirmation}
+        onDelete={handleDeleteOrganization}
+      />
     </Container>
   );
 };

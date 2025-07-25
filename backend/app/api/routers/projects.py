@@ -73,27 +73,38 @@ async def list_projects(
             if not org_check.data:
                 raise HTTPException(status_code=403, detail="Access denied to this organization")
             
-            # Get all projects for the organization
-            result = supabase.table("projects").select("*").eq(
+            # Get all projects for the organization with user's membership info in a single query
+            # First get all project IDs for this organization
+            project_result = supabase.table("projects").select("*").eq(
                 "organization_id", organization_id
             ).execute()
             
-            projects = []
-            for project in result.data:
-                # Check if user is a member of this project
-                member_check = supabase.table("project_members").select("role").eq(
-                    "user_id", public_user_id
-                ).eq("project_id", project["id"]).execute()
+            if not project_result.data:
+                projects = []
+            else:
+                # Get all project IDs
+                project_ids = [p["id"] for p in project_result.data]
                 
-                projects.append({
-                    "id": project["id"],
-                    "name": project["name"],
-                    "description": project.get("description"),
-                    "organization_id": project["organization_id"],
-                    "created_at": project["created_at"],
-                    "is_active": project.get("is_active", True),
-                    "role": member_check.data[0]["role"] if member_check.data else None
-                })
+                # Get all user's memberships for these projects in one query
+                membership_result = supabase.table("project_members").select("project_id, role").eq(
+                    "user_id", public_user_id
+                ).in_("project_id", project_ids).execute()
+                
+                # Create a map of project_id to role for quick lookup
+                membership_map = {m["project_id"]: m["role"] for m in membership_result.data}
+                
+                # Build the projects list with membership info
+                projects = []
+                for project in project_result.data:
+                    projects.append({
+                        "id": project["id"],
+                        "name": project["name"],
+                        "description": project.get("description"),
+                        "organization_id": project["organization_id"],
+                        "created_at": project["created_at"],
+                        "is_active": project.get("is_active", True),
+                        "role": membership_map.get(project["id"])  # O(1) lookup instead of query
+                    })
         else:
             # Get all projects user has access to
             result = supabase.table("project_members").select(
@@ -311,29 +322,64 @@ async def delete_project(
 @router.get("/{project_id}/members")
 async def list_project_members(
     project_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user_supabase)
 ):
     """List project members"""
-    # Check if user has access to this project
-    if not has_project_permission(current_user, project_id, Permission.PROJECT_READ):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    # In a real implementation, fetch from database
-    members = [
-        {
-            "id": current_user.id,
-            "email": current_user.email,
-            "name": current_user.name,
-            "role": "admin",
-            "joined_at": datetime.now().isoformat()
+    try:
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has access to this project
+        access_check = supabase.table("project_members").select("role").eq(
+            "project_id", project_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not access_check.data:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get all project members with user details
+        result = supabase.table("project_members").select(
+            "*, users!project_members_user_id_fkey(id, email, name)"
+        ).eq("project_id", project_id).execute()
+        
+        members = []
+        for membership in result.data:
+            user_data = membership.get("users!project_members_user_id_fkey") or membership.get("users")
+            if user_data:
+                members.append({
+                    "id": membership["id"],
+                    "user_id": user_data["id"],
+                    "email": user_data["email"],
+                    "name": user_data.get("name", user_data["email"].split('@')[0]),
+                    "role": membership["role"],
+                    "joined_at": membership.get("created_at")
+                })
+        
+        return {
+            "success": True,
+            "members": members,
+            "count": len(members)
         }
-    ]
-    
-    return {
-        "success": True,
-        "members": members,
-        "count": len(members)
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing project members: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/{project_id}/members")
 async def add_project_member(

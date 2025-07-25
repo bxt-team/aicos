@@ -56,6 +56,14 @@ api.interceptors.response.use(
 
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401 && !originalRequest._retry) {
+      console.error('[API Interceptor] 401 error for:', originalRequest.url);
+      
+      // For organization/project endpoints, don't redirect - let the component handle it
+      if (originalRequest.url?.includes('/organizations/') || originalRequest.url?.includes('/projects/')) {
+        console.log('[API Interceptor] Skipping redirect for organization/project endpoint');
+        return Promise.reject(error);
+      }
+      
       originalRequest._retry = true;
       
       try {

@@ -560,26 +560,89 @@ async def list_organization_members(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """List organization members"""
-    # Check if user has access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.ORG_READ):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    # In a real implementation, fetch from database
-    members = [
-        {
-            "id": current_user["user_id"],
-            "email": current_user["email"],
-            "name": current_user.get("user_metadata", {}).get("name", current_user["email"]),
-            "role": "owner",
-            "joined_at": datetime.now().isoformat()
+    try:
+        logger.info(f"Listing members for organization: {organization_id}")
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID from the Supabase auth user
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has access to this organization
+        user_membership = supabase.table("organization_members").select("role").eq(
+            "organization_id", organization_id
+        ).eq("user_id", public_user_id).execute()
+        
+        logger.info(f"User membership check - Auth email: {auth_email}, Public user ID: {public_user_id}, Membership: {user_membership.data}")
+        
+        if not user_membership.data:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get all members of this organization with user details
+        # Using the user_id foreign key relationship specifically
+        result = supabase.table("organization_members").select(
+            "*, users!organization_members_user_id_fkey(id, email, name)"
+        ).eq("organization_id", organization_id).execute()
+        
+        logger.info(f"Raw query result count: {len(result.data) if result.data else 0}")
+        logger.info(f"Organization members query result: {result.data}")
+        
+        members = []
+        for membership in result.data:
+            logger.info(f"Processing membership: {membership}")
+            # The user data might be under different keys depending on Supabase version
+            user_data = membership.get("users!organization_members_user_id_fkey") or membership.get("users")
+            logger.info(f"User data extracted: {user_data}")
+            if user_data:
+                # Check if this user is the current user by comparing emails
+                is_current_user = user_data["email"] == auth_email if auth_email else False
+                
+                member_info = {
+                    "id": membership["id"],
+                    "user_id": user_data["id"],
+                    "email": user_data["email"],
+                    "name": user_data.get("name", user_data["email"].split('@')[0]),
+                    "role": membership["role"],
+                    "joined_at": membership.get("accepted_at", membership["created_at"]),
+                    "is_current_user": is_current_user  # Add flag to identify current user
+                }
+                
+                # Log current user's role for debugging
+                if is_current_user:
+                    logger.info(f"Current user role in organization {organization_id}: {membership['role']}")
+                
+                members.append(member_info)
+        
+        logger.info(f"Returning {len(members)} members for organization {organization_id}")
+        logger.info(f"Members data: {members}")
+        
+        # Return the response in the expected format
+        response = {
+            "success": True,
+            "members": members,
+            "count": len(members)
         }
-    ]
-    
-    return {
-        "success": True,
-        "members": members,
-        "count": len(members)
-    }
+        
+        logger.info(f"Full API response: {response}")
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing organization members: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/{organization_id}/members")
 async def invite_organization_member(
@@ -588,31 +651,90 @@ async def invite_organization_member(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Invite a new member to organization (requires admin permission)"""
-    # Check if user has admin access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.ORG_UPDATE):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # Validate role
-    valid_roles = ["owner", "admin", "member", "viewer"]
-    if request.role not in valid_roles:
-        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {valid_roles}")
-    
-    # In a real implementation:
-    # 1. Check if user already exists
-    # 2. Send invitation email
-    # 3. Create pending invitation record
-    
-    return {
-        "success": True,
-        "message": f"Invitation sent to {request.email}",
-        "invitation": {
-            "email": request.email,
-            "role": request.role,
-            "status": "pending",
-            "invited_by": current_user["user_id"],
-            "invited_at": datetime.now().isoformat()
-        }
-    }
+    try:
+        from app.core.dependencies import get_supabase_client
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID for permission check
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has admin or owner access to this organization
+        membership_check = supabase.table("organization_members").select("role").eq(
+            "organization_id", organization_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not membership_check.data:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        user_role = membership_check.data[0]["role"]
+        if user_role not in ["owner", "admin"]:
+            raise HTTPException(status_code=403, detail="Admin or owner access required")
+        
+        # Validate role
+        valid_roles = ["owner", "admin", "member", "viewer"]
+        if request.role not in valid_roles:
+            raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {valid_roles}")
+        
+        # Check if user already exists in the system
+        existing_user = supabase.table("users").select("id").eq("email", request.email).execute()
+        
+        if existing_user.data:
+            # User exists, check if already a member
+            invited_user_id = existing_user.data[0]["id"]
+            
+            existing_membership = supabase.table("organization_members").select("id").eq(
+                "organization_id", organization_id
+            ).eq("user_id", invited_user_id).execute()
+            
+            if existing_membership.data:
+                raise HTTPException(status_code=400, detail="User is already a member of this organization")
+            
+            # Add user as member
+            membership_data = {
+                "organization_id": organization_id,
+                "user_id": invited_user_id,
+                "role": request.role,
+                "invited_by": public_user_id,
+                "invited_at": datetime.utcnow().isoformat(),
+                "accepted_at": datetime.utcnow().isoformat()  # Auto-accept for existing users
+            }
+            
+            membership_result = supabase.table("organization_members").insert(membership_data).execute()
+            
+            if not membership_result.data:
+                raise HTTPException(status_code=500, detail="Failed to add member")
+            
+            return {
+                "success": True,
+                "message": f"User {request.email} added to organization",
+                "member": membership_result.data[0]
+            }
+        else:
+            # User doesn't exist - in a real app, you'd send an invitation email
+            # For now, we'll return an error
+            raise HTTPException(
+                status_code=404, 
+                detail="User not found. Please ask them to sign up first."
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error inviting member: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{organization_id}/members/{member_id}")
 async def update_organization_member(
@@ -622,24 +744,89 @@ async def update_organization_member(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Update member role (requires admin permission)"""
-    # Check if user has admin access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.ORG_UPDATE):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # Can't change your own role if you're the only owner
-    if member_id == current_user["user_id"] and request.role != "owner":
-        # Check if there are other owners
-        # In real implementation, query database
-        raise HTTPException(status_code=400, detail="Cannot remove last owner")
-    
-    return {
-        "success": True,
-        "message": "Member role updated successfully",
-        "member": {
-            "id": member_id,
-            "role": request.role
+    try:
+        from app.core.dependencies import get_supabase_client
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID for permission check
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has admin or owner access to this organization
+        membership_check = supabase.table("organization_members").select("role").eq(
+            "organization_id", organization_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not membership_check.data:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        user_role = membership_check.data[0]["role"]
+        if user_role not in ["owner", "admin"]:
+            raise HTTPException(status_code=403, detail="Admin or owner access required")
+        
+        # Validate new role
+        valid_roles = ["owner", "admin", "member", "viewer"]
+        if request.role not in valid_roles:
+            raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {valid_roles}")
+        
+        # Get the member to be updated
+        member_result = supabase.table("organization_members").select("*").eq(
+            "id", member_id
+        ).eq("organization_id", organization_id).execute()
+        
+        if not member_result.data:
+            raise HTTPException(status_code=404, detail="Member not found")
+        
+        member_data = member_result.data[0]
+        current_member_role = member_data["role"]
+        member_user_id = member_data["user_id"]
+        
+        # Check if trying to remove owner role from the last owner
+        if current_member_role == "owner" and request.role != "owner":
+            # Count remaining owners
+            owner_count = supabase.table("organization_members").select("id", count="exact").eq(
+                "organization_id", organization_id
+            ).eq("role", "owner").execute()
+            
+            if owner_count.count <= 1:
+                raise HTTPException(status_code=400, detail="Cannot remove owner role from the last owner")
+        
+        # Only owners can promote others to owner
+        if request.role == "owner" and user_role != "owner":
+            raise HTTPException(status_code=403, detail="Only owners can promote others to owner")
+        
+        # Update the member role
+        update_result = supabase.table("organization_members").update({
+            "role": request.role,
+            "updated_at": datetime.utcnow().isoformat()
+        }).eq("id", member_id).eq("organization_id", organization_id).execute()
+        
+        if not update_result.data:
+            raise HTTPException(status_code=500, detail="Failed to update member role")
+        
+        return {
+            "success": True,
+            "message": "Member role updated successfully",
+            "member": update_result.data[0]
         }
-    }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating member role: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{organization_id}/members/{member_id}")
 async def remove_organization_member(
@@ -648,20 +835,82 @@ async def remove_organization_member(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Remove member from organization (requires admin permission)"""
-    # Check if user has admin access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.ORG_UPDATE):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # Can't remove yourself if you're the only owner
-    if member_id == current_user["user_id"]:
-        # Check if there are other owners
-        # In real implementation, query database
-        raise HTTPException(status_code=400, detail="Cannot remove last owner")
-    
-    return {
-        "success": True,
-        "message": "Member removed successfully"
-    }
+    try:
+        from app.core.dependencies import get_supabase_client
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID for permission check
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has admin or owner access to this organization
+        membership_check = supabase.table("organization_members").select("role").eq(
+            "organization_id", organization_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not membership_check.data:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        user_role = membership_check.data[0]["role"]
+        if user_role not in ["owner", "admin"]:
+            raise HTTPException(status_code=403, detail="Admin or owner access required")
+        
+        # Get the member to be removed
+        member_result = supabase.table("organization_members").select("*, users!organization_members_user_id_fkey(*)").eq(
+            "id", member_id
+        ).eq("organization_id", organization_id).execute()
+        
+        if not member_result.data:
+            raise HTTPException(status_code=404, detail="Member not found")
+        
+        member_data = member_result.data[0]
+        member_role = member_data["role"]
+        member_user_id = member_data["user_id"]
+        
+        # Check if trying to remove the last owner
+        if member_role == "owner":
+            # Count remaining owners
+            owner_count = supabase.table("organization_members").select("id", count="exact").eq(
+                "organization_id", organization_id
+            ).eq("role", "owner").execute()
+            
+            if owner_count.count <= 1:
+                raise HTTPException(status_code=400, detail="Cannot remove the last owner. Transfer ownership first.")
+        
+        # Can't remove yourself
+        if member_user_id == public_user_id:
+            raise HTTPException(status_code=400, detail="You cannot remove yourself from the organization")
+        
+        # Remove the member
+        delete_result = supabase.table("organization_members").delete().eq(
+            "id", member_id
+        ).eq("organization_id", organization_id).execute()
+        
+        if not delete_result.data:
+            raise HTTPException(status_code=500, detail="Failed to remove member")
+        
+        return {
+            "success": True,
+            "message": "Member removed successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing member: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Settings endpoints
 @router.get("/{organization_id}/settings")
@@ -755,3 +1004,108 @@ async def get_organization_usage(
             "end": datetime.now().isoformat()
         }
     }
+
+@router.get("/{organization_id}/test-members")
+async def test_organization_members(
+    organization_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Simple test endpoint to check organization members"""
+    try:
+        from app.core.dependencies import get_supabase_client
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Simple query to get all members
+        simple_result = supabase.table("organization_members").select("*").eq(
+            "organization_id", organization_id
+        ).execute()
+        
+        # Query with user join
+        join_result = supabase.table("organization_members").select(
+            "*, users!organization_members_user_id_fkey(*)"
+        ).eq("organization_id", organization_id).execute()
+        
+        return {
+            "simple_query_count": len(simple_result.data) if simple_result.data else 0,
+            "simple_query_data": simple_result.data,
+            "join_query_count": len(join_result.data) if join_result.data else 0,
+            "join_query_data": join_result.data,
+            "organization_id": organization_id
+        }
+    except Exception as e:
+        logger.error(f"Test endpoint error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{organization_id}/debug-membership")
+async def debug_organization_membership(
+    organization_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Debug endpoint to check user's membership and role in organization"""
+    try:
+        from app.core.dependencies import get_supabase_client
+        supabase_client = get_supabase_client()
+        supabase = supabase_client.client
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get auth user info
+        auth_email = current_user.get("email", "")
+        auth_user_id = str(current_user["user_id"])
+        
+        # Get public user info
+        public_user_info = None
+        if auth_email:
+            user_result = supabase.table("users").select("*").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_info = user_result.data[0]
+        
+        # Get organization info
+        org_result = supabase.table("organizations").select("*").eq("id", organization_id).execute()
+        org_info = org_result.data[0] if org_result.data else None
+        
+        # Get membership info using public user ID if available
+        membership_info = None
+        if public_user_info:
+            membership_result = supabase.table("organization_members").select(
+                "id, user_id, organization_id, role, created_at, accepted_at"
+            ).eq(
+                "organization_id", organization_id
+            ).eq("user_id", public_user_info["id"]).execute()
+            membership_info = membership_result.data[0] if membership_result.data else None
+        
+        # Get all organization members to verify
+        all_members_result = supabase.table("organization_members").select(
+            "*, users!organization_members_user_id_fkey(id, email, name)"
+        ).eq("organization_id", organization_id).execute()
+        
+        return {
+            "auth_user": {
+                "id": auth_user_id,
+                "email": auth_email
+            },
+            "public_user": public_user_info,
+            "organization": org_info,
+            "membership": membership_info,
+            "all_members": all_members_result.data,
+            "debug_info": {
+                "has_public_user": public_user_info is not None,
+                "has_membership": membership_info is not None,
+                "user_role": membership_info["role"] if membership_info else None,
+                "is_owner": membership_info["role"] == "owner" if membership_info else False
+            }
+        }
+    except Exception as e:
+        logger.error(f"Debug error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

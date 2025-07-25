@@ -197,6 +197,17 @@ export const agentConfigs: AgentConfig[] = [
     enabled: true,
     features: ['Tweet Analysis', 'Thread Creation', 'Poll Management', 'Viral Strategies', 'Algorithm Optimization'],
     version: '1.0'
+  },
+  {
+    id: 'organization-debug',
+    name: 'Organization Debug',
+    route: '/organization-debug',
+    icon: '🐛',
+    description: 'Debug tools for organization membership and permissions',
+    category: 'Development Tools',
+    enabled: true,
+    features: ['Test Members Query', 'Debug Membership', 'API Testing'],
+    version: '1.0'
   }
 ];
 

@@ -237,8 +237,9 @@ async def login(request: LoginRequest):
         )
     
     # Get user's organizations
+    # Only select specific columns to avoid ambiguity with multiple user relationships
     memberships_result = supabase.table("organization_members").select(
-        "*, organizations(*)"
+        "id, role, created_at, accepted_at, organizations(*)"
     ).eq("user_id", user["id"]).execute()
     
     organizations = []
@@ -414,8 +415,9 @@ async def get_current_user_info(current_user = Depends(get_current_user)):
         )
     
     # Get user's organizations
+    # Only select specific columns to avoid ambiguity with multiple user relationships
     memberships_result = supabase.table("organization_members").select(
-        "*, organizations(*)"
+        "id, role, created_at, accepted_at, organizations(*)"
     ).eq("user_id", current_user.id).execute()
     
     return UserResponse(

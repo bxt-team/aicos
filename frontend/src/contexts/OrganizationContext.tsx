@@ -21,6 +21,7 @@ interface OrganizationMember {
   joined_at: string;
   email: string;
   name?: string;
+  is_current_user?: boolean;
 }
 
 interface OrganizationContextType {
@@ -210,15 +211,20 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const loadMembers = async () => {
     if (!currentOrganization) return;
     
+    console.log('[OrganizationContext] Loading members for organization:', currentOrganization.id);
     setLoading(true);
     setError(null);
     
     try {
       const response = await apiService.organizations.getMembers(currentOrganization.id);
-      setMembers(response.data.members || []);
+      console.log('[OrganizationContext] Members API response:', response);
+      const membersList = response.data.members || [];
+      console.log('[OrganizationContext] Setting members:', membersList);
+      setMembers(membersList);
     } catch (err: any) {
+      console.error('[OrganizationContext] Error loading members:', err);
+      console.error('[OrganizationContext] Error response:', err.response);
       setError(err.response?.data?.detail || 'Failed to load members');
-      console.error('Error loading members:', err);
     } finally {
       setLoading(false);
     }

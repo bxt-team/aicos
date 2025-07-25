@@ -40,6 +40,7 @@ import { AccountSettings } from './components/auth/AccountSettings';
 import { AuthDebug } from './components/auth/AuthDebug';
 import UserProfile from './components/UserProfile';
 import OrganizationSettings from './components/OrganizationSettings';
+import OrganizationDebug from './components/OrganizationDebug';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppHeader from './components/AppHeader';
 import { useSupabaseAuth } from './contexts/SupabaseAuthContext';
@@ -103,6 +104,7 @@ function AppContent() {
             <Route path="/content/:contentId" element={<ContentViewer />} />
             <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
             <Route path="/organization-settings" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
+            <Route path="/organization-debug" element={<ProtectedRoute><OrganizationDebug /></ProtectedRoute>} />
             <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
             <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
             </Routes>
