@@ -9,23 +9,37 @@ const api: AxiosInstance = axios.create({
   },
 });
 
+// Cache for session token
+let cachedToken: string | null = null;
+let tokenCacheTime: number = 0;
+const TOKEN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Function to invalidate token cache
+export const invalidateTokenCache = () => {
+  cachedToken = null;
+  tokenCacheTime = 0;
+};
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
   async (config) => {
-    // Try to get Supabase session first
-    const { data: { session } } = await supabase.auth.getSession();
-    console.log('[API Interceptor] Supabase session:', session ? 'Found' : 'Not found');
-    if (session?.access_token) {
-      config.headers.Authorization = `Bearer ${session.access_token}`;
-      console.log('[API Interceptor] Added Supabase token to request');
+    // Use cached token if it's still valid
+    const now = Date.now();
+    if (cachedToken && (now - tokenCacheTime) < TOKEN_CACHE_DURATION) {
+      config.headers.Authorization = `Bearer ${cachedToken}`;
     } else {
-      // Fall back to legacy token if no Supabase session
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-        console.log('[API Interceptor] Added legacy token to request');
+      // Try to get Supabase session first
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        cachedToken = session.access_token;
+        tokenCacheTime = now;
+        config.headers.Authorization = `Bearer ${session.access_token}`;
       } else {
-        console.log('[API Interceptor] No auth token found');
+        // Fall back to legacy token if no Supabase session
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
       }
     }
     
@@ -40,7 +54,6 @@ api.interceptors.request.use(
       config.headers['X-Project-ID'] = projectId;
     }
     
-    console.log('[API Interceptor] Request:', config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => {

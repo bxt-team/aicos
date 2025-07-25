@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Select,
   MenuItem,
   FormControl,
   InputLabel,
   Box,
-  Chip,
   CircularProgress,
   Typography,
   IconButton,
@@ -17,101 +16,38 @@ import {
   Button
 } from '@mui/material';
 import { Add as AddIcon, Folder as FolderIcon } from '@mui/icons-material';
-import { useOrganization } from '../contexts/OrganizationContext';
-import { apiService } from '../services/api';
+import { useProject } from '../contexts/ProjectContext';
 
-interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  organization_id: string;
-  created_at: string;
-  updated_at: string;
-}
 
 const ProjectSelector: React.FC = () => {
-  const { currentOrganization } = useOrganization();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { projects, currentProject, loading, setCurrentProject, createProject } = useProject();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [creating, setCreating] = useState(false);
 
-  // Load projects when organization changes
-  useEffect(() => {
-    if (currentOrganization) {
-      loadProjects();
-    } else {
-      setProjects([]);
-      setCurrentProject(null);
-    }
-  }, [currentOrganization]);
-
-  // Load current project from localStorage
-  useEffect(() => {
-    const projectId = localStorage.getItem('currentProjectId');
-    if (projectId && projects.length > 0) {
-      const project = projects.find(p => p.id === projectId);
-      if (project) {
-        setCurrentProject(project);
-      }
-    } else if (projects.length > 0 && !currentProject) {
-      // Set first project as current if none selected
-      setCurrentProject(projects[0]);
-      localStorage.setItem('currentProjectId', projects[0].id);
-    }
-  }, [projects]);
-
-  const loadProjects = async () => {
-    if (!currentOrganization) return;
-    
-    setLoading(true);
-    try {
-      const response = await apiService.projects.list(currentOrganization.id);
-      const projectList = response.data.projects || [];
-      setProjects(projectList);
-    } catch (error) {
-      console.error('Failed to load projects:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleProjectChange = (event: any) => {
     const projectId = event.target.value;
     const project = projects.find(p => p.id === projectId);
     if (project) {
       setCurrentProject(project);
-      localStorage.setItem('currentProjectId', project.id);
-      // Reload page to update all components with new project context
-      window.location.reload();
     }
   };
 
   const handleCreateProject = async () => {
-    if (!newProjectName.trim() || !currentOrganization) return;
+    if (!newProjectName.trim()) return;
     
     setCreating(true);
     try {
-      const response = await apiService.projects.create({
+      await createProject({
         name: newProjectName.trim(),
-        description: newProjectDescription.trim() || undefined,
-        organization_id: currentOrganization.id
+        description: newProjectDescription.trim() || undefined
       });
-      
-      const newProject = response.data.project;
-      setProjects([...projects, newProject]);
-      setCurrentProject(newProject);
-      localStorage.setItem('currentProjectId', newProject.id);
       
       setCreateDialogOpen(false);
       setNewProjectName('');
       setNewProjectDescription('');
-      
-      // Reload to ensure all components update
-      window.location.reload();
     } catch (error) {
       console.error('Failed to create project:', error);
     } finally {
@@ -119,9 +55,6 @@ const ProjectSelector: React.FC = () => {
     }
   };
 
-  if (!currentOrganization) {
-    return null;
-  }
 
   if (loading) {
     return (

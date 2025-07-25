@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { MenuProvider } from './contexts/MenuContext';
 import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
 import { OrganizationProvider } from './contexts/OrganizationContext';
+import { ProjectProvider } from './contexts/ProjectContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import './App.css';
 import LoadingScreen from './components/LoadingScreen';
@@ -104,6 +105,7 @@ function AppContent() {
             <Route path="/content/:contentId" element={<ContentViewer />} />
             <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
             <Route path="/organization-settings" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
+            <Route path="/organization-settings/:tab" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
             <Route path="/organization-debug" element={<ProtectedRoute><OrganizationDebug /></ProtectedRoute>} />
             <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
             <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
@@ -128,7 +130,9 @@ function App() {
       <ThemeProvider>
         <SupabaseAuthProvider>
           <OrganizationProvider>
-            <AppContent />
+            <ProjectProvider>
+              <AppContent />
+            </ProjectProvider>
           </OrganizationProvider>
         </SupabaseAuthProvider>
       </ThemeProvider>

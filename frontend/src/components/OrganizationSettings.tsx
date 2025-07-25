@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { apiService } from '../services/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   OrganizationDetails,
   OrganizationMembers,
@@ -43,6 +43,7 @@ function TabPanel(props: TabPanelProps) {
 
 const OrganizationSettings: React.FC = () => {
   const navigate = useNavigate();
+  const { tab } = useParams<{ tab?: string }>();
   const {
     currentOrganization,
     members,
@@ -55,13 +56,37 @@ const OrganizationSettings: React.FC = () => {
     deleteOrganization
   } = useOrganization();
   
-  const [tabValue, setTabValue] = useState(0);
+  // Map tab names to indices
+  const tabMapping: { [key: string]: number } = {
+    'general': 0,
+    'members': 1,
+    'usage': 2,
+    'danger': 3
+  };
+  
+  // Get initial tab value from URL or default to 0
+  const getTabValueFromUrl = () => {
+    if (tab && tabMapping.hasOwnProperty(tab)) {
+      return tabMapping[tab];
+    }
+    return 0;
+  };
+  
+  const [tabValue, setTabValue] = useState(getTabValueFromUrl());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
   // Store previous tab value to prevent unnecessary reloads
   const previousTabRef = React.useRef(tabValue);
+  
+  // Update tab value when URL changes
+  useEffect(() => {
+    const newTabValue = getTabValueFromUrl();
+    if (newTabValue !== tabValue) {
+      setTabValue(newTabValue);
+    }
+  }, [tab]);
   
   // Organization details
   const [orgDetails, setOrgDetails] = useState<any>(null);
@@ -270,6 +295,9 @@ const OrganizationSettings: React.FC = () => {
               setSuccess('');
               // Update the tab value
               setTabValue(newValue);
+              // Navigate to the new tab URL
+              const tabNames = ['general', 'members', 'usage', 'danger'];
+              navigate(`/organization-settings/${tabNames[newValue]}`);
             }}
             aria-label="organization settings tabs"
           >

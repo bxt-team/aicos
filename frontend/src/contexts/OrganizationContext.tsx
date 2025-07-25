@@ -65,6 +65,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingPromise, setLoadingPromise] = useState<Promise<void> | null>(null);
 
   // Load organizations when user changes
   useEffect(() => {
@@ -104,52 +105,51 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const loadOrganizations = async () => {
     if (!user) return;
     
-    console.log('[OrganizationContext] Loading organizations for user:', user);
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiService.organizations.list();
-      console.log('[OrganizationContext] Organizations API response:', response);
-      const orgs = response.data.organizations || [];
-      console.log('[OrganizationContext] Setting organizations:', orgs);
-      setOrganizations(orgs);
-    } catch (err: any) {
-      console.error('[OrganizationContext] Error loading organizations:', err);
-      console.error('[OrganizationContext] Error response:', err.response);
-      setError(err.response?.data?.detail || 'Failed to load organizations');
-    } finally {
-      setLoading(false);
+    // Return existing promise if already loading
+    if (loadingPromise) {
+      return loadingPromise;
     }
+    
+    const promise = (async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await apiService.organizations.list();
+        const orgs = response.data.organizations || [];
+        setOrganizations(orgs);
+      } catch (err: any) {
+        console.error('Failed to load organizations:', err);
+        setError(err.response?.data?.detail || 'Failed to load organizations');
+      } finally {
+        setLoading(false);
+        setLoadingPromise(null);
+      }
+    })();
+    
+    setLoadingPromise(promise);
+    return promise;
   };
 
   const createOrganization = async (data: { name: string; description?: string }) => {
-    console.log('[OrganizationContext] Creating organization:', data);
     setLoading(true);
     setError(null);
     
     try {
       const response = await apiService.organizations.create(data);
-      console.log('[OrganizationContext] Create organization response:', response);
       const newOrg = response.data.organization;
-      console.log('[OrganizationContext] New organization:', newOrg);
       
       // Update the organizations list
       const updatedOrgs = [...organizations, newOrg];
-      console.log('[OrganizationContext] Updated organizations list:', updatedOrgs);
       setOrganizations(updatedOrgs);
       
       // Automatically set as current organization
       setCurrentOrganization(newOrg);
       localStorage.setItem('currentOrganizationId', newOrg.id);
       
-      // Reload organizations to ensure consistency
-      await loadOrganizations();
-      
       return newOrg;
     } catch (err: any) {
-      console.error('[OrganizationContext] Error creating organization:', err);
-      console.error('[OrganizationContext] Error response:', err.response);
+      console.error('Failed to create organization:', err);
       setError(err.response?.data?.detail || 'Failed to create organization');
       throw err;
     } finally {
@@ -211,19 +211,15 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const loadMembers = async () => {
     if (!currentOrganization) return;
     
-    console.log('[OrganizationContext] Loading members for organization:', currentOrganization.id);
     setLoading(true);
     setError(null);
     
     try {
       const response = await apiService.organizations.getMembers(currentOrganization.id);
-      console.log('[OrganizationContext] Members API response:', response);
       const membersList = response.data.members || [];
-      console.log('[OrganizationContext] Setting members:', membersList);
       setMembers(membersList);
     } catch (err: any) {
-      console.error('[OrganizationContext] Error loading members:', err);
-      console.error('[OrganizationContext] Error response:', err.response);
+      console.error('Failed to load members:', err);
       setError(err.response?.data?.detail || 'Failed to load members');
     } finally {
       setLoading(false);
