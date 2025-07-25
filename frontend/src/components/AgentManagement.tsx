@@ -147,25 +147,6 @@ const AgentManagement: React.FC = () => {
 
   return (
     <div className="agent-management">
-      <div className="management-header">
-        <h2>🤖 Agent Management Dashboard</h2>
-        <p>Overview and status of all available AI agents</p>
-        {/* Removed refresh button - all agents are always up */}
-      </div>
-
-      <div className="agents-overview">
-        <div className="overview-stats">
-          <div className="stat-card">
-            <div className="stat-number">{agents.filter(a => a.enabled).length}</div>
-            <div className="stat-label">Active Agents</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number">{Array.from(new Set(agents.map(a => a.category))).length}</div>
-            <div className="stat-label">Categories</div>
-          </div>
-        </div>
-      </div>
-
       <div className="agents-section">
         <h3>✅ Active Agents</h3>
         <div className="agents-grid">

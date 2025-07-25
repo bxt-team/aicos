@@ -39,6 +39,18 @@ deps_logger.setLevel(logging.INFO)
 org_logger = logging.getLogger('app.api.routers.organizations')
 org_logger.setLevel(logging.DEBUG)
 
+# Suppress httpcore.http11 DEBUG logs
+httpcore_logger = logging.getLogger('httpcore.http11')
+httpcore_logger.setLevel(logging.WARNING)
+
+# Suppress all httpcore logs
+httpcore_base_logger = logging.getLogger('httpcore')
+httpcore_base_logger.setLevel(logging.WARNING)
+
+# Also suppress httpx if needed
+httpx_logger = logging.getLogger('httpx')
+httpx_logger.setLevel(logging.WARNING)
+
 # Lifespan context manager for startup and shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
