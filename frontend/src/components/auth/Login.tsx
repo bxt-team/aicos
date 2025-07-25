@@ -23,7 +23,7 @@ import {
   Email,
   Lock
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
+import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext';
 import './auth.css';
 
 const Login: React.FC = () => {
@@ -34,7 +34,7 @@ const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { login } = useAuth();
+  const { signIn } = useSupabaseAuth();
   const navigate = useNavigate();
   const theme = useTheme();
 
@@ -44,7 +44,7 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await login(email, password, rememberMe);
+      await signIn(email, password);
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');

@@ -14,7 +14,7 @@ import {
   Step,
   StepLabel
 } from '@mui/material';
-import { useAuth } from '../../contexts/AuthContext';
+import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext';
 
 const steps = ['Persönliche Daten', 'Organisation'];
 
@@ -28,7 +28,7 @@ const Signup: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { signup } = useAuth();
+  const { signUp } = useSupabaseAuth();
   const navigate = useNavigate();
 
   const handleNext = () => {
@@ -67,7 +67,7 @@ const Signup: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await signup(email, password, name, organizationName);
+      await signUp(email, password, { name, organizationName });
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.');

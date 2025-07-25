@@ -28,6 +28,7 @@ interface OrganizationContextType {
   organizations: Organization[];
   currentOrganization: Organization | null;
   members: OrganizationMember[];
+  currentUserRole: 'owner' | 'admin' | 'member' | 'viewer' | null;
   loading: boolean;
   error: string | null;
   
@@ -301,10 +302,25 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
     }
   };
 
+  // Compute current user's role in the current organization
+  const currentUserRole = React.useMemo(() => {
+    if (!currentOrganization || !user) return null;
+    
+    // Check if user is the owner
+    if (currentOrganization.owner_id === user.id) {
+      return 'owner';
+    }
+    
+    // Find user in members list
+    const currentMember = members.find(member => member.user_id === user.id);
+    return currentMember?.role || null;
+  }, [currentOrganization, user, members]);
+
   const value: OrganizationContextType = {
     organizations,
     currentOrganization,
     members,
+    currentUserRole,
     loading,
     error,
     setCurrentOrganization: handleSetCurrentOrganization,

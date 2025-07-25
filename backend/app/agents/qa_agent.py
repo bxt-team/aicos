@@ -35,6 +35,15 @@ class QAAgent(BaseCrew):
         # Create the Q&A agent from YAML config
         self.qa_agent = self.create_agent("qa_agent", llm=self.llm)
     
+    def _run_async(self, coro):
+        """Helper to run async code in sync context"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+    
     
     def _get_relevant_context(self, question: str, k: int = 5) -> str:
         """Retrieve relevant context for the question"""
@@ -56,6 +65,16 @@ class QAAgent(BaseCrew):
     def answer_question(self, question: str) -> Dict[str, Any]:
         """Answer a question using the knowledge base"""
         try:
+            # Consume credits for this action
+            if self.validate_context():
+                self._run_async(self.consume_credits_for_action(
+                    action='answer_question',
+                    metadata={
+                        'question': question[:100],  # First 100 chars for metadata
+                        'question_length': len(question)
+                    }
+                ))
+            
             # Get relevant context - use scoped if context is available
             if self.validate_context():
                 context = self._get_relevant_context_scoped(question)

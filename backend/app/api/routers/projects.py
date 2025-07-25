@@ -11,10 +11,22 @@ from app.core.auth import get_current_user, get_request_context
 from app.models.auth import User, Permission, RequestContext
 from app.core.security.permissions import has_project_permission
 from app.core.supabase_auth import get_current_user as get_current_user_supabase
-from app.core.dependencies import get_supabase_client
+from supabase import create_client, Client
+import os
 
 router = APIRouter(prefix="/api/projects", tags=["Projects"])
 logger = logging.getLogger(__name__)
+
+
+def get_supabase() -> Client:
+    """Get the actual Supabase client."""
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_ANON_KEY")
+    
+    if not url or not key:
+        raise ValueError("Supabase credentials not configured")
+    
+    return create_client(url, key)
 
 # Request models
 class ProjectCreateRequest(BaseModel):
@@ -22,6 +34,7 @@ class ProjectCreateRequest(BaseModel):
     description: Optional[str] = None
     organization_id: str
     settings: Optional[dict] = None
+    department_ids: Optional[List[str]] = None  # Departments to share with
 
 class ProjectUpdateRequest(BaseModel):
     name: Optional[str] = None
@@ -33,6 +46,9 @@ class ProjectMemberAddRequest(BaseModel):
     user_id: str
     role: str = "member"  # admin, member, viewer
 
+class ProjectDepartmentRequest(BaseModel):
+    department_id: str
+
 # Project endpoints
 @router.get("/")
 async def list_projects(
@@ -41,9 +57,7 @@ async def list_projects(
 ):
     """List all projects the user has access to"""
     try:
-        from app.core.dependencies import get_supabase_client
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -144,8 +158,7 @@ async def create_project(
         import re
         import random
         
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -228,6 +241,26 @@ async def create_project(
         }
         supabase.table("project_members").insert(membership_data).execute()
         
+        # Add department associations if provided
+        if request.department_ids:
+            department_associations = []
+            for dept_id in request.department_ids:
+                # Verify department exists and belongs to same organization
+                dept_check = supabase.table("departments").select("id").eq(
+                    "id", dept_id
+                ).eq("organization_id", request.organization_id).execute()
+                
+                if dept_check.data:
+                    department_associations.append({
+                        "id": str(uuid4()),
+                        "project_id": project_id,
+                        "department_id": dept_id,
+                        "created_at": datetime.utcnow().isoformat()
+                    })
+            
+            if department_associations:
+                supabase.table("project_departments").insert(department_associations).execute()
+        
         return {
             "success": True,
             "project": {
@@ -250,33 +283,70 @@ async def create_project(
 @router.get("/{project_id}")
 async def get_project(
     project_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user_supabase)
 ):
     """Get project details"""
-    # Check if user has access to this project
-    if not has_project_permission(current_user, project_id, Permission.PROJECT_READ):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    # In a real implementation, fetch from database
-    project = {
-        "id": project_id,
-        "name": "Project Name",
-        "description": "Project description",
-        "organization_id": current_user.default_organization_id,
-        "settings": {},
-        "created_at": datetime.now().isoformat(),
-        "is_active": True,
-        "statistics": {
-            "content_items": 42,
-            "team_members": 5,
-            "last_activity": datetime.now().isoformat()
+    try:
+        supabase = get_supabase()
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has access to this project
+        access_check = supabase.table("project_members").select("role").eq(
+            "project_id", project_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not access_check.data:
+            # Check if user has organization-level access
+            project_data = supabase.table("projects").select("organization_id").eq("id", project_id).execute()
+            if project_data.data:
+                org_id = project_data.data[0]["organization_id"]
+                org_access = supabase.table("organization_members").select("role").eq(
+                    "organization_id", org_id
+                ).eq("user_id", public_user_id).execute()
+                
+                if not org_access.data:
+                    raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Fetch project details
+        result = supabase.table("projects").select("*").eq("id", project_id).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        project = result.data[0]
+        
+        # Get basic statistics
+        stats = {
+            "content_items": 0,
+            "team_members": len(access_check.data) if access_check.data else 1,
+            "last_activity": project.get("updated_at", project.get("created_at"))
         }
-    }
-    
-    return {
-        "success": True,
-        "project": project
-    }
+        
+        project["statistics"] = stats
+        
+        return {
+            "success": True,
+            "project": project
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching project: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{project_id}")
 async def update_project(
@@ -326,8 +396,7 @@ async def list_project_members(
 ):
     """List project members"""
     try:
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -513,6 +582,196 @@ async def update_project_settings(
         "settings": settings
     }
 
+# Project department endpoints
+@router.get("/{project_id}/departments")
+async def list_project_departments(
+    project_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_supabase)
+):
+    """List departments associated with a project"""
+    try:
+        supabase = get_supabase()
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has access to this project
+        access_check = supabase.table("project_members").select("role").eq(
+            "project_id", project_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not access_check.data:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get departments associated with this project
+        result = supabase.table("project_departments").select(
+            "*, departments!inner(id, name, description)"
+        ).eq("project_id", project_id).execute()
+        
+        departments = []
+        for assoc in result.data:
+            dept = assoc.get("departments")
+            if dept:
+                departments.append({
+                    "id": dept["id"],
+                    "name": dept["name"],
+                    "description": dept.get("description"),
+                    "associated_at": assoc.get("created_at")
+                })
+        
+        return {
+            "success": True,
+            "departments": departments,
+            "count": len(departments)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing project departments: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{project_id}/departments")
+async def add_project_department(
+    project_id: str,
+    request: ProjectDepartmentRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user_supabase)
+):
+    """Add department to project (requires admin permission)"""
+    try:
+        from uuid import uuid4
+        
+        supabase = get_supabase()
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has admin access to this project
+        access_check = supabase.table("project_members").select("role").eq(
+            "project_id", project_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not access_check.data or access_check.data[0]["role"] not in ["admin", "owner"]:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Get project's organization
+        project_result = supabase.table("projects").select("organization_id").eq(
+            "id", project_id
+        ).single().execute()
+        
+        # Verify department exists and belongs to same organization
+        dept_check = supabase.table("departments").select("id, name").eq(
+            "id", request.department_id
+        ).eq("organization_id", project_result.data["organization_id"]).execute()
+        
+        if not dept_check.data:
+            raise HTTPException(status_code=404, detail="Department not found in organization")
+        
+        # Check if already associated
+        existing = supabase.table("project_departments").select("id").eq(
+            "project_id", project_id
+        ).eq("department_id", request.department_id).execute()
+        
+        if existing.data:
+            raise HTTPException(status_code=409, detail="Department already associated with project")
+        
+        # Add association
+        association_data = {
+            "id": str(uuid4()),
+            "project_id": project_id,
+            "department_id": request.department_id,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        supabase.table("project_departments").insert(association_data).execute()
+        
+        return {
+            "success": True,
+            "message": "Department added successfully",
+            "department": {
+                "id": request.department_id,
+                "name": dept_check.data[0]["name"]
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding project department: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{project_id}/departments/{department_id}")
+async def remove_project_department(
+    project_id: str,
+    department_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user_supabase)
+):
+    """Remove department from project (requires admin permission)"""
+    try:
+        supabase = get_supabase()
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has admin access to this project
+        access_check = supabase.table("project_members").select("role").eq(
+            "project_id", project_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not access_check.data or access_check.data[0]["role"] not in ["admin", "owner"]:
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Remove association
+        result = supabase.table("project_departments").delete().eq(
+            "project_id", project_id
+        ).eq("department_id", department_id).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Department not associated with project")
+        
+        return {
+            "success": True,
+            "message": "Department removed successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing project department: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Project activity endpoints
 @router.get("/{project_id}/activity")
 async def get_project_activity(
@@ -558,36 +817,109 @@ async def get_project_activity(
 @router.get("/{project_id}/stats")
 async def get_project_statistics(
     project_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user_supabase)
 ):
     """Get project statistics"""
-    # Check if user has access to this project
-    if not has_project_permission(current_user, project_id, Permission.PROJECT_READ):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    # In a real implementation, calculate from database
-    stats = {
-        "content": {
-            "affirmations": 156,
-            "visual_posts": 89,
-            "videos": 23,
-            "workflows": 45
-        },
-        "engagement": {
-            "total_views": 12500,
-            "total_shares": 340,
-            "avg_engagement_rate": 4.2
-        },
-        "team": {
-            "total_members": 5,
-            "active_today": 3,
-            "pending_invites": 1
-        },
-        "period": "last_30_days"
-    }
-    
-    return {
-        "success": True,
-        "statistics": stats,
-        "generated_at": datetime.now().isoformat()
-    }
+    try:
+        supabase = get_supabase()
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has access to this project (simplified check)
+        access_check = supabase.table("project_members").select("role").eq(
+            "project_id", project_id
+        ).eq("user_id", public_user_id).execute()
+        
+        # If no direct project access, check organization access
+        if not access_check.data:
+            project_data = supabase.table("projects").select("organization_id").eq("id", project_id).execute()
+            if project_data.data:
+                org_id = project_data.data[0]["organization_id"]
+                org_access = supabase.table("organization_members").select("role").eq(
+                    "organization_id", org_id
+                ).eq("user_id", public_user_id).execute()
+                
+                if not org_access.data:
+                    raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get goals count
+        goals_result = supabase.table("goals").select("id, status").eq(
+            "project_id", project_id
+        ).execute()
+        
+        goals_data = goals_result.data or []
+        goals_total = len(goals_data)
+        active_goals = len([g for g in goals_data if g.get("status") == "active"])
+        completed_goals = len([g for g in goals_data if g.get("status") == "completed"])
+        
+        # Get tasks count
+        tasks_result = None
+        if goals_data:
+            goal_ids = [g["id"] for g in goals_data]
+            tasks_result = supabase.table("tasks").select("id, status").in_(
+                "goal_id", goal_ids
+            ).execute()
+        
+        tasks_data = tasks_result.data if tasks_result else []
+        tasks_total = len(tasks_data)
+        pending_tasks = len([t for t in tasks_data if t.get("status") == "pending"])
+        in_progress_tasks = len([t for t in tasks_data if t.get("status") == "in_progress"])
+        completed_tasks = len([t for t in tasks_data if t.get("status") == "completed"])
+        
+        # Get team members count
+        members_result = supabase.table("project_members").select("id").eq(
+            "project_id", project_id
+        ).execute()
+        
+        team_members = len(members_result.data or [])
+        
+        stats = {
+            "content": {
+                "goals": goals_total,
+                "active_goals": active_goals,
+                "completed_goals": completed_goals,
+                "tasks": tasks_total,
+                "pending_tasks": pending_tasks,
+                "in_progress_tasks": in_progress_tasks,
+                "completed_tasks": completed_tasks,
+                "affirmations": 0,  # TODO: Implement when content types are added
+                "visual_posts": 0,
+                "videos": 0,
+                "workflows": 0
+            },
+            "engagement": {
+                "total_views": 0,
+                "total_shares": 0,
+                "avg_engagement_rate": 0
+            },
+            "team": {
+                "total_members": team_members,
+                "active_today": 0,  # TODO: Implement activity tracking
+                "pending_invites": 0
+            },
+            "period": "all_time"
+        }
+        
+        return {
+            "success": True,
+            "statistics": stats,
+            "generated_at": datetime.now().isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching project statistics: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

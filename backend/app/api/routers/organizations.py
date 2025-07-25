@@ -10,7 +10,8 @@ import traceback
 
 from app.core.supabase_auth import get_current_user
 from app.models.auth import Permission, OrganizationRole
-from app.core.dependencies import get_supabase_client
+from supabase import create_client, Client
+import os
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -23,6 +24,17 @@ def has_organization_permission(current_user: Dict[str, Any], organization_id: s
     return True
 
 router = APIRouter(prefix="/api/organizations", tags=["Organizations"])
+
+
+def get_supabase() -> Client:
+    """Get the actual Supabase client."""
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_ANON_KEY")
+    
+    if not url or not key:
+        raise ValueError("Supabase credentials not configured")
+    
+    return create_client(url, key)
 
 # Request models
 class OrganizationCreateRequest(BaseModel):
@@ -53,8 +65,7 @@ async def list_organizations(
     """List all organizations the user belongs to"""
     try:
         logger.info(f"Listing organizations for user: {current_user['user_id']}")
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -123,8 +134,7 @@ async def create_organization(
         import random
         
         logger.debug("Getting Supabase client")
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             logger.error("Database connection not available")
@@ -311,9 +321,7 @@ async def get_organization(
         raise HTTPException(status_code=403, detail="Access denied")
     
     try:
-        from app.core.dependencies import get_supabase_client
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -367,8 +375,7 @@ async def delete_organization(
     try:
         logger.info(f"Deleting organization {organization_id} by user {current_user['user_id']}")
         
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -476,8 +483,7 @@ async def restore_organization(
     try:
         logger.info(f"Restoring organization {organization_id} by user {current_user['user_id']}")
         
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -562,8 +568,7 @@ async def list_organization_members(
     """List organization members"""
     try:
         logger.info(f"Listing members for organization: {organization_id}")
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -652,9 +657,7 @@ async def invite_organization_member(
 ):
     """Invite a new member to organization (requires admin permission)"""
     try:
-        from app.core.dependencies import get_supabase_client
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -745,9 +748,7 @@ async def update_organization_member(
 ):
     """Update member role (requires admin permission)"""
     try:
-        from app.core.dependencies import get_supabase_client
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -836,9 +837,7 @@ async def remove_organization_member(
 ):
     """Remove member from organization (requires admin permission)"""
     try:
-        from app.core.dependencies import get_supabase_client
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -1012,9 +1011,7 @@ async def test_organization_members(
 ):
     """Simple test endpoint to check organization members"""
     try:
-        from app.core.dependencies import get_supabase_client
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(
@@ -1050,9 +1047,7 @@ async def debug_organization_membership(
 ):
     """Debug endpoint to check user's membership and role in organization"""
     try:
-        from app.core.dependencies import get_supabase_client
-        supabase_client = get_supabase_client()
-        supabase = supabase_client.client
+        supabase = get_supabase()
         
         if not supabase:
             raise HTTPException(

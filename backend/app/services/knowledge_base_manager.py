@@ -54,7 +54,6 @@ class KnowledgeBaseManager:
         texts = text_splitter.split_documents(documents)
         
         # Create vector store ONCE
-        logger.info(f"Creating embeddings for {len(texts)} document chunks...")
         self._vector_store = FAISS.from_documents(texts, self._embeddings)
         
         logger.info(f"Successfully loaded {len(texts)} document sections into shared vector store")

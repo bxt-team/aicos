@@ -42,7 +42,10 @@
       "mcp__supabase__search_docs",
       "Bash(pip show:*)",
       "Bash(cp:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "mcp__supabase__get_advisors",
+      "Bash(pkill:*)",
+      "Bash(true)"
     ],
     "deny": []
   },

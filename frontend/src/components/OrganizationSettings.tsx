@@ -18,6 +18,9 @@ import {
   InviteMemberDialog,
   DeleteOrganizationDialog
 } from './organization';
+import { DepartmentManagement } from './DepartmentManagement';
+import { EmployeeManagement } from './EmployeeManagement';
+import { CreditBalance, CreditUsageChart } from './billing';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -60,8 +63,11 @@ const OrganizationSettings: React.FC = () => {
   const tabMapping: { [key: string]: number } = {
     'general': 0,
     'members': 1,
-    'usage': 2,
-    'danger': 3
+    'departments': 2,
+    'employees': 3,
+    'billing': 4,
+    'usage': 5,
+    'danger': 6
   };
   
   // Get initial tab value from URL or default to 0
@@ -146,7 +152,11 @@ const OrganizationSettings: React.FC = () => {
             setError(memberErr.response?.data?.detail || memberErr.message || 'Error loading members');
           }
           break;
-        case 2: // Usage
+        case 2: // Departments - handled by component
+          break;
+        case 3: // Employees - handled by component
+          break;
+        case 4: // Usage
           const usageResponse = await apiService.organizations.getUsage(currentOrganization.id);
           setUsage(usageResponse.data.usage);
           break;
@@ -296,15 +306,18 @@ const OrganizationSettings: React.FC = () => {
               // Update the tab value
               setTabValue(newValue);
               // Navigate to the new tab URL
-              const tabNames = ['general', 'members', 'usage', 'danger'];
+              const tabNames = ['general', 'members', 'departments', 'employees', 'billing', 'usage', 'danger'];
               navigate(`/organization-settings/${tabNames[newValue]}`);
             }}
             aria-label="organization settings tabs"
           >
             <Tab label="Allgemein" id="org-tab-0" aria-controls="org-tabpanel-0" />
             <Tab label="Members" id="org-tab-1" aria-controls="org-tabpanel-1" />
-            <Tab label="Nutzung" id="org-tab-2" aria-controls="org-tabpanel-2" />
-            <Tab label="Danger Zone" id="org-tab-3" aria-controls="org-tabpanel-3" sx={{ color: 'error.main' }} />
+            <Tab label="Departments" id="org-tab-2" aria-controls="org-tabpanel-2" />
+            <Tab label="Employees" id="org-tab-3" aria-controls="org-tabpanel-3" />
+            <Tab label="Billing & Credits" id="org-tab-4" aria-controls="org-tabpanel-4" />
+            <Tab label="Nutzung" id="org-tab-5" aria-controls="org-tabpanel-5" />
+            <Tab label="Danger Zone" id="org-tab-6" aria-controls="org-tabpanel-6" sx={{ color: 'error.main' }} />
           </Tabs>
         </Box>
 
@@ -337,13 +350,30 @@ const OrganizationSettings: React.FC = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
+          <DepartmentManagement />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={3}>
+          <EmployeeManagement />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={4}>
+          <Box>
+            <CreditBalance />
+            <Box mt={3}>
+              <CreditUsageChart />
+            </Box>
+          </Box>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={5}>
           <OrganizationUsage
             usage={usage}
             loading={loading}
           />
         </TabPanel>
 
-        <TabPanel value={tabValue} index={3}>
+        <TabPanel value={tabValue} index={6}>
           <OrganizationDangerZone
             isOwner={isOwner}
             loading={loading}

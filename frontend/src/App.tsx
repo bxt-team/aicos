@@ -47,6 +47,7 @@ import AppHeader from './components/AppHeader';
 import { useSupabaseAuth } from './contexts/SupabaseAuthContext';
 import ProjectManagement from './components/ProjectManagement';
 import OnboardingCheck from './components/OnboardingCheck';
+import { ProjectDashboard } from './components/ProjectDashboard';
 
 function AppContent() {
   const { user, loading } = useSupabaseAuth();
@@ -108,7 +109,8 @@ function AppContent() {
             <Route path="/organization-settings/:tab" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
             <Route path="/organization-debug" element={<ProtectedRoute><OrganizationDebug /></ProtectedRoute>} />
             <Route path="/projects" element={<ProtectedRoute><ProjectManagement /></ProtectedRoute>} />
-            <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+            <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectDashboard /></ProtectedRoute>} />
+            <Route path="/projects/:projectId/old" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
             </Routes>
           </main>
           </div>

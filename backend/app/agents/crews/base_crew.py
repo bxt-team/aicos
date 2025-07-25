@@ -11,6 +11,8 @@ from uuid import UUID
 from app.core.cost_tracker import cost_tracker, TokenUsage
 from app.models.auth import RequestContext
 from app.core.storage.base import StorageAdapter
+from app.services.credit_service import CreditService
+from app.core.exceptions import InsufficientCreditsError
 
 logger = logging.getLogger(__name__)
 
@@ -223,3 +225,91 @@ class BaseCrew:
             return False
         
         return True
+    
+    async def consume_credits_for_action(
+        self, 
+        action: str, 
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Consume credits for a specific action
+        
+        Args:
+            action: The action being performed (e.g., 'generate_content')
+            metadata: Additional metadata to track with the usage
+            
+        Returns:
+            bool: True if credits were consumed successfully
+            
+        Raises:
+            InsufficientCreditsError: If there are not enough credits
+        """
+        if not self.validate_context():
+            logger.warning("No valid context for credit consumption")
+            return True  # Allow operation to continue without context
+        
+        try:
+            credit_service = CreditService()
+            agent_type = self.__class__.__name__
+            
+            # Get the cost for this action
+            cost = await credit_service.get_cost_for_action(agent_type, action)
+            
+            # Consume credits
+            success = await credit_service.consume_credits(
+                organization_id=str(self._context.organization_id),
+                amount=cost,
+                project_id=str(self._context.project_id) if self._context.project_id else None,
+                department_id=str(self._context.department_id) if hasattr(self._context, 'department_id') and self._context.department_id else None,
+                agent_type=agent_type,
+                action=action,
+                metadata=metadata,
+                user_id=str(self._context.user_id) if self._context.user_id else None
+            )
+            
+            if not success:
+                raise InsufficientCreditsError(
+                    f"Insufficient credits for {agent_type}.{action}"
+                )
+            
+            logger.info(
+                f"Consumed {cost} credits for {agent_type}.{action} "
+                f"(org: {self._context.organization_id}, project: {self._context.project_id})"
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to consume credits: {str(e)}")
+            # Decide whether to fail the operation or continue
+            # For now, we'll raise to prevent operation without credits
+            raise
+    
+    async def check_credits_available(self, action: str) -> bool:
+        """
+        Check if there are enough credits for an action without consuming them
+        
+        Args:
+            action: The action to check credits for
+            
+        Returns:
+            bool: True if there are enough credits available
+        """
+        if not self.validate_context():
+            return True  # Allow if no context
+        
+        try:
+            credit_service = CreditService()
+            agent_type = self.__class__.__name__
+            
+            # Get the cost for this action
+            cost = await credit_service.get_cost_for_action(agent_type, action)
+            
+            # Get current balance
+            balance = await credit_service.get_balance(str(self._context.organization_id))
+            
+            return balance['available'] >= cost
+            
+        except Exception as e:
+            logger.error(f"Failed to check credits: {str(e)}")
+            return True  # Allow on error

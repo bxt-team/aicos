@@ -87,6 +87,18 @@ class VisualPostCreatorAgent(BaseCrew):
                              count: int = 3, force_new: bool = False) -> Dict[str, Any]:
         """Find and prepare background images for visual posts"""
         try:
+            # Consume credits for this action
+            if self.validate_context():
+                self._run_async(self.consume_credits_for_action(
+                    action='create_visual_post',
+                    metadata={
+                        'tags': tags,
+                        'period': period,
+                        'style': image_style,
+                        'count': count
+                    }
+                ))
+            
             # Propagate context to image search agent if needed
             if self.validate_context() and hasattr(self.image_search_agent, 'set_context'):
                 self.image_search_agent.set_context(self._context)
