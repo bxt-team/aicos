@@ -45,7 +45,10 @@
       "Bash(git reset:*)",
       "mcp__supabase__get_advisors",
       "Bash(pkill:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(npm run dev-backend:*)",
+      "Bash(kill:*)",
+      "mcp__supabase__list_migrations"
     ],
     "deny": []
   },

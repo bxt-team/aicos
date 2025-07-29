@@ -353,18 +353,77 @@ async def update_organization(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Update organization details (requires admin permission)"""
-    # Check if user has admin access to this organization
-    if not has_organization_permission(current_user, organization_id, Permission.ORG_UPDATE):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # In a real implementation, update in database
-    updated_fields = {k: v for k, v in request.dict().items() if v is not None}
-    
-    return {
-        "success": True,
-        "message": "Organization updated successfully",
-        "updated_fields": updated_fields
-    }
+    try:
+        logger.info(f"Updating organization {organization_id} by user {current_user['user_id']}")
+        
+        supabase = get_supabase()
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has admin or owner access to this organization
+        membership_check = supabase.table("organization_members").select("role").eq(
+            "organization_id", organization_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not membership_check.data:
+            logger.warning(f"User {public_user_id} does not have membership in organization {organization_id}")
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        user_role = membership_check.data[0]["role"]
+        if user_role not in ["admin", "owner"]:
+            logger.warning(f"User {public_user_id} has role {user_role}, needs admin or owner")
+            raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Prepare update data
+        update_data = {}
+        if request.name is not None:
+            update_data["name"] = request.name
+        if request.description is not None:
+            update_data["description"] = request.description
+        if request.website is not None:
+            update_data["website"] = request.website
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        # Add updated timestamp
+        update_data["updated_at"] = datetime.utcnow().isoformat()
+        
+        logger.info(f"Updating organization with data: {update_data}")
+        
+        # Update the organization
+        result = supabase.table("organizations").update(update_data).eq("id", organization_id).execute()
+        
+        if not result.data:
+            logger.error(f"Failed to update organization {organization_id}")
+            raise HTTPException(status_code=404, detail="Organization not found")
+        
+        logger.info(f"Organization {organization_id} updated successfully")
+        
+        return {
+            "success": True,
+            "message": "Organization updated successfully",
+            "organization": result.data[0]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating organization: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{organization_id}")
 async def delete_organization(

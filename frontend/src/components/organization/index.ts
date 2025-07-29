@@ -4,3 +4,4 @@ export { default as OrganizationUsage } from './OrganizationUsage';
 export { default as OrganizationDangerZone } from './OrganizationDangerZone';
 export { default as InviteMemberDialog } from './InviteMemberDialog';
 export { default as DeleteOrganizationDialog } from './DeleteOrganizationDialog';
+export { OrganizationProjects } from './OrganizationProjects';

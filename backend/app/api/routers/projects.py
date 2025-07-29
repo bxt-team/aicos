@@ -371,22 +371,68 @@ async def update_project(
 @router.delete("/{project_id}")
 async def delete_project(
     project_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user_supabase)
 ):
     """Delete project (requires admin permission)"""
-    # Check if user has admin access to this project
-    if not has_project_permission(current_user, project_id, Permission.PROJECT_DELETE):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # In a real implementation:
-    # 1. Check if project has active data
-    # 2. Soft delete or archive project
-    # 3. Notify team members
-    
-    return {
-        "success": True,
-        "message": "Project deleted successfully"
-    }
+    try:
+        logger.info(f"Delete project {project_id} requested by user: {current_user}")
+        
+        supabase = get_supabase()
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # First, check if the project exists and user has access
+        project_result = supabase.table("projects").select("*").eq("id", project_id).single().execute()
+        
+        if not project_result.data:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        project = project_result.data
+        
+        # Check if user belongs to the organization
+        # First, get the public user ID from the Supabase auth user
+        auth_email = current_user.get("email")
+        auth_user_id = str(current_user["user_id"])
+        public_user_id = auth_user_id
+        
+        # If we have an email, try to find the corresponding public user
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+                logger.info(f"Mapped auth user {auth_user_id} to public user {public_user_id}")
+        
+        logger.debug(f"Using public_user_id: {public_user_id} for org membership check")
+            
+        org_member_result = supabase.table("organization_members").select("role").eq(
+            "organization_id", project["organization_id"]
+        ).eq("user_id", public_user_id).execute()
+        
+        if not org_member_result.data or len(org_member_result.data) == 0:
+            raise HTTPException(status_code=403, detail="Access denied - user is not a member of this organization")
+        
+        # Check if user has admin or owner role
+        user_role = org_member_result.data[0].get("role")
+        if user_role not in ["admin", "owner"]:
+            raise HTTPException(status_code=403, detail="Admin or owner access required")
+        
+        # Delete the project
+        delete_result = supabase.table("projects").delete().eq("id", project_id).execute()
+        
+        return {
+            "success": True,
+            "message": "Project deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting project: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Project member endpoints
 @router.get("/{project_id}/members")

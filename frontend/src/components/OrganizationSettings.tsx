@@ -16,10 +16,10 @@ import {
   OrganizationUsage,
   OrganizationDangerZone,
   InviteMemberDialog,
-  DeleteOrganizationDialog
+  DeleteOrganizationDialog,
+  OrganizationProjects
 } from './organization';
 import { DepartmentManagement } from './DepartmentManagement';
-import { EmployeeManagement } from './EmployeeManagement';
 import { CreditBalance, CreditUsageChart } from './billing';
 
 interface TabPanelProps {
@@ -62,9 +62,9 @@ const OrganizationSettings: React.FC = () => {
   // Map tab names to indices
   const tabMapping: { [key: string]: number } = {
     'general': 0,
-    'members': 1,
-    'departments': 2,
-    'employees': 3,
+    'projects': 1,
+    'members': 2,
+    'departments': 3,
     'billing': 4,
     'usage': 5,
     'danger': 6
@@ -141,7 +141,9 @@ const OrganizationSettings: React.FC = () => {
       switch (tabValue) {
         case 0: // General - already loaded from context
           break;
-        case 1: // Members - always reload to ensure fresh data
+        case 1: // Projects - handled by component
+          break;
+        case 2: // Members - always reload to ensure fresh data
           console.log('[OrganizationSettings] Loading members for tab change');
           try {
             await loadMembers();
@@ -152,11 +154,11 @@ const OrganizationSettings: React.FC = () => {
             setError(memberErr.response?.data?.detail || memberErr.message || 'Error loading members');
           }
           break;
-        case 2: // Departments - handled by component
+        case 3: // Departments - handled by component
           break;
-        case 3: // Employees - handled by component
+        case 4: // Billing - handled by component
           break;
-        case 4: // Usage
+        case 5: // Usage
           const usageResponse = await apiService.organizations.getUsage(currentOrganization.id);
           setUsage(usageResponse.data.usage);
           break;
@@ -164,7 +166,7 @@ const OrganizationSettings: React.FC = () => {
     } catch (err: any) {
       console.error('[OrganizationSettings] Error in loadOrganizationData:', err);
       // Don't set generic errors for specific tab failures - they're handled above
-      if (tabValue !== 1) { // Don't overwrite member loading errors
+      if (tabValue !== 2) { // Don't overwrite member loading errors
         setError(err.response?.data?.detail || err.message || 'Error loading data');
       }
     } finally {
@@ -306,17 +308,17 @@ const OrganizationSettings: React.FC = () => {
               // Update the tab value
               setTabValue(newValue);
               // Navigate to the new tab URL
-              const tabNames = ['general', 'members', 'departments', 'employees', 'billing', 'usage', 'danger'];
+              const tabNames = ['general', 'projects', 'members', 'departments', 'billing', 'usage', 'danger'];
               navigate(`/organization-settings/${tabNames[newValue]}`);
             }}
             aria-label="organization settings tabs"
           >
-            <Tab label="Allgemein" id="org-tab-0" aria-controls="org-tabpanel-0" />
-            <Tab label="Members" id="org-tab-1" aria-controls="org-tabpanel-1" />
-            <Tab label="Departments" id="org-tab-2" aria-controls="org-tabpanel-2" />
-            <Tab label="Employees" id="org-tab-3" aria-controls="org-tabpanel-3" />
+            <Tab label="General" id="org-tab-0" aria-controls="org-tabpanel-0" />
+            <Tab label="Projects" id="org-tab-1" aria-controls="org-tabpanel-1" />
+            <Tab label="Members" id="org-tab-2" aria-controls="org-tabpanel-2" />
+            <Tab label="Departments" id="org-tab-3" aria-controls="org-tabpanel-3" />
             <Tab label="Billing & Credits" id="org-tab-4" aria-controls="org-tabpanel-4" />
-            <Tab label="Nutzung" id="org-tab-5" aria-controls="org-tabpanel-5" />
+            <Tab label="Usage" id="org-tab-5" aria-controls="org-tabpanel-5" />
             <Tab label="Danger Zone" id="org-tab-6" aria-controls="org-tabpanel-6" sx={{ color: 'error.main' }} />
           </Tabs>
         </Box>
@@ -338,6 +340,10 @@ const OrganizationSettings: React.FC = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
+          <OrganizationProjects organizationId={currentOrganization.id} />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
           <OrganizationMembers
             members={members}
             loading={loading}
@@ -349,12 +355,8 @@ const OrganizationSettings: React.FC = () => {
           />
         </TabPanel>
 
-        <TabPanel value={tabValue} index={2}>
-          <DepartmentManagement />
-        </TabPanel>
-
         <TabPanel value={tabValue} index={3}>
-          <EmployeeManagement />
+          <DepartmentManagement />
         </TabPanel>
 
         <TabPanel value={tabValue} index={4}>

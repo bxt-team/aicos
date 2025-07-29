@@ -1,7 +1,7 @@
 """
 Permission checking utilities for multi-tenant access control
 """
-from typing import Optional
+from typing import Optional, Dict, Any, Union
 from app.models.auth import User, Permission, OrganizationRole
 
 def has_organization_permission(
@@ -29,7 +29,7 @@ def has_organization_permission(
     return True
 
 def has_project_permission(
-    user: User,
+    user: Union[User, Dict[str, Any]],
     project_id: str,
     permission: Permission
 ) -> bool:
@@ -37,7 +37,7 @@ def has_project_permission(
     Check if user has specific permission in project
     
     Args:
-        user: Current user
+        user: Current user (either User object or dict from Supabase)
         project_id: Project ID to check
         permission: Required permission
         

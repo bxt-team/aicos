@@ -123,7 +123,7 @@ const UserMenu: React.FC = () => {
           <ListItemText>Manage Organization</ListItemText>
         </MenuItem>
         
-        <MenuItem onClick={() => handleNavigate('/projects')}>
+        <MenuItem onClick={() => handleNavigate('/organization-settings/projects')}>
           <ListItemIcon>
             <FolderIcon fontSize="small" />
           </ListItemIcon>

@@ -58,9 +58,12 @@ interface Goal {
   project_id: string;
 }
 
-interface Employee {
+interface Member {
   id: string;
-  name: string;
+  user_id: string;
+  role: string;
+  email: string;
+  full_name?: string;
 }
 
 interface Task {
@@ -70,7 +73,7 @@ interface Task {
   description?: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  assigned_to_type?: 'employee' | 'agent';
+  assigned_to_type?: 'member' | 'agent';
   assigned_to_id?: string;
   assigned_to_name?: string;
   created_by_type: string;
@@ -107,7 +110,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
   const { currentOrganization } = useOrganization();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
@@ -118,7 +121,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
     title: '',
     description: '',
     priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
-    assigned_to_type: '' as 'employee' | 'agent' | '',
+    assigned_to_type: '' as 'member' | 'agent' | '',
     assigned_to_id: '',
     due_date: null as Date | null,
   });
@@ -137,7 +140,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
     if (!goalId) {
       fetchGoals();
     }
-    fetchEmployees();
+    fetchMembers();
   }, [currentOrganization, goalId, projectId, filterGoal, filterStatus, filterAssignedToMe]);
 
   const fetchTasks = async () => {
@@ -189,14 +192,14 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
     }
   };
 
-  const fetchEmployees = async () => {
+  const fetchMembers = async () => {
     if (!currentOrganization) return;
     
     try {
-      const response = await api.get(`/api/employees?organization_id=${currentOrganization.id}&is_active=true`);
-      setEmployees(response.data);
+      const response = await api.get(`/api/organizations/${currentOrganization.id}/members`);
+      setMembers(response.data);
     } catch (err) {
-      console.error('Failed to fetch employees:', err);
+      console.error('Failed to fetch members:', err);
     }
   };
 
@@ -686,23 +689,23 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
               margin="normal"
             >
               <MenuItem value="">Unassigned</MenuItem>
-              <MenuItem value="employee">Employee</MenuItem>
+              <MenuItem value="member">Member</MenuItem>
               <MenuItem value="agent">AI Agent</MenuItem>
             </TextField>
-            {formData.assigned_to_type === 'employee' && (
+            {formData.assigned_to_type === 'member' && (
               <TextField
                 fullWidth
                 select
-                label="Select Employee"
+                label="Select Member"
                 value={formData.assigned_to_id}
                 onChange={(e) => setFormData({ ...formData, assigned_to_id: e.target.value })}
                 error={!!formErrors.assigned_to_id}
                 helperText={formErrors.assigned_to_id}
                 margin="normal"
               >
-                {employees.map((emp) => (
-                  <MenuItem key={emp.id} value={emp.id}>
-                    {emp.name}
+                {members.map((member) => (
+                  <MenuItem key={member.user_id} value={member.user_id}>
+                    {member.full_name || member.email} ({member.role})
                   </MenuItem>
                 ))}
               </TextField>

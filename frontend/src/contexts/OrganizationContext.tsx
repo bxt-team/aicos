@@ -306,13 +306,13 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const currentUserRole = React.useMemo(() => {
     if (!currentOrganization || !user) return null;
     
-    // Check if user is the owner
+    // Check if user is the owner by comparing owner_id
     if (currentOrganization.owner_id === user.id) {
       return 'owner';
     }
     
-    // Find user in members list
-    const currentMember = members.find(member => member.user_id === user.id);
+    // Find user in members list using the is_current_user flag
+    const currentMember = members.find(member => member.is_current_user === true);
     return currentMember?.role || null;
   }, [currentOrganization, user, members]);
 

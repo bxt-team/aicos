@@ -17,8 +17,8 @@ from app.core.dependencies import initialize_agents, cleanup_agents
 from app.api.routers import (
     health, content, affirmations, visual_posts, instagram,
     media, workflows, app_testing, feedback, qa, images, mobile_analytics, threads, x, agent_prompts,
-    background_video, auth, organizations, projects, departments, employees, goals, tasks, agent_tasks,
-    credits, billing
+    background_video, auth, organizations, projects, departments, goals, tasks, agent_tasks,
+    credits, billing, knowledge_bases, ai_agents, organization_management
 )
 
 # Configure logging
@@ -156,12 +156,14 @@ app.include_router(background_video.router)
 app.include_router(organizations.router)  # Organization management
 app.include_router(projects.router)  # Project management
 app.include_router(departments.router)  # Department management
-app.include_router(employees.router)  # Employee management
 app.include_router(goals.router)  # Goals/Key Results
 app.include_router(tasks.router)  # Task management
 app.include_router(agent_tasks.router)  # Agent task management
 app.include_router(credits.router)  # Credits management
 app.include_router(billing.router)  # Billing and subscriptions
+app.include_router(knowledge_bases.router)  # Knowledge base management
+app.include_router(ai_agents.router)  # AI agents management
+app.include_router(organization_management.router)  # Organization management AI agents
 
 if __name__ == "__main__":
     import uvicorn

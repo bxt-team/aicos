@@ -13,7 +13,16 @@
     "dev-website": "cd website && npm run dev",
     "build-website": "cd website && npm run build"
   },
-  "keywords": ["aicos", "crewai", "content-generation", "ai", "automation"],
+  "keywords": [
+    "aicos",
+    "crewai",
+    "content-generation",
+    "ai",
+    "automation"
+  ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "yoga-layout-wasm": "^1.9.3-alpha.7"
+  }
 }

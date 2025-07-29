@@ -358,16 +358,14 @@ async def create_tasks_batch_as_agent(
                 task_data['assigned_to_type'] = 'agent'
                 task_data['assigned_to_id'] = task_def.get('agent_id', agent_id)
                 task_data['assigned_to_name'] = f"Agent-{task_data['assigned_to_id'][:8]}"
-            elif task_def.get('assign_to_employee_id'):
-                # Look up employee name
-                emp_response = supabase.table('employees').select('name').eq(
-                    'id', task_def['assign_to_employee_id']
-                ).single().execute()
+            elif task_def.get('assign_to_member_id'):
+                # Look up member name
+                member = supabase.auth.admin.get_user_by_id(task_def['assign_to_member_id'])
                 
-                if emp_response.data:
-                    task_data['assigned_to_type'] = 'employee'
-                    task_data['assigned_to_id'] = task_def['assign_to_employee_id']
-                    task_data['assigned_to_name'] = emp_response.data['name']
+                if member and member.user:
+                    task_data['assigned_to_type'] = 'member'
+                    task_data['assigned_to_id'] = task_def['assign_to_member_id']
+                    task_data['assigned_to_name'] = member.user.user_metadata.get('full_name', member.user.email)
             
             response = supabase.table('tasks').insert(task_data).execute()
             created_task = response.data[0]

@@ -17,6 +17,14 @@ from app.core.exceptions import InsufficientCreditsError
 logger = logging.getLogger(__name__)
 
 
+class CrewOutput:
+    """Simple output wrapper for crew results"""
+    def __init__(self, success: bool, result: Any, message: str = ""):
+        self.success = success
+        self.result = result
+        self.message = message
+
+
 class CostTrackingCallback(BaseCallbackHandler):
     """Callback handler to track token usage for cost estimation"""
     

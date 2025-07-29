@@ -27,7 +27,7 @@ class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
     priority: Optional[str] = Field("medium", pattern="^(low|medium|high|urgent)$")
-    assigned_to_type: Optional[str] = Field(None, pattern="^(employee|agent)$")
+    assigned_to_type: Optional[str] = Field(None, pattern="^(member|agent)$")
     assigned_to_id: Optional[UUID] = None
     due_date: Optional[date] = None
 
@@ -37,13 +37,13 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = Field(None, pattern="^(pending|in_progress|completed|cancelled)$")
     priority: Optional[str] = Field(None, pattern="^(low|medium|high|urgent)$")
-    assigned_to_type: Optional[str] = Field(None, pattern="^(employee|agent)$")
+    assigned_to_type: Optional[str] = Field(None, pattern="^(member|agent)$")
     assigned_to_id: Optional[UUID] = None
     due_date: Optional[date] = None
 
 
 class TaskAssign(BaseModel):
-    assigned_to_type: str = Field(..., pattern="^(employee|agent)$")
+    assigned_to_type: str = Field(..., pattern="^(member|agent)$")
     assigned_to_id: UUID
 
 
@@ -118,13 +118,13 @@ async def verify_goal_access(goal_id: str, user_id: str, supabase) -> bool:
 
 
 async def get_actor_name(actor_type: str, actor_id: str, supabase) -> str:
-    """Get the name of an actor (employee or agent)."""
+    """Get the name of an actor (member or agent)."""
     try:
-        if actor_type == 'employee':
-            emp = supabase.table('employees').select('name').eq(
-                'id', actor_id
-            ).single().execute()
-            return emp.data['name'] if emp.data else 'Unknown Employee'
+        if actor_type == 'member':
+            user = supabase.auth.admin.get_user_by_id(actor_id)
+            if user and user.user:
+                return user.user.user_metadata.get('full_name', user.user.email)
+            return 'Unknown Member'
         elif actor_type == 'agent':
             # For now, we'll use the agent ID as the name
             # In the future, this could lookup agent configurations
@@ -171,7 +171,15 @@ async def list_tasks(
     supabase = get_supabase()
     
     try:
-        user_id = str(current_user.id)
+        # Get the user ID from the auth context
+        auth_email = current_user.get('email')
+        user_id = str(current_user['user_id'])
+        
+        # Get the public user ID from the users table if needed
+        if auth_email:
+            user_result = supabase.table('users').select('id').eq('email', auth_email).execute()
+            if user_result.data:
+                user_id = user_result.data[0]['id']
         
         # Build query
         query = supabase.table('tasks').select(
@@ -227,17 +235,10 @@ async def list_tasks(
             query = query.eq('status', status)
         
         if assigned_to_me:
-            # Check if user is linked to an employee
-            emp_check = supabase.table('employees').select('id').eq(
-                'user_id', user_id
-            ).execute()
-            
-            if emp_check.data:
-                query = query.eq('assigned_to_type', 'employee').eq(
-                    'assigned_to_id', emp_check.data[0]['id']
-                )
-            else:
-                return []  # User not linked to any employee
+            # Filter tasks assigned to the current user
+            query = query.eq('assigned_to_type', 'member').eq(
+                'assigned_to_id', user_id
+            )
         
         response = query.order('created_at', desc=True).execute()
         
@@ -267,12 +268,21 @@ async def list_tasks(
 @router.post("", response_model=Task, status_code=status.HTTP_201_CREATED)
 async def create_task(
     task: TaskCreate,
-    created_by_type: str = "employee",  # Can be overridden by agents
+    created_by_type: str = "member",  # Can be overridden by agents
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Create a new task."""
     supabase = get_supabase()
-    user_id = str(current_user.id)
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get('email')
+    user_id = str(current_user['user_id'])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table('users').select('id').eq('email', auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]['id']
     
     # Verify user has access to the goal
     if not await verify_goal_access(str(task.goal_id), user_id, supabase):
@@ -360,7 +370,16 @@ async def get_task(
         ).eq('id', str(task_id)).single().execute()
         
         task_dict = dict(response.data)
-        user_id = str(current_user.id)
+        
+        # Get the user ID from the auth context
+        auth_email = current_user.get('email')
+        user_id = str(current_user['user_id'])
+        
+        # Get the public user ID from the users table if needed
+        if auth_email:
+            user_result = supabase.table('users').select('id').eq('email', auth_email).execute()
+            if user_result.data:
+                user_id = user_result.data[0]['id']
         
         # Verify user has access to the goal
         if not await verify_goal_access(task_dict['goal_id'], user_id, supabase):
@@ -393,12 +412,21 @@ async def get_task(
 async def update_task(
     task_id: UUID,
     task: TaskUpdate,
-    actor_type: str = "employee",  # Can be overridden by agents
+    actor_type: str = "member",  # Can be overridden by agents
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Update a task."""
     supabase = get_supabase()
-    user_id = str(current_user.id)
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get('email')
+    user_id = str(current_user['user_id'])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table('users').select('id').eq('email', auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]['id']
     
     # Get the task to verify access and track changes
     try:
@@ -533,10 +561,10 @@ async def update_task(
 async def assign_task(
     task_id: UUID,
     assignment: TaskAssign,
-    actor_type: str = "employee",  # Can be overridden by agents
+    actor_type: str = "member",  # Can be overridden by agents
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Assign a task to an employee or agent."""
+    """Assign a task to a member or agent."""
     # This is a convenience endpoint that calls update_task
     task_update = TaskUpdate(
         assigned_to_type=assignment.assigned_to_type,
@@ -553,7 +581,16 @@ async def get_task_history(
 ):
     """Get the history of changes for a task."""
     supabase = get_supabase()
-    user_id = str(current_user.id)
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get('email')
+    user_id = str(current_user['user_id'])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table('users').select('id').eq('email', auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]['id']
     
     # Verify access through the task's goal
     try:
@@ -592,7 +629,16 @@ async def delete_task(
 ):
     """Delete a task."""
     supabase = get_supabase()
-    user_id = str(current_user.id)
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get('email')
+    user_id = str(current_user['user_id'])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table('users').select('id').eq('email', auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]['id']
     
     # Get the task to verify access
     try:
