@@ -46,6 +46,7 @@ import { useOrganization } from '../contexts/OrganizationContext';
 import { useProject } from '../contexts/ProjectContext';
 import api from '../services/api';
 import { organizationManagementService, DepartmentSuggestion } from '../services/organizationManagementService';
+import { useTranslation } from 'react-i18next';
 
 interface Department {
   id: string;
@@ -88,6 +89,7 @@ interface OrganizationMember {
 }
 
 export const DepartmentManagement: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useSupabaseAuth();
   const { currentOrganization, currentUserRole } = useOrganization();
   const { currentProject } = useProject();
@@ -142,7 +144,7 @@ export const DepartmentManagement: React.FC = () => {
       const response = await api.get(`/api/departments?project_id=${currentProject.id}`);
       setDepartments(response.data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to fetch departments');
+      setError(err.response?.data?.detail || t('errors.failedToFetch', { resource: t('department.departments').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -270,7 +272,7 @@ export const DepartmentManagement: React.FC = () => {
       setDepartmentToDelete(null);
       fetchDepartments();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete department');
+      setError(err.response?.data?.detail || t('errors.failedToDelete', { resource: t('department.department').toLowerCase() }));
       setDeleteConfirmOpen(false);
     }
   };
@@ -301,7 +303,7 @@ export const DepartmentManagement: React.FC = () => {
       setAssignmentRole('');
       setAssignmentType('member');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create assignment');
+      setError(err.response?.data?.detail || t('errors.failedToCreate', { resource: t('common.assignment', 'assignment') }));
     }
   };
 
@@ -313,7 +315,7 @@ export const DepartmentManagement: React.FC = () => {
       await fetchAssignments(selectedDepartment.id);
       await fetchDepartments();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to remove assignment');
+      setError(err.response?.data?.detail || t('errors.failedToDelete', { resource: t('common.assignment', 'assignment') }));
     }
   };
 
@@ -333,7 +335,7 @@ export const DepartmentManagement: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" component="h2">
           <BusinessIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-          Departments
+          {t('department.departments')}
         </Typography>
         {canManageDepartments && (
           <Box display="flex" gap={1}>
@@ -342,14 +344,14 @@ export const DepartmentManagement: React.FC = () => {
               startIcon={<AIIcon />}
               onClick={() => setAISuggestDialogOpen(true)}
             >
-              AI Suggest Departments
+              {t('department.aiSuggestDepartments', 'AI Suggest Departments')}
             </Button>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => handleOpenDialog()}
             >
-              Add Department
+              {t('department.addDepartment', 'Add Department')}
             </Button>
           </Box>
         )}

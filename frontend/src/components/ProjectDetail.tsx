@@ -48,6 +48,7 @@ import { useOrganization } from '../contexts/OrganizationContext';
 import { apiService } from '../services/api';
 import { TaskManagement } from './TaskManagement';
 import KnowledgeBaseManagement from './KnowledgeBaseManagement';
+import { useTranslation } from 'react-i18next';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -72,6 +73,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const ProjectDetail: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useSupabaseAuth();
@@ -114,7 +116,7 @@ const ProjectDetail: React.FC = () => {
       const response = await apiService.projects.get(projectId);
       setProject(response.data.project);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error loading project');
+      setError(err.response?.data?.detail || t('errors.errorLoading', { resource: t('project.project').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -140,7 +142,7 @@ const ProjectDetail: React.FC = () => {
           break;
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error loading data');
+      setError(err.response?.data?.detail || t('errors.errorLoading', { resource: t('common.data', 'data') }));
     } finally {
       setLoading(false);
     }
@@ -173,7 +175,7 @@ const ProjectDetail: React.FC = () => {
       setSuccess('Project successfully updated');
       setIsEditingDetails(false);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error saving');
+      setError(err.response?.data?.detail || t('errors.errorSaving'));
     } finally {
       setLoading(false);
     }
@@ -197,7 +199,7 @@ const ProjectDetail: React.FC = () => {
       setSelectedRole('member');
       loadProjectData(); // Reload members
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error adding member');
+      setError(err.response?.data?.detail || t('errors.failedToCreate', { resource: t('organization.member').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -213,7 +215,7 @@ const ProjectDetail: React.FC = () => {
       setSuccess('Member removed successfully');
       loadProjectData();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error removing member');
+      setError(err.response?.data?.detail || t('errors.failedToDelete', { resource: t('organization.member').toLowerCase() }));
     }
   };
 
@@ -228,7 +230,7 @@ const ProjectDetail: React.FC = () => {
       setSuccess('Member role updated successfully');
       loadProjectData();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error updating member role');
+      setError(err.response?.data?.detail || t('errors.failedToUpdate', { resource: t('project.memberRole', 'member role') }));
     } finally {
       setLoading(false);
     }
@@ -295,10 +297,10 @@ const ProjectDetail: React.FC = () => {
             </Typography>
           </Box>
           <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ px: 2 }}>
-            <Tab label="Details" icon={<DescriptionIcon />} iconPosition="start" />
-            <Tab label="Knowledge Base" icon={<BookIcon />} iconPosition="start" />
-            <Tab label="Tasks" icon={<TaskIcon />} iconPosition="start" />
-            <Tab label="Members" icon={<GroupIcon />} iconPosition="start" />
+            <Tab label={t('common.details')} icon={<DescriptionIcon />} iconPosition="start" />
+            <Tab label={t('knowledgeBase.knowledgeBase')} icon={<BookIcon />} iconPosition="start" />
+            <Tab label={t('task.tasks')} icon={<TaskIcon />} iconPosition="start" />
+            <Tab label={t('organization.members')} icon={<GroupIcon />} iconPosition="start" />
           </Tabs>
         </Box>
 
@@ -308,7 +310,7 @@ const ProjectDetail: React.FC = () => {
         <TabPanel value={tabValue} index={0}>
           <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h6">Project Details</Typography>
+              <Typography variant="h6">{t('project.projectDetails')}</Typography>
               {isAdmin && (
                 !isEditingDetails ? (
                   <IconButton onClick={() => setIsEditingDetails(true)}>
@@ -331,7 +333,7 @@ const ProjectDetail: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
-                  label="Name"
+                  label={t('common.name')}
                   value={project.name || ''}
                   onChange={(e) => setProject({ ...project, name: e.target.value })}
                   disabled={!isEditingDetails}
@@ -342,7 +344,7 @@ const ProjectDetail: React.FC = () => {
                   fullWidth
                   multiline
                   rows={4}
-                  label="Goals & Description"
+                  label={t('project.goalsAndDescription', 'Goals & Description')}
                   value={project.description || ''}
                   onChange={(e) => setProject({ ...project, description: e.target.value })}
                   disabled={!isEditingDetails}
@@ -351,7 +353,7 @@ const ProjectDetail: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
-                  label="Created"
+                  label={t('project.createdAt')}
                   value={new Date(project.created_at).toLocaleDateString()}
                   disabled
                 />
@@ -359,7 +361,7 @@ const ProjectDetail: React.FC = () => {
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth
-                  label="Your Role"
+                  label={t('project.yourRole', 'Your Role')}
                   value={currentUserRole || 'member'}
                   disabled
                 />
@@ -379,7 +381,7 @@ const ProjectDetail: React.FC = () => {
         <TabPanel value={tabValue} index={3}>
           <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h6">Project Members</Typography>
+              <Typography variant="h6">{t('project.projectMembers', 'Project Members')}</Typography>
               {isAdmin && (
                 <Button
                   startIcon={<PersonAddIcon />}
@@ -457,7 +459,7 @@ const ProjectDetail: React.FC = () => {
             <Select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              label="Select Member"
+              label={t('task.selectMember')}
             >
               {getAvailableMembers().map((member) => (
                 <MenuItem key={member.id} value={member.id}>
@@ -471,7 +473,7 @@ const ProjectDetail: React.FC = () => {
             <Select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              label="Role"
+              label={t('organization.role')}
             >
               <MenuItem value="viewer">Viewer</MenuItem>
               <MenuItem value="member">Member</MenuItem>
@@ -480,7 +482,7 @@ const ProjectDetail: React.FC = () => {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddMemberDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setAddMemberDialogOpen(false)}>{t('common.cancel')}</Button>
           <Button 
             onClick={handleAddMember} 
             variant="contained" 

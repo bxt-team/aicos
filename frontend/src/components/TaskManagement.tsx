@@ -51,6 +51,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import api from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 interface Goal {
   id: string;
@@ -106,6 +107,7 @@ interface TaskManagementProps {
 }
 
 export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectId }) => {
+  const { t } = useTranslation();
   const { user } = useSupabaseAuth();
   const { currentOrganization } = useOrganization();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -173,7 +175,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
       const response = await api.get(url);
       setTasks(response.data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to fetch tasks');
+      setError(err.response?.data?.detail || t('errors.failedToFetch', { resource: t('task.tasks').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -334,7 +336,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
       await api.patch(`/api/tasks/${taskId}`, { status: newStatus });
       fetchTasks();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update task status');
+      setError(err.response?.data?.detail || t('errors.failedToUpdate', { resource: t('task.taskStatus').toLowerCase() }));
     }
   };
 
@@ -352,7 +354,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
       setTaskToDelete(null);
       fetchTasks();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete task');
+      setError(err.response?.data?.detail || t('errors.failedToDelete', { resource: t('task.task').toLowerCase() }));
       setDeleteConfirmOpen(false);
     }
   };
@@ -502,7 +504,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h5" component="h2">
           <AssignmentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-          Tasks
+          {t('task.tasks')}
         </Typography>
         <Box display="flex" gap={1}>
           <ToggleButtonGroup
@@ -524,7 +526,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
             onClick={() => handleOpenDialog()}
             disabled={goalId ? false : goals.length === 0}
           >
-            Add Task
+            {t('task.addTask', 'Add Task')}
           </Button>
         </Box>
       </Box>
@@ -534,7 +536,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
         {!goalId && (
           <TextField
             select
-            label="Goal"
+            label={t('task.goal', 'Goal')}
             value={filterGoal}
             onChange={(e) => setFilterGoal(e.target.value)}
             size="small"
@@ -551,7 +553,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
         {viewMode === 'list' && (
           <TextField
             select
-            label="Status"
+            label={t('common.status')}
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             size="small"
@@ -629,7 +631,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
               <TextField
                 fullWidth
                 select
-                label="Goal"
+                label={t('task.goal', 'Goal')}
                 value={formData.goal_id}
                 onChange={(e) => setFormData({ ...formData, goal_id: e.target.value })}
                 error={!!formErrors.goal_id}
@@ -646,7 +648,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
             )}
             <TextField
               fullWidth
-              label="Task Title"
+              label={t('task.taskTitle')}
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               error={!!formErrors.title}
@@ -656,7 +658,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
             />
             <TextField
               fullWidth
-              label="Description"
+              label={t('common.description')}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               margin="normal"
@@ -666,7 +668,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
             <TextField
               fullWidth
               select
-              label="Priority"
+              label={t('task.taskPriority')}
               value={formData.priority}
               onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
               margin="normal"
@@ -679,7 +681,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
             <TextField
               fullWidth
               select
-              label="Assign To"
+              label={t('task.assignTo', 'Assign To')}
               value={formData.assigned_to_type}
               onChange={(e) => setFormData({ 
                 ...formData, 
@@ -696,7 +698,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
               <TextField
                 fullWidth
                 select
-                label="Select Member"
+                label={t('task.selectMember', 'Select Member')}
                 value={formData.assigned_to_id}
                 onChange={(e) => setFormData({ ...formData, assigned_to_id: e.target.value })}
                 error={!!formErrors.assigned_to_id}
@@ -713,7 +715,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
             {formData.assigned_to_type === 'agent' && (
               <TextField
                 fullWidth
-                label="Agent ID"
+                label={t('task.agentId', 'Agent ID')}
                 value={formData.assigned_to_id}
                 onChange={(e) => setFormData({ ...formData, assigned_to_id: e.target.value })}
                 error={!!formErrors.assigned_to_id}
@@ -723,7 +725,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
             )}
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <DatePicker
-                label="Due Date"
+                label={t('task.taskDueDate')}
                 value={formData.due_date}
                 onChange={(date) => setFormData({ ...formData, due_date: date })}
                 slotProps={{
@@ -742,7 +744,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
           <Button onClick={handleSubmit} variant="contained">
             {editingTask ? 'Update' : 'Create'}
           </Button>
@@ -797,7 +799,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setHistoryDialog(false)}>Close</Button>
+          <Button onClick={() => setHistoryDialog(false)}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
 
@@ -810,7 +812,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>{t('common.cancel')}</Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             Delete
           </Button>

@@ -20,11 +20,13 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { useTranslation } from 'react-i18next';
 
 const UserMenu: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const { user, signOut } = useSupabaseAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -94,7 +96,7 @@ const UserMenu: React.FC = () => {
       >
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="subtitle1" noWrap>
-            {user.user_metadata?.name || user.email?.split('@')[0] || 'User'}
+            {user.user_metadata?.name || user.email?.split('@')[0] || t('userMenu.user')}
           </Typography>
           <Typography variant="body2" color="text.secondary" noWrap>
             {user.email}
@@ -113,28 +115,28 @@ const UserMenu: React.FC = () => {
           <ListItemIcon>
             <PersonIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>My Profile</ListItemText>
+          <ListItemText>{t('userMenu.myProfile')}</ListItemText>
         </MenuItem>
         
         <MenuItem onClick={() => handleNavigate('/organization-settings')}>
           <ListItemIcon>
             <BusinessIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Manage Organization</ListItemText>
+          <ListItemText>{t('userMenu.manageOrganization')}</ListItemText>
         </MenuItem>
         
         <MenuItem onClick={() => handleNavigate('/organization-settings/projects')}>
           <ListItemIcon>
             <FolderIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Manage Projects</ListItemText>
+          <ListItemText>{t('userMenu.manageProjects')}</ListItemText>
         </MenuItem>
         
         <MenuItem onClick={() => handleNavigate('/settings')}>
           <ListItemIcon>
             <SettingsIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Settings</ListItemText>
+          <ListItemText>{t('userMenu.settings')}</ListItemText>
         </MenuItem>
         
         <Divider />
@@ -143,7 +145,7 @@ const UserMenu: React.FC = () => {
           <ListItemIcon>
             <LogoutIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Sign Out</ListItemText>
+          <ListItemText>{t('userMenu.signOut')}</ListItemText>
         </MenuItem>
       </Menu>
     </>

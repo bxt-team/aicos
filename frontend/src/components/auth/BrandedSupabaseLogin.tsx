@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { useSupabaseAuth } from '../../contexts/SupabaseAuthContext'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
 import { RateLimitError } from './RateLimitError'
+import { useTranslation } from 'react-i18next'
 import '../../styles/auth-branded.css'
 
 export const BrandedSupabaseLogin: React.FC = () => {
   const navigate = useNavigate()
   const { signIn, signInWithMagicLink, signInWithGoogle, signInWithGitHub, signInWithApple, error } = useSupabaseAuth()
+  const { t } = useTranslation()
   
   const [activeTab, setActiveTab] = useState<'password' | 'magic'>('password')
   const [email, setEmail] = useState('')

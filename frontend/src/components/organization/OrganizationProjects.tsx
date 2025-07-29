@@ -27,12 +27,14 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { apiService } from '../../services/api';
+import { useTranslation } from 'react-i18next';
 
 interface OrganizationProjectsProps {
   organizationId: string;
 }
 
 export const OrganizationProjects: React.FC<OrganizationProjectsProps> = ({ organizationId }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { currentOrganization, currentUserRole } = useOrganization();
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ export const OrganizationProjects: React.FC<OrganizationProjectsProps> = ({ orga
       const response = await apiService.projects.list(organizationId);
       setProjects(response.data.projects || []);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error loading projects');
+      setError(err.response?.data?.detail || t('errors.errorLoading', { resource: t('project.projects').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -76,13 +78,13 @@ export const OrganizationProjects: React.FC<OrganizationProjectsProps> = ({ orga
         organization_id: organizationId
       });
       
-      setSuccess('Project successfully created');
+      setSuccess(t('success.created'));
       setCreateDialogOpen(false);
       setNewProjectName('');
       setNewProjectDescription('');
       loadProjects();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error creating project');
+      setError(err.response?.data?.detail || t('errors.errorCreating', { resource: t('project.project').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -93,10 +95,10 @@ export const OrganizationProjects: React.FC<OrganizationProjectsProps> = ({ orga
     
     try {
       await apiService.projects.delete(projectId);
-      setSuccess('Project successfully deleted');
+      setSuccess(t('success.deleted'));
       loadProjects();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error deleting project');
+      setError(err.response?.data?.detail || t('errors.errorDeleting', { resource: t('project.project').toLowerCase() }));
     }
   };
 
@@ -117,14 +119,14 @@ export const OrganizationProjects: React.FC<OrganizationProjectsProps> = ({ orga
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h6">Projects</Typography>
+        <Typography variant="h6">{t('project.projects')}</Typography>
         {canCreateProjects && (
           <Button
             startIcon={<AddIcon />}
             variant="contained"
             onClick={() => setCreateDialogOpen(true)}
           >
-            New Project
+            {t('project.newProject', 'New Project')}
           </Button>
         )}
       </Box>
@@ -191,12 +193,12 @@ export const OrganizationProjects: React.FC<OrganizationProjectsProps> = ({ orga
 
       {/* Create Project Dialog */}
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Create New Project</DialogTitle>
+        <DialogTitle>{t('project.createProject')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Project Name"
+            label={t('project.projectName')}
             fullWidth
             variant="outlined"
             value={newProjectName}
@@ -210,7 +212,7 @@ export const OrganizationProjects: React.FC<OrganizationProjectsProps> = ({ orga
           <Box position="relative">
             <TextField
               margin="dense"
-              label="Goals & Description (optional)"
+              label={t('project.goalsAndDescriptionOptional', 'Goals & Description (optional)')}
               fullWidth
               multiline
               rows={3}
@@ -224,16 +226,16 @@ export const OrganizationProjects: React.FC<OrganizationProjectsProps> = ({ orga
               size="small"
               onClick={() => {
                 // TODO: Implement AI project description enhancement
-                alert('AI project description enhancement coming soon!');
+                alert(t('project.aiEnhancementComingSoon', 'AI project description enhancement coming soon!'));
               }}
               sx={{ position: 'absolute', right: 8, top: 16 }}
             >
-              Enhance with AI
+              {t('project.enhanceWithAI', 'Enhance with AI')}
             </Button>
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setCreateDialogOpen(false)}>{t('common.cancel')}</Button>
           <Button 
             onClick={handleCreateProject} 
             variant="contained" 

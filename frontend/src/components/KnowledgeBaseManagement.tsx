@@ -48,6 +48,7 @@ import { useOrganization } from '../contexts/OrganizationContext';
 import { useProject } from '../contexts/ProjectContext';
 import { knowledgeBaseService } from '../services/knowledgeBaseService';
 import { KnowledgeBase, KnowledgeBaseCreate } from '../types/knowledgeBase';
+import { useTranslation } from 'react-i18next';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -71,6 +72,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function KnowledgeBaseManagement() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
@@ -144,7 +146,7 @@ export default function KnowledgeBaseManagement() {
       );
       setKnowledgeBases(data);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch knowledge bases');
+      setError(err.message || t('errors.failedToFetch', { resource: t('knowledgeBase.knowledgeBases').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -164,7 +166,7 @@ export default function KnowledgeBaseManagement() {
 
   const handleUpload = async () => {
     if (!currentOrganization || !uploadForm.file || !uploadForm.name) {
-      setError('Please fill in all required fields');
+      setError(t('errors.requiredField'));
       return;
     }
     
@@ -204,7 +206,7 @@ export default function KnowledgeBaseManagement() {
       });
       fetchKnowledgeBases();
     } catch (err: any) {
-      setError(err.message || 'Failed to upload knowledge base');
+      setError(err.message || t('errors.failedToCreate', { resource: t('knowledgeBase.knowledgeBase').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -223,7 +225,7 @@ export default function KnowledgeBaseManagement() {
       setSelectedKB(null);
       fetchKnowledgeBases();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete knowledge base');
+      setError(err.message || t('errors.failedToDelete', { resource: t('knowledgeBase.knowledgeBase').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -237,7 +239,7 @@ export default function KnowledgeBaseManagement() {
       await knowledgeBaseService.reindexKnowledgeBase(kb.id);
       setSuccess('Knowledge base reindexing started');
     } catch (err: any) {
-      setError(err.message || 'Failed to reindex knowledge base');
+      setError(err.message || t('errors.failedToUpdate', { resource: t('knowledgeBase.knowledgeBase').toLowerCase() }));
     } finally {
       setLoading(false);
     }
@@ -269,14 +271,14 @@ export default function KnowledgeBaseManagement() {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Knowledge Base Management</Typography>
+        <Typography variant="h4">{t('knowledgeBase.knowledgeBase')} {t('common.management', 'Management')}</Typography>
         <Button
           variant="contained"
           startIcon={<UploadIcon />}
           onClick={() => setUploadDialogOpen(true)}
           disabled={!currentOrganization}
         >
-          Upload Knowledge Base
+          {t('knowledgeBase.uploadKnowledgeBase', 'Upload Knowledge Base')}
         </Button>
       </Box>
 
@@ -294,15 +296,15 @@ export default function KnowledgeBaseManagement() {
 
       {!currentOrganization ? (
         <Alert severity="info">
-          Please select an organization to manage knowledge bases.
+          {t('knowledgeBase.selectOrganizationMessage', 'Please select an organization to manage knowledge bases.')}
         </Alert>
       ) : (
         <>
           <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)}>
-            <Tab label="Organization" />
-            <Tab label="Project" disabled={!currentProject} />
-            <Tab label="Department" disabled={!currentProject} />
-            <Tab label="Agent" disabled={!currentProject} />
+            <Tab label={t('organization.organization')} />
+            <Tab label={t('project.project')} disabled={!currentProject} />
+            <Tab label={t('department.department')} disabled={!currentProject} />
+            <Tab label={t('knowledgeBase.agent', 'Agent')} disabled={!currentProject} />
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
@@ -362,18 +364,18 @@ export default function KnowledgeBaseManagement() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Upload Knowledge Base</DialogTitle>
+        <DialogTitle>{t('knowledgeBase.uploadKnowledgeBase', 'Upload Knowledge Base')}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
             <TextField
-              label="Name"
+              label={t('common.name')}
               value={uploadForm.name}
               onChange={(e) => setUploadForm({ ...uploadForm, name: e.target.value })}
               required
               fullWidth
             />
             <TextField
-              label="Description"
+              label={t('common.description')}
               value={uploadForm.description}
               onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
               multiline
@@ -452,7 +454,7 @@ export default function KnowledgeBaseManagement() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setUploadDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setUploadDialogOpen(false)}>{t('common.cancel')}</Button>
           <Button
             onClick={handleUpload}
             variant="contained"
@@ -468,14 +470,14 @@ export default function KnowledgeBaseManagement() {
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
       >
-        <DialogTitle>Delete Knowledge Base</DialogTitle>
+        <DialogTitle>{t('knowledgeBase.deleteKnowledgeBase', 'Delete Knowledge Base')}</DialogTitle>
         <DialogContent>
           <Typography>
             Are you sure you want to delete "{selectedKB?.name}"? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>{t('common.cancel')}</Button>
           <Button
             onClick={handleDelete}
             color="error"
@@ -510,6 +512,7 @@ function KnowledgeBaseList({
   getScopeIcon,
   getScopeLabel,
 }: KnowledgeBaseListProps) {
+  const { t } = useTranslation();
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -523,7 +526,7 @@ function KnowledgeBaseList({
       <Box sx={{ textAlign: 'center', py: 4 }}>
         <DocumentIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
         <Typography variant="h6" color="text.secondary">
-          No knowledge bases found
+          {t('knowledgeBase.noKnowledgeBasesFound', 'No knowledge bases found')}
         </Typography>
       </Box>
     );

@@ -10,6 +10,7 @@ import {
 import { useOrganization } from '../contexts/OrganizationContext';
 import { apiService } from '../services/api';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   OrganizationDetails,
   OrganizationMembers,
@@ -47,6 +48,7 @@ function TabPanel(props: TabPanelProps) {
 const OrganizationSettings: React.FC = () => {
   const navigate = useNavigate();
   const { tab } = useParams<{ tab?: string }>();
+  const { t } = useTranslation();
   const {
     currentOrganization,
     members,
@@ -188,7 +190,7 @@ const OrganizationSettings: React.FC = () => {
         website: orgDetails.website
       });
       
-      setSuccess('Organization successfully updated');
+      setSuccess(t('success.updated'));
       setIsEditingDetails(false);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error saving');
@@ -205,7 +207,7 @@ const OrganizationSettings: React.FC = () => {
     try {
       await inviteMember(inviteEmail, inviteRole);
       
-      setSuccess('Invitation sent successfully');
+      setSuccess(t('success.invited'));
       setInviteDialogOpen(false);
       setInviteEmail('');
       setInviteRole('member');
@@ -224,7 +226,7 @@ const OrganizationSettings: React.FC = () => {
     
     try {
       await removeMember(memberId);
-      setSuccess('Member successfully removed');
+      setSuccess(t('success.removed'));
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error removing member');
     }
@@ -237,7 +239,7 @@ const OrganizationSettings: React.FC = () => {
     try {
       await updateMemberRole(memberId, newRole);
       
-      setSuccess('Member role updated successfully');
+      setSuccess(t('success.updated'));
       // Reload members to show updated roles
       await loadMembers();
     } catch (err: any) {
@@ -272,7 +274,7 @@ const OrganizationSettings: React.FC = () => {
     
     try {
       await deleteOrganization(currentOrganization.id);
-      setSuccess('Organization deleted successfully');
+      setSuccess(t('success.deleted'));
       
       // Redirect to home or organizations list after a short delay
       setTimeout(() => {
@@ -313,13 +315,13 @@ const OrganizationSettings: React.FC = () => {
             }}
             aria-label="organization settings tabs"
           >
-            <Tab label="General" id="org-tab-0" aria-controls="org-tabpanel-0" />
-            <Tab label="Projects" id="org-tab-1" aria-controls="org-tabpanel-1" />
-            <Tab label="Members" id="org-tab-2" aria-controls="org-tabpanel-2" />
-            <Tab label="Departments" id="org-tab-3" aria-controls="org-tabpanel-3" />
-            <Tab label="Billing & Credits" id="org-tab-4" aria-controls="org-tabpanel-4" />
-            <Tab label="Usage" id="org-tab-5" aria-controls="org-tabpanel-5" />
-            <Tab label="Danger Zone" id="org-tab-6" aria-controls="org-tabpanel-6" sx={{ color: 'error.main' }} />
+            <Tab label={t('organization.general')} id="org-tab-0" aria-controls="org-tabpanel-0" />
+            <Tab label={t('project.projects')} id="org-tab-1" aria-controls="org-tabpanel-1" />
+            <Tab label={t('organization.members')} id="org-tab-2" aria-controls="org-tabpanel-2" />
+            <Tab label={t('organization.departments')} id="org-tab-3" aria-controls="org-tabpanel-3" />
+            <Tab label={t('billing.billing')} id="org-tab-4" aria-controls="org-tabpanel-4" />
+            <Tab label={t('organization.usage')} id="org-tab-5" aria-controls="org-tabpanel-5" />
+            <Tab label={t('organization.dangerZone')} id="org-tab-6" aria-controls="org-tabpanel-6" sx={{ color: 'error.main' }} />
           </Tabs>
         </Box>
 

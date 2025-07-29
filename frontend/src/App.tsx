@@ -6,6 +6,7 @@ import { OrganizationProvider } from './contexts/OrganizationContext';
 import { ProjectProvider } from './contexts/ProjectContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import './App.css';
+import './i18n/i18n';
 import LoadingScreen from './components/LoadingScreen';
 import { useLoadingScreen } from './hooks/useLoadingScreen';
 import ContentGenerator from './components/ContentGenerator';
@@ -39,7 +40,7 @@ import { AuthCallback } from './components/auth/AuthCallback';
 import { MFAChallenge } from './components/auth/MFAChallenge';
 import { AccountSettings } from './components/auth/AccountSettings';
 import { AuthDebug } from './components/auth/AuthDebug';
-import UserProfile from './components/UserProfile';
+import Profile from './components/Profile';
 import OrganizationSettings from './components/OrganizationSettings';
 import OrganizationDebug from './components/OrganizationDebug';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -103,7 +104,7 @@ function AppContent() {
             <Route path="/agent-prompts" element={<AgentPromptsDisplay />} />
             <Route path="/content-generator" element={<ProtectedRoute><ContentGenerator /></ProtectedRoute>} />
             <Route path="/content/:contentId" element={<ContentViewer />} />
-            <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/organization-settings" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
             <Route path="/organization-settings/:tab" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
             <Route path="/organization-debug" element={<ProtectedRoute><OrganizationDebug /></ProtectedRoute>} />
