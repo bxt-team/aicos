@@ -93,7 +93,10 @@
     "manageProjects": "Manage Projects",
     "settings": "Settings",
     "signOut": "Sign Out",
-    "user": "User"
+    "user": "User",
+    "organization": "Organization",
+    "manageOrganizations": "Manage Organizations",
+    "accountSettings": "Account Settings"
   },
   "organization": {
     "organization": "Organization",

@@ -9,7 +9,6 @@ import {
   useMediaQuery
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
-import OrganizationSelector from './OrganizationSelector';
 import UserMenu from './UserMenu';
 import ThemeToggle from './ThemeToggle';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
@@ -35,7 +34,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
         boxShadow: 1
       }}
     >
-      <Toolbar>
+      <Toolbar sx={{ minHeight: '48px !important', height: '48px' }}>
         {isMobile && onMenuToggle && (
           <IconButton
             color="inherit"
@@ -48,16 +47,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onMenuToggle }) => {
           </IconButton>
         )}
         
-        <Box sx={{ display: 'flex', alignItems: 'center', mr: 4 }}>
-          <img src="/logo.svg" alt="AICOS Logo" style={{ width: 32, height: 32, marginRight: 8 }} />
-          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
+          <img src="/logo.svg" alt="AICOS Logo" style={{ width: 24, height: 24, marginRight: 6 }} />
+          <Typography variant="body1" noWrap component="div" sx={{ fontWeight: 600, fontSize: '15px' }}>
             AICOS
           </Typography>
         </Box>
         
-        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
-          <OrganizationSelector />
-        </Box>
+        <Box sx={{ flexGrow: 1 }} />
         
         <ThemeToggle />
         <UserMenu />

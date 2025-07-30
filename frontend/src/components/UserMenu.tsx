@@ -8,7 +8,8 @@ import {
   Divider,
   Box,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  Chip
 } from '@mui/material';
 import {
   AccountCircle as AccountCircleIcon,
@@ -20,11 +21,13 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { useOrganization } from '../contexts/OrganizationContext';
 import { useTranslation } from 'react-i18next';
 
 const UserMenu: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const { user, signOut } = useSupabaseAuth();
+  const { organizations, currentOrganization, setCurrentOrganization } = useOrganization();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const open = Boolean(anchorEl);
@@ -101,12 +104,6 @@ const UserMenu: React.FC = () => {
           <Typography variant="body2" color="text.secondary" noWrap>
             {user.email}
           </Typography>
-          {/* TODO: Add organization support later */}
-          {/* currentOrganization && (
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {currentOrganization.name}
-            </Typography>
-          ) */}
         </Box>
         
         <Divider />
@@ -125,8 +122,43 @@ const UserMenu: React.FC = () => {
           <ListItemText>{t('userMenu.accountSettings')}</ListItemText>
         </MenuItem>
         
-        
         <Divider />
+        
+        {/* Organization Selector */}
+        {organizations && organizations.length > 0 && (
+          <>
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                {t('userMenu.organization')}
+              </Typography>
+            </Box>
+            {organizations.map((org) => (
+              <MenuItem 
+                key={org.id} 
+                onClick={() => {
+                  setCurrentOrganization(org);
+                  handleClose();
+                }}
+                selected={currentOrganization?.id === org.id}
+              >
+                <ListItemIcon>
+                  <BusinessIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>{org.name}</ListItemText>
+                {currentOrganization?.id === org.id && (
+                  <Chip size="small" label="Current" color="primary" sx={{ ml: 1, height: 20 }} />
+                )}
+              </MenuItem>
+            ))}
+            <MenuItem onClick={() => handleNavigate('/organization-settings')}>
+              <ListItemIcon>
+                <SettingsIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>{t('userMenu.manageOrganizations')}</ListItemText>
+            </MenuItem>
+            <Divider />
+          </>
+        )}
         
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>

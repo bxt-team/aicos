@@ -108,190 +108,153 @@ const SideMenu: React.FC = () => {
         {isExpanded ? (
           <>
             {/* Projects Section */}
-            <div className="menu-category">
-              <h4 
-                className="category-title" 
-                style={{ cursor: 'pointer' }} 
-                onClick={() => setShowProjects(!showProjects)}
-              >
-                Projects {showProjects ? '▼' : '▶'}
-              </h4>
-              {showProjects && (
-                <ul className="agents-list">
-                  {projects.map(project => (
-                    <li key={project.id}>
-                      <div>
-                        <div
-                          className={`menu-item ${currentProject?.id === project.id ? 'active' : ''}`}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => {
-                            setCurrentProject(project);
+            <div className="nav-section">
+              <div className="section-header">
+                <span className="section-title">Projects</span>
+                <button className="section-action">⋯</button>
+              </div>
+              <ul className="nav-list">
+                {projects.map(project => (
+                  <li key={project.id}>
+                    <div>
+                      <div
+                        className={`nav-item expandable ${currentProject?.id === project.id ? 'active' : ''}`}
+                        onClick={() => {
+                          setCurrentProject(project);
+                          toggleProjectExpansion(project.id);
+                        }}
+                      >
+                        <span 
+                          className="expand-icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             toggleProjectExpansion(project.id);
                           }}
                         >
-                          <span 
-                            className="agent-icon" 
-                            style={{ cursor: 'pointer' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleProjectExpansion(project.id);
-                            }}
-                          >
-                            {expandedProjects.has(project.id) ? '▼' : '▶'}
-                          </span>
-                          <div className="agent-info">
-                            <span className="agent-name">{project.name}</span>
-                            <span className="agent-description">{project.description || 'Project workspace'}</span>
-                          </div>
-                        </div>
-                        {expandedProjects.has(project.id) && (
-                          <ul className="agents-list" style={{ marginLeft: '20px' }}>
-                            <li>
-                              <Link
-                                to={`/projects/${project.id}`}
-                                className={`menu-item ${location.pathname === `/projects/${project.id}` ? 'active' : ''}`}
-                                title="Overview"
-                              >
-                                <span className="agent-icon">📋</span>
-                                <div className="agent-info">
-                                  <span className="agent-name">Overview</span>
-                                  <span className="agent-description">Project details</span>
-                                </div>
-                              </Link>
-                            </li>
-                            <li>
-                              <Link
-                                to={`/projects/${project.id}/knowledgebase`}
-                                className={`menu-item ${location.pathname === `/projects/${project.id}/knowledgebase` ? 'active' : ''}`}
-                                title="Knowledgebase"
-                              >
-                                <span className="agent-icon">📚</span>
-                                <div className="agent-info">
-                                  <span className="agent-name">Knowledgebase</span>
-                                  <span className="agent-description">Documents & resources</span>
-                                </div>
-                              </Link>
-                            </li>
-                            <li>
-                              <Link
-                                to={`/projects/${project.id}/tasks`}
-                                className={`menu-item ${location.pathname === `/projects/${project.id}/tasks` ? 'active' : ''}`}
-                                title="Tasks"
-                              >
-                                <span className="agent-icon">✅</span>
-                                <div className="agent-info">
-                                  <span className="agent-name">Tasks</span>
-                                  <span className="agent-description">Project tasks</span>
-                                </div>
-                              </Link>
-                            </li>
-                          </ul>
-                        )}
+                          {expandedProjects.has(project.id) ? '▼' : '▶'}
+                        </span>
+                        <span className="nav-icon">📁</span>
+                        <span className="nav-text">{project.name}</span>
                       </div>
-                    </li>
-                  ))}
-                  <li>
-                    <Link
-                      to="/organization-settings/projects"
-                      className={`menu-item ${location.pathname.includes('/organization-settings/projects') ? 'active' : ''}`}
-                      title="Manage Projects"
-                    >
-                      <span className="agent-icon">➕</span>
-                      <div className="agent-info">
-                        <span className="agent-name">Manage Projects</span>
-                        <span className="agent-description">Create & manage</span>
-                      </div>
-                    </Link>
+                      {expandedProjects.has(project.id) && (
+                        <ul className="sub-list">
+                          <li>
+                            <Link
+                              to={`/projects/${project.id}`}
+                              className={`nav-item sub-item ${location.pathname === `/projects/${project.id}` ? 'active' : ''}`}
+                              title="Overview"
+                            >
+                              <span className="nav-icon">📋</span>
+                              <span className="nav-text">Overview</span>
+                            </Link>
+                          </li>
+                          <li>
+                            <Link
+                              to={`/projects/${project.id}/knowledgebase`}
+                              className={`nav-item sub-item ${location.pathname === `/projects/${project.id}/knowledgebase` ? 'active' : ''}`}
+                              title="Knowledgebase"
+                            >
+                              <span className="nav-icon">📚</span>
+                              <span className="nav-text">Knowledgebase</span>
+                            </Link>
+                          </li>
+                          <li>
+                            <Link
+                              to={`/projects/${project.id}/tasks`}
+                              className={`nav-item sub-item ${location.pathname === `/projects/${project.id}/tasks` ? 'active' : ''}`}
+                              title="Tasks"
+                            >
+                              <span className="nav-icon">✅</span>
+                              <span className="nav-text">Tasks</span>
+                            </Link>
+                          </li>
+                        </ul>
+                      )}
+                    </div>
                   </li>
-                </ul>
-              )}
-            </div>
-
-            {/* System Management Section */}
-            <div className="menu-category">
-              <h4 className="category-title">System Management</h4>
-              <ul className="agents-list">
+                ))}
                 <li>
                   <Link
-                    to="/"
-                    className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}
-                    title="Dashboard"
+                    to="/organization-settings/projects"
+                    className={`nav-item ${location.pathname.includes('/organization-settings/projects') ? 'active' : ''}`}
+                    title="Manage Projects"
                   >
-                    <span className="agent-icon">📊</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Dashboard</span>
-                      <span className="agent-description">Project overview</span>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/organization-settings/general"
-                    className={`menu-item ${location.pathname.includes('/organization-settings/general') ? 'active' : ''}`}
-                    title="Organization Details"
-                  >
-                    <span className="agent-icon">🏢</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Organization</span>
-                      <span className="agent-description">Company details</span>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/organization-settings/members"
-                    className={`menu-item ${location.pathname.includes('/organization-settings/members') ? 'active' : ''}`}
-                    title="Team Members"
-                  >
-                    <span className="agent-icon">👥</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Team</span>
-                      <span className="agent-description">Members & roles</span>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/organization-settings/departments"
-                    className={`menu-item ${location.pathname.includes('/organization-settings/departments') ? 'active' : ''}`}
-                    title="Departments"
-                  >
-                    <span className="agent-icon">🏗️</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Departments</span>
-                      <span className="agent-description">Manage departments</span>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/organization-settings/billing"
-                    className={`menu-item ${location.pathname.includes('/organization-settings/billing') ? 'active' : ''}`}
-                    title="Billing"
-                  >
-                    <span className="agent-icon">💳</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Billing</span>
-                      <span className="agent-description">Credits & usage</span>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/agent-dashboard"
-                    className={`menu-item ${location.pathname === '/agent-dashboard' ? 'active' : ''}`}
-                    title="Agents"
-                  >
-                    <span className="agent-icon">🤖</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Agents</span>
-                      <span className="agent-description">AI agents status</span>
-                    </div>
+                    <span className="nav-icon">➕</span>
+                    <span className="nav-text">Manage Projects</span>
                   </Link>
                 </li>
               </ul>
             </div>
 
+            {/* System Management Section */}
+            <div className="nav-section">
+              <div className="section-header">
+                <span className="section-title">System Management</span>
+                <button className="section-action">⋯</button>
+              </div>
+              <ul className="nav-list">
+                <li>
+                  <Link
+                    to="/"
+                    className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}
+                    title="Dashboard"
+                  >
+                    <span className="nav-icon">📊</span>
+                    <span className="nav-text">Dashboard</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/organization-settings/general"
+                    className={`nav-item ${location.pathname.includes('/organization-settings/general') ? 'active' : ''}`}
+                    title="Organization Details"
+                  >
+                    <span className="nav-icon">🏢</span>
+                    <span className="nav-text">Organization</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/organization-settings/members"
+                    className={`nav-item ${location.pathname.includes('/organization-settings/members') ? 'active' : ''}`}
+                    title="Team Members"
+                  >
+                    <span className="nav-icon">👥</span>
+                    <span className="nav-text">Team</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/organization-settings/departments"
+                    className={`nav-item ${location.pathname.includes('/organization-settings/departments') ? 'active' : ''}`}
+                    title="Departments"
+                  >
+                    <span className="nav-icon">🏗️</span>
+                    <span className="nav-text">Departments</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/organization-settings/billing"
+                    className={`nav-item ${location.pathname.includes('/organization-settings/billing') ? 'active' : ''}`}
+                    title="Billing"
+                  >
+                    <span className="nav-icon">💳</span>
+                    <span className="nav-text">Billing</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/agent-dashboard"
+                    className={`nav-item ${location.pathname === '/agent-dashboard' ? 'active' : ''}`}
+                    title="Agents"
+                  >
+                    <span className="nav-icon">🤖</span>
+                    <span className="nav-text">Agents</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </>
         ) : (
           <ul className="agents-list-collapsed">

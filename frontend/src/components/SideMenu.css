@@ -3,10 +3,10 @@
   left: 0;
   top: 0;
   height: 100vh;
-  background: var(--side-menu-bg, #ffffff);
-  box-shadow: 2px 0 10px var(--side-menu-shadow, rgba(0, 0, 0, 0.1));
+  background: var(--side-menu-bg, #fafbfc);
+  border-right: 1px solid var(--side-menu-border, #e2e8f0);
   z-index: 100;
-  transition: width 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+  transition: width 0.3s ease, background-color 0.3s ease;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -22,11 +22,11 @@
 .side-menu-header {
   position: sticky;
   top: 0;
-  background: var(--side-menu-header-gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
-  color: var(--side-menu-header-color, white);
+  background: var(--side-menu-bg, #fafbfc);
   padding: 0.5rem 0.75rem;
   z-index: 10;
-  transition: background 0.3s ease, color 0.3s ease;
+  transition: background 0.3s ease;
+  border-bottom: 1px solid var(--side-menu-border, #e2e8f0);
 }
 
 .menu-toggle {
@@ -36,17 +36,17 @@
   transform: translateY(-50%);
   width: 30px;
   height: 30px;
-  border-radius: 50%;
-  background: var(--menu-toggle-bg, #667eea);
-  border: 2px solid var(--menu-toggle-border, white);
-  color: var(--menu-toggle-color, white);
+  border-radius: 6px;
+  background: var(--menu-toggle-bg, #ffffff);
+  border: 1px solid var(--menu-toggle-border, #e2e8f0);
+  color: var(--menu-toggle-color, #4a5568);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px var(--menu-toggle-shadow, rgba(0, 0, 0, 0.2));
+  box-shadow: 0 1px 3px var(--menu-toggle-shadow, rgba(0, 0, 0, 0.1));
 }
 
 /* Organization Section */
@@ -77,6 +77,7 @@
   margin: 0;
   font-size: 0.9rem;
   font-weight: 600;
+  color: var(--menu-title-color, #1a202c);
 }
 
 .agent-count {
@@ -126,6 +127,141 @@
 
 .agents-list li {
   margin: 0;
+}
+
+/* ClickUp-style navigation */
+.nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-list li {
+  margin: 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  text-decoration: none;
+  color: var(--nav-item-color, #4a5568);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  position: relative;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.nav-item:hover {
+  background: var(--nav-item-hover-bg, #f7f8fa);
+}
+
+.nav-item.active {
+  background: var(--nav-item-active-bg, #e9ecef);
+  color: var(--nav-item-active-color, #2563eb);
+}
+
+.nav-icon {
+  font-size: 0.9rem;
+  margin-right: 0.5rem;
+  opacity: 0.8;
+}
+
+.nav-text {
+  flex: 1;
+  font-weight: 400;
+}
+
+.expand-icon {
+  font-size: 0.6rem;
+  margin-right: 0.3rem;
+  opacity: 0.6;
+}
+
+.nav-section {
+  margin: 0.75rem 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.section-title {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--section-title-color, #718096);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.section-action {
+  background: none;
+  border: none;
+  color: var(--section-action-color, #a0aec0);
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.nav-section:hover .section-action,
+.nav-item:hover .item-action {
+  opacity: 1;
+}
+
+.item-action {
+  background: none;
+  border: none;
+  color: var(--item-action-color, #a0aec0);
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 0.9rem;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sub-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  margin-left: 1rem;
+}
+
+.sub-header {
+  margin-left: 1rem;
+}
+
+.sub-item {
+  padding-left: 2rem;
+}
+
+.item-badge {
+  background: var(--item-badge-bg, #e2e8f0);
+  color: var(--item-badge-color, #64748b);
+  font-size: 0.65rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  margin-left: auto;
+}
+
+.add-item {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.add-item:hover {
+  opacity: 1;
 }
 
 .menu-item {
@@ -343,20 +479,33 @@
 
 /* CSS Variables Definition */
 :root {
-  /* Light mode colors (default) */
-  --side-menu-bg: #ffffff;
-  --side-menu-shadow: rgba(0, 0, 0, 0.1);
-  --side-menu-header-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --side-menu-header-color: white;
-  --menu-toggle-bg: #667eea;
-  --menu-toggle-border: white;
-  --menu-toggle-color: white;
-  --menu-toggle-shadow: rgba(0, 0, 0, 0.2);
-  --menu-toggle-hover-bg: #764ba2;
-  --no-org-message-color: rgba(255, 255, 255, 0.8);
-  --category-title-color: #666;
-  --category-title-bg: #f8f9fa;
-  --category-title-border: #e9ecef;
+  /* Light mode colors (default) - ClickUp style */
+  --side-menu-bg: #fafbfc;
+  --side-menu-border: #e2e8f0;
+  --side-menu-shadow: rgba(0, 0, 0, 0.05);
+  --menu-title-color: #1a202c;
+  --menu-toggle-bg: #ffffff;
+  --menu-toggle-border: #e2e8f0;
+  --menu-toggle-color: #4a5568;
+  --menu-toggle-shadow: rgba(0, 0, 0, 0.1);
+  --menu-toggle-hover-bg: #f7f8fa;
+  
+  /* Navigation items */
+  --nav-item-color: #4a5568;
+  --nav-item-hover-bg: #f7f8fa;
+  --nav-item-active-bg: #e9ecef;
+  --nav-item-active-color: #2563eb;
+  
+  /* Section headers */
+  --section-title-color: #718096;
+  --section-action-color: #a0aec0;
+  --item-action-color: #a0aec0;
+  
+  /* Badges */
+  --item-badge-bg: #e2e8f0;
+  --item-badge-color: #64748b;
+  
+  /* Legacy menu items */
   --menu-item-color: #333;
   --menu-item-hover-bg: #f8f9ff;
   --menu-item-hover-border: #667eea;
@@ -366,15 +515,20 @@
   --menu-item-active-color: #667eea;
   --agent-description-color: #666;
   --agent-description-active-color: #5a67d8;
+  
+  /* Other elements */
+  --category-title-color: #666;
+  --category-title-bg: #f8f9fa;
+  --category-title-border: #e9ecef;
   --scrollbar-track-bg: #f1f1f1;
-  --scrollbar-thumb-bg: #888;
-  --scrollbar-thumb-hover-bg: #555;
+  --scrollbar-thumb-bg: #cbd5e0;
+  --scrollbar-thumb-hover-bg: #a0aec0;
   --menu-overlay-bg: rgba(0, 0, 0, 0.5);
-  --side-menu-mobile-shadow: rgba(0, 0, 0, 0.3);
-  --menu-close-bg: rgba(255, 255, 255, 0.2);
-  --menu-close-color: white;
-  --menu-close-hover-bg: rgba(255, 255, 255, 0.3);
-  --menu-close-active-bg: rgba(255, 255, 255, 0.4);
+  --side-menu-mobile-shadow: rgba(0, 0, 0, 0.15);
+  --menu-close-bg: rgba(0, 0, 0, 0.1);
+  --menu-close-color: #4a5568;
+  --menu-close-hover-bg: rgba(0, 0, 0, 0.2);
+  --menu-close-active-bg: rgba(0, 0, 0, 0.3);
 }
 
 /* Dark mode overrides */

@@ -5,6 +5,19 @@ import './styles/aicos-theme.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Prevent any visibility change handlers from causing reloads
+if (typeof document !== 'undefined') {
+  const originalAddEventListener = document.addEventListener;
+  document.addEventListener = function(type: string, listener: any, options?: any) {
+    // Log visibility change listeners for debugging
+    if (type === 'visibilitychange') {
+      console.log('Visibility change listener blocked:', listener.toString().substring(0, 100));
+      return;
+    }
+    return originalAddEventListener.call(this, type, listener, options);
+  };
+}
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

@@ -73,7 +73,7 @@ function AppContent() {
         <div className={`app-container ${isAuthPage ? 'auth-page' : ''}`}>
           {/* Only show header if not on auth pages */}
           {!isAuthPage && (user ? <AppHeader /> : <Header />)}
-          <main className="main-content" style={{ marginTop: (user && !isAuthPage) ? '64px' : '0' }}>
+          <main className="main-content" style={{ marginTop: (user && !isAuthPage) ? '48px' : '0' }}>
             <Routes>
             {/* Public routes */}
             <Route path="/login" element={<BrandedSupabaseLogin />} />

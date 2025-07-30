@@ -57,14 +57,29 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setLoading(false)
     })
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+    // Listen for auth changes with debounce to prevent rapid updates
+    let timeoutId: NodeJS.Timeout;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Ignore token refreshed events to prevent unnecessary re-renders
+      if (event === 'TOKEN_REFRESHED') {
+        return;
+      }
+      
+      // Clear any pending updates
+      clearTimeout(timeoutId);
+      
+      // Debounce the state update
+      timeoutId = setTimeout(() => {
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+      }, 100);
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    }
   }, [])
 
   // Email/Password methods

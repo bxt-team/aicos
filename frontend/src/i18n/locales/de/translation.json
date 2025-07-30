@@ -93,7 +93,10 @@
     "manageProjects": "Projekte verwalten",
     "settings": "Einstellungen",
     "signOut": "Abmelden",
-    "user": "Benutzer"
+    "user": "Benutzer",
+    "organization": "Organisation",
+    "manageOrganizations": "Organisationen verwalten",
+    "accountSettings": "Kontoeinstellungen"
   },
   "organization": {
     "organization": "Organisation",

@@ -19,6 +19,28 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
+// Disable Supabase's visibility change listener after client creation
+if (typeof window !== 'undefined' && (supabase as any).auth) {
+  const auth = (supabase as any).auth;
+  
+  // Override the startAutoRefresh method to prevent visibility change detection
+  if (auth.startAutoRefresh) {
+    const originalStartAutoRefresh = auth.startAutoRefresh.bind(auth);
+    auth.startAutoRefresh = function() {
+      // Call original without setting up visibility change listener
+      const result = originalStartAutoRefresh.apply(this, arguments);
+      
+      // Remove visibility change listener if it exists
+      if (typeof document !== 'undefined') {
+        const visibilityHandler = () => {};
+        document.removeEventListener('visibilitychange', visibilityHandler);
+      }
+      
+      return result;
+    };
+  }
+}
+
 // Helper to get session
 export const getSession = async () => {
   const { data: { session }, error } = await supabase.auth.getSession()
