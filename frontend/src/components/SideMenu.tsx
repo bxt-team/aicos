@@ -107,78 +107,6 @@ const SideMenu: React.FC = () => {
       <nav className="side-menu-nav">
         {isExpanded ? (
           <>
-            {/* System Management Section */}
-            <div className="menu-category">
-              <h4 className="category-title">System Management</h4>
-              <ul className="agents-list">
-                <li>
-                  <Link
-                    to="/"
-                    className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}
-                    title="Dashboard"
-                  >
-                    <span className="agent-icon">📊</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Dashboard</span>
-                      <span className="agent-description">Project overview</span>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/organization-settings/general"
-                    className={`menu-item ${location.pathname.includes('/organization-settings/general') ? 'active' : ''}`}
-                    title="Organization Details"
-                  >
-                    <span className="agent-icon">🏢</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Organization</span>
-                      <span className="agent-description">Company details</span>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/organization-settings/members"
-                    className={`menu-item ${location.pathname.includes('/organization-settings/members') ? 'active' : ''}`}
-                    title="Team Members"
-                  >
-                    <span className="agent-icon">👥</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Team</span>
-                      <span className="agent-description">Members & roles</span>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/organization-settings/departments"
-                    className={`menu-item ${location.pathname.includes('/organization-settings/departments') ? 'active' : ''}`}
-                    title="Departments"
-                  >
-                    <span className="agent-icon">🏗️</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Departments</span>
-                      <span className="agent-description">Manage departments</span>
-                    </div>
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    to="/organization-settings/billing"
-                    className={`menu-item ${location.pathname.includes('/organization-settings/billing') ? 'active' : ''}`}
-                    title="Billing"
-                  >
-                    <span className="agent-icon">💳</span>
-                    <div className="agent-info">
-                      <span className="agent-name">Billing</span>
-                      <span className="agent-description">Credits & usage</span>
-                    </div>
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
             {/* Projects Section */}
             <div className="menu-category">
               <h4 
@@ -279,6 +207,91 @@ const SideMenu: React.FC = () => {
               )}
             </div>
 
+            {/* System Management Section */}
+            <div className="menu-category">
+              <h4 className="category-title">System Management</h4>
+              <ul className="agents-list">
+                <li>
+                  <Link
+                    to="/"
+                    className={`menu-item ${location.pathname === '/' ? 'active' : ''}`}
+                    title="Dashboard"
+                  >
+                    <span className="agent-icon">📊</span>
+                    <div className="agent-info">
+                      <span className="agent-name">Dashboard</span>
+                      <span className="agent-description">Project overview</span>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/organization-settings/general"
+                    className={`menu-item ${location.pathname.includes('/organization-settings/general') ? 'active' : ''}`}
+                    title="Organization Details"
+                  >
+                    <span className="agent-icon">🏢</span>
+                    <div className="agent-info">
+                      <span className="agent-name">Organization</span>
+                      <span className="agent-description">Company details</span>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/organization-settings/members"
+                    className={`menu-item ${location.pathname.includes('/organization-settings/members') ? 'active' : ''}`}
+                    title="Team Members"
+                  >
+                    <span className="agent-icon">👥</span>
+                    <div className="agent-info">
+                      <span className="agent-name">Team</span>
+                      <span className="agent-description">Members & roles</span>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/organization-settings/departments"
+                    className={`menu-item ${location.pathname.includes('/organization-settings/departments') ? 'active' : ''}`}
+                    title="Departments"
+                  >
+                    <span className="agent-icon">🏗️</span>
+                    <div className="agent-info">
+                      <span className="agent-name">Departments</span>
+                      <span className="agent-description">Manage departments</span>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/organization-settings/billing"
+                    className={`menu-item ${location.pathname.includes('/organization-settings/billing') ? 'active' : ''}`}
+                    title="Billing"
+                  >
+                    <span className="agent-icon">💳</span>
+                    <div className="agent-info">
+                      <span className="agent-name">Billing</span>
+                      <span className="agent-description">Credits & usage</span>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/agent-dashboard"
+                    className={`menu-item ${location.pathname === '/agent-dashboard' ? 'active' : ''}`}
+                    title="Agents"
+                  >
+                    <span className="agent-icon">🤖</span>
+                    <div className="agent-info">
+                      <span className="agent-name">Agents</span>
+                      <span className="agent-description">AI agents status</span>
+                    </div>
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
           </>
         ) : (
           <ul className="agents-list-collapsed">
@@ -308,6 +321,15 @@ const SideMenu: React.FC = () => {
                 title="Billing"
               >
                 <span className="agent-icon">💳</span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/agent-dashboard"
+                className={`menu-item-collapsed ${location.pathname === '/agent-dashboard' ? 'active' : ''}`}
+                title="Agents"
+              >
+                <span className="agent-icon">🤖</span>
               </Link>
             </li>
           </ul>

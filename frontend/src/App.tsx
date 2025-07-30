@@ -104,6 +104,7 @@ function AppContent() {
             <Route path="/threads" element={<ThreadsInterface />} />
             <Route path="/x-twitter" element={<XInterface />} />
             <Route path="/agent-prompts" element={<AgentPromptsDisplay />} />
+            <Route path="/agent-dashboard" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
             <Route path="/content-generator" element={<ProtectedRoute><ContentGenerator /></ProtectedRoute>} />
             <Route path="/content/:contentId" element={<ContentViewer />} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
