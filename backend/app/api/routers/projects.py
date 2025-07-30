@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime
+from uuid import uuid4
 import logging
 
 from app.core.auth import get_current_user, get_request_context
@@ -329,6 +330,25 @@ async def get_project(
         
         project = result.data[0]
         
+        # Add user's role to the project
+        if access_check.data:
+            project["role"] = access_check.data[0]["role"]
+        else:
+            # If no direct project membership, they might have org-level access
+            project_data = supabase.table("projects").select("organization_id").eq("id", project_id).execute()
+            if project_data.data:
+                org_id = project_data.data[0]["organization_id"]
+                org_access = supabase.table("organization_members").select("role").eq(
+                    "organization_id", org_id
+                ).eq("user_id", public_user_id).execute()
+                if org_access.data:
+                    # Map org roles to project roles
+                    org_role = org_access.data[0]["role"]
+                    if org_role in ["owner", "admin"]:
+                        project["role"] = "admin"
+                    else:
+                        project["role"] = "viewer"
+        
         # Get basic statistics
         stats = {
             "content_items": 0,
@@ -352,21 +372,73 @@ async def get_project(
 async def update_project(
     project_id: str,
     request: ProjectUpdateRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user_supabase)
 ):
     """Update project details (requires admin permission)"""
-    # Check if user has admin access to this project
-    if not has_project_permission(current_user, project_id, Permission.PROJECT_UPDATE):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    # In a real implementation, update in database
-    updated_fields = {k: v for k, v in request.dict().items() if v is not None}
-    
-    return {
-        "success": True,
-        "message": "Project updated successfully",
-        "updated_fields": updated_fields
-    }
+    try:
+        supabase = get_supabase()
+        
+        if not supabase:
+            raise HTTPException(
+                status_code=503,
+                detail="Database connection not available"
+            )
+        
+        # Get the public user ID
+        auth_email = current_user.get("email")
+        public_user_id = str(current_user["user_id"])
+        
+        if auth_email:
+            user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+            if user_result.data:
+                public_user_id = user_result.data[0]["id"]
+        
+        # Check if user has admin access to this project
+        access_check = supabase.table("project_members").select("role").eq(
+            "project_id", project_id
+        ).eq("user_id", public_user_id).execute()
+        
+        if not access_check.data or access_check.data[0]["role"] not in ["owner", "admin"]:
+            # Check organization-level admin access
+            project_data = supabase.table("projects").select("organization_id").eq("id", project_id).execute()
+            if project_data.data:
+                org_id = project_data.data[0]["organization_id"]
+                org_access = supabase.table("organization_members").select("role").eq(
+                    "organization_id", org_id
+                ).eq("user_id", public_user_id).execute()
+                
+                if not org_access.data or org_access.data[0]["role"] not in ["owner", "admin"]:
+                    raise HTTPException(status_code=403, detail="Admin access required")
+            else:
+                raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Update project in database
+        update_data = {}
+        if request.name is not None:
+            update_data["name"] = request.name
+        if request.description is not None:
+            update_data["description"] = request.description
+        if request.settings is not None:
+            update_data["settings"] = request.settings
+        
+        if update_data:
+            update_data["updated_at"] = datetime.utcnow().isoformat()
+            
+            result = supabase.table("projects").update(update_data).eq("id", project_id).execute()
+            
+            if not result.data:
+                raise HTTPException(status_code=404, detail="Project not found")
+        
+        return {
+            "success": True,
+            "message": "Project updated successfully",
+            "updated_fields": update_data
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating project: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{project_id}")
 async def delete_project(

@@ -283,6 +283,18 @@ export const apiService = {
     postToInstagram: (data: { instagram_post_id: string; visual_post_id?: string; post_type?: string }) =>
       api.post('/post-to-instagram', data),
   },
+
+  // Organization management endpoints
+  organizationManagement: {
+    enhanceProjectDescription: (data: {
+      raw_description: string;
+      organization_purpose: string;
+      organization_goals: string[];
+      department?: string;
+      user_feedback?: string;
+      previous_result?: string;
+    }) => api.post('/api/organization-management/enhance-project-description', data),
+  },
 };
 
 export default api;

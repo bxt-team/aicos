@@ -10,7 +10,6 @@ import {
   Button,
   Alert,
   IconButton,
-  Grid,
   List,
   ListItem,
   ListItemText,
@@ -30,6 +29,7 @@ import {
   Breadcrumbs,
   Link
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Edit as EditIcon,
   Save as SaveIcon,
@@ -38,11 +38,13 @@ import {
   Delete as DeleteIcon,
   Description as DescriptionIcon,
   Group as GroupIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  AutoFixHigh as AutoFixHighIcon
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
+import { useProject } from '../contexts/ProjectContext';
 import { apiService } from '../services/api';
 import { useTranslation } from 'react-i18next';
 
@@ -74,6 +76,7 @@ const ProjectDetail: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useSupabaseAuth();
   const { currentOrganization } = useOrganization();
+  const { updateProject: updateProjectInContext } = useProject();
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -82,6 +85,7 @@ const ProjectDetail: React.FC = () => {
   // Project details
   const [project, setProject] = useState<any>(null);
   const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [isRewritingDescription, setIsRewritingDescription] = useState(false);
   
   // Members
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
@@ -129,11 +133,7 @@ const ProjectDetail: React.FC = () => {
       switch (tabValue) {
         case 0: // Details - already loaded
           break;
-        case 1: // Knowledge Base - handled by component
-          break;
-        case 2: // Tasks - handled by component
-          break;
-        case 3: // Members
+        case 1: // Members
           const membersResponse = await apiService.projects.getMembers(project.id);
           setProjectMembers(membersResponse.data.members || []);
           break;
@@ -169,12 +169,57 @@ const ProjectDetail: React.FC = () => {
         settings: project.settings
       });
       
+      // Update project in context to refresh sidebar
+      await updateProjectInContext(project.id, {
+        name: project.name,
+        description: project.description
+      });
+      
       setSuccess('Project successfully updated');
       setIsEditingDetails(false);
     } catch (err: any) {
       setError(err.response?.data?.detail || t('errors.errorSaving'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAIRewrite = async () => {
+    if (!project || !currentOrganization) return;
+    
+    setIsRewritingDescription(true);
+    setError('');
+    
+    try {
+      const response = await apiService.organizationManagement.enhanceProjectDescription({
+        raw_description: project.description || '',
+        organization_purpose: currentOrganization.description || '',
+        organization_goals: [], // Organizations don't have goals stored yet
+        department: project.department || undefined,
+        user_feedback: undefined,
+        previous_result: undefined
+      });
+      
+      if (response.data.success && response.data.data) {
+        // Extract the enhanced description from the AI response
+        const enhancedData = response.data.data;
+        let enhancedDescription = project.description || '';
+        
+        if (enhancedData.description) {
+          enhancedDescription = enhancedData.description;
+        } else if (enhancedData.enhanced_description) {
+          enhancedDescription = enhancedData.enhanced_description;
+        } else if (typeof enhancedData === 'string') {
+          enhancedDescription = enhancedData;
+        }
+        
+        setProject({ ...project, description: enhancedDescription });
+        setSuccess('Description enhanced with AI');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to enhance description with AI');
+    } finally {
+      setIsRewritingDescription(false);
     }
   };
 
@@ -334,16 +379,41 @@ const ProjectDetail: React.FC = () => {
                   disabled={!isEditingDetails}
                 />
               </Grid>
-              <Grid size={12}>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={4}
-                  label={t('project.goalsAndDescription', 'Goals & Description')}
-                  value={project.description || ''}
-                  onChange={(e) => setProject({ ...project, description: e.target.value })}
-                  disabled={!isEditingDetails}
-                />
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ position: 'relative' }}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    label={t('project.goalsAndDescription', 'Goals & Description')}
+                    value={project.description || ''}
+                    onChange={(e) => setProject({ ...project, description: e.target.value })}
+                    disabled={!isEditingDetails || isRewritingDescription}
+                    sx={{ pr: isEditingDetails ? 6 : 0 }}
+                  />
+                  {isEditingDetails && (
+                    <IconButton
+                      onClick={handleAIRewrite}
+                      disabled={isRewritingDescription}
+                      sx={{
+                        position: 'absolute',
+                        right: 8,
+                        top: 8,
+                        backgroundColor: 'background.paper',
+                        '&:hover': {
+                          backgroundColor: 'action.hover',
+                        },
+                      }}
+                      title={t('project.aiRewrite', 'AI Rewrite')}
+                    >
+                      {isRewritingDescription ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <AutoFixHighIcon />
+                      )}
+                    </IconButton>
+                  )}
+                </Box>
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
@@ -385,6 +455,10 @@ const ProjectDetail: React.FC = () => {
 
             {loading ? (
               <CircularProgress />
+            ) : projectMembers.length === 0 ? (
+              <Typography color="text.secondary" sx={{ py: 2 }}>
+                No members found. Add members to collaborate on this project.
+              </Typography>
             ) : (
               <List>
                 {projectMembers.map((member) => (
