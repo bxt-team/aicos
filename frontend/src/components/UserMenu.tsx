@@ -118,26 +118,13 @@ const UserMenu: React.FC = () => {
           <ListItemText>{t('userMenu.myProfile')}</ListItemText>
         </MenuItem>
         
-        <MenuItem onClick={() => handleNavigate('/organization-settings')}>
-          <ListItemIcon>
-            <BusinessIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('userMenu.manageOrganization')}</ListItemText>
-        </MenuItem>
-        
-        <MenuItem onClick={() => handleNavigate('/organization-settings/projects')}>
-          <ListItemIcon>
-            <FolderIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('userMenu.manageProjects')}</ListItemText>
-        </MenuItem>
-        
-        <MenuItem onClick={() => handleNavigate('/settings')}>
+        <MenuItem onClick={() => handleNavigate('/account-settings')}>
           <ListItemIcon>
             <SettingsIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>{t('userMenu.settings')}</ListItemText>
+          <ListItemText>{t('userMenu.accountSettings')}</ListItemText>
         </MenuItem>
+        
         
         <Divider />
         

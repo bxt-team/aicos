@@ -32,7 +32,7 @@ async def list_knowledge_bases(
         project_id=project_id,
         department_id=department_id,
         agent_type=agent_type,
-        user_id=current_user.id
+        user_id=current_user.get('id')
     )
 
 @router.get("/{knowledge_base_id}", response_model=KnowledgeBase)
@@ -42,7 +42,7 @@ async def get_knowledge_base(
     kb_service: KnowledgeBaseService = Depends(get_knowledge_base_service)
 ):
     """Get a specific knowledge base"""
-    kb = await kb_service.get_knowledge_base(knowledge_base_id, current_user.id)
+    kb = await kb_service.get_knowledge_base(knowledge_base_id, current_user.get('id'))
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
     return kb
@@ -87,7 +87,7 @@ async def create_knowledge_base(
     return await kb_service.create_knowledge_base(
         kb_create=kb_create,
         file_content=content,
-        user_id=current_user.id
+        user_id=current_user.get('id')
     )
 
 @router.put("/{knowledge_base_id}", response_model=KnowledgeBase)
@@ -101,7 +101,7 @@ async def update_knowledge_base(
     kb = await kb_service.update_knowledge_base(
         knowledge_base_id=knowledge_base_id,
         update=update,
-        user_id=current_user.id
+        user_id=current_user.get('id')
     )
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
@@ -116,7 +116,7 @@ async def delete_knowledge_base(
     """Delete a knowledge base"""
     success = await kb_service.delete_knowledge_base(
         knowledge_base_id=knowledge_base_id,
-        user_id=current_user.id
+        user_id=current_user.get('id')
     )
     if not success:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
@@ -131,7 +131,7 @@ async def reindex_knowledge_base(
     """Reindex a knowledge base (regenerate embeddings)"""
     success = await kb_service.reindex_knowledge_base(
         knowledge_base_id=knowledge_base_id,
-        user_id=current_user.id
+        user_id=current_user.get('id')
     )
     if not success:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
@@ -152,5 +152,5 @@ async def get_applicable_knowledge_bases(
         project_id=project_id,
         department_id=department_id,
         agent_type=agent_type,
-        user_id=current_user.id
+        user_id=current_user.get('id')
     )

@@ -1,7 +1,8 @@
 """
 Refactored main application file for 7 Cycles Backend
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
@@ -111,7 +112,15 @@ This API provides comprehensive AI-powered content generation and automation sol
     openapi_url="/openapi.json"
 )
 
-# Configure CORS
+# Add multi-tenant middleware
+from app.core.middleware import ContextMiddleware, MultiTenantMiddleware, AuditLoggingMiddleware
+
+# Add in reverse order (last added is executed first)
+app.add_middleware(AuditLoggingMiddleware)
+app.add_middleware(MultiTenantMiddleware)
+app.add_middleware(ContextMiddleware)
+
+# Configure CORS - should be last so it executes first
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -120,13 +129,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add multi-tenant middleware
-from app.core.middleware import ContextMiddleware, MultiTenantMiddleware, AuditLoggingMiddleware
-
-# Add in reverse order (last added is executed first)
-app.add_middleware(AuditLoggingMiddleware)
-app.add_middleware(MultiTenantMiddleware)
-app.add_middleware(ContextMiddleware)
+# Global exception handler to ensure CORS headers are always present
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Handle all exceptions and ensure CORS headers are present"""
+    import traceback
+    logger.error(f"Unhandled exception: {str(exc)}")
+    logger.error(traceback.format_exc())
+    
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": str(exc)},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 # Mount static files
 static_dir = "static"

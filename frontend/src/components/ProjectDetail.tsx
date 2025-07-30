@@ -38,16 +38,12 @@ import {
   Delete as DeleteIcon,
   Description as DescriptionIcon,
   Group as GroupIcon,
-  Task as TaskIcon,
-  ArrowBack as ArrowBackIcon,
-  Book as BookIcon
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { apiService } from '../services/api';
-import { TaskManagement } from './TaskManagement';
-import KnowledgeBaseManagement from './KnowledgeBaseManagement';
 import { useTranslation } from 'react-i18next';
 
 interface TabPanelProps {
@@ -93,6 +89,7 @@ const ProjectDetail: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState('member');
   const [organizationMembers, setOrganizationMembers] = useState<any[]>([]);
+
 
   useEffect(() => {
     if (projectId && currentOrganization) {
@@ -298,8 +295,6 @@ const ProjectDetail: React.FC = () => {
           </Box>
           <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ px: 2 }}>
             <Tab label={t('common.details')} icon={<DescriptionIcon />} iconPosition="start" />
-            <Tab label={t('knowledgeBase.knowledgeBase')} icon={<BookIcon />} iconPosition="start" />
-            <Tab label={t('task.tasks')} icon={<TaskIcon />} iconPosition="start" />
             <Tab label={t('organization.members')} icon={<GroupIcon />} iconPosition="start" />
           </Tabs>
         </Box>
@@ -371,14 +366,6 @@ const ProjectDetail: React.FC = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          <KnowledgeBaseManagement />
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={2}>
-          <TaskManagement projectId={project.id} />
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={3}>
           <Box>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
               <Typography variant="h6">{t('project.projectMembers', 'Project Members')}</Typography>

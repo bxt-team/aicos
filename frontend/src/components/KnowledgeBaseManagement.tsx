@@ -43,7 +43,7 @@ import {
   SmartToy as AgentIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../hooks/useAuth';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useProject } from '../contexts/ProjectContext';
 import { knowledgeBaseService } from '../services/knowledgeBaseService';
@@ -73,7 +73,7 @@ function TabPanel(props: TabPanelProps) {
 
 export default function KnowledgeBaseManagement() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user } = useSupabaseAuth();
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
   

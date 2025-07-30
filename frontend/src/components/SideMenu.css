@@ -105,6 +105,17 @@
   background: var(--category-title-bg, #f8f9fa);
   border-bottom: 1px solid var(--category-title-border, #e9ecef);
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  user-select: none;
+}
+
+.category-subtitle {
+  padding: 0.5rem 0.75rem 0.25rem;
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--category-subtitle-color, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .agents-list {

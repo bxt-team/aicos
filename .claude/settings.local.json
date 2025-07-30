@@ -48,7 +48,8 @@
       "Bash(true)",
       "Bash(npm run dev-backend:*)",
       "Bash(kill:*)",
-      "mcp__supabase__list_migrations"
+      "mcp__supabase__list_migrations",
+      "Bash(npm i:*)"
     ],
     "deny": []
   },

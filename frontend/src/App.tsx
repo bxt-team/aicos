@@ -31,6 +31,8 @@ import AgentManagement from './components/AgentManagement';
 import AgentPromptsDisplay from './components/AgentPromptsDisplay';
 import Header from './components/Header';
 import ProjectDetail from './components/ProjectDetail';
+import ProjectKnowledgeBase from './components/ProjectKnowledgeBase';
+import ProjectTasks from './components/ProjectTasks';
 import SideMenu from './components/SideMenu';
 import { BrandedSupabaseLogin } from './components/auth/BrandedSupabaseLogin';
 import { BrandedSupabaseSignup } from './components/auth/BrandedSupabaseSignup';
@@ -48,6 +50,7 @@ import AppHeader from './components/AppHeader';
 import { useSupabaseAuth } from './contexts/SupabaseAuthContext';
 import OnboardingCheck from './components/OnboardingCheck';
 import { ProjectDashboard } from './components/ProjectDashboard';
+import MainDashboard from './components/MainDashboard';
 
 function AppContent() {
   const { user, loading } = useSupabaseAuth();
@@ -83,8 +86,7 @@ function AppContent() {
             <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
             
             {/* Protected routes */}
-            <Route path="/" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
-            <Route path="/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute><MainDashboard /></ProtectedRoute>} />
             <Route path="/qa" element={<ProtectedRoute><QAInterface /></ProtectedRoute>} />
             <Route path="/affirmations" element={<ProtectedRoute><AffirmationsInterface /></ProtectedRoute>} />
             <Route path="/instagram-posts" element={<ProtectedRoute><InstagramPostsInterface /></ProtectedRoute>} />
@@ -109,6 +111,8 @@ function AppContent() {
             <Route path="/organization-settings/:tab" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
             <Route path="/organization-debug" element={<ProtectedRoute><OrganizationDebug /></ProtectedRoute>} />
             <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
+            <Route path="/projects/:projectId/knowledgebase" element={<ProtectedRoute><ProjectKnowledgeBase /></ProtectedRoute>} />
+            <Route path="/projects/:projectId/tasks" element={<ProtectedRoute><ProjectTasks /></ProtectedRoute>} />
             </Routes>
           </main>
           </div>

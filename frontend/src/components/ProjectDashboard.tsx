@@ -23,7 +23,6 @@ import {
   DialogActions,
   TextField,
   MenuItem,
-  Grid,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -210,13 +209,13 @@ export const ProjectDashboard: React.FC = () => {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Skeleton variant="text" height={60} />
-        <Grid container spacing={3} sx={{ mt: 2 }}>
+        <Box display="flex" flexWrap="wrap" gap={3} sx={{ mt: 2 }}>
           {[1, 2, 3, 4].map(i => (
-            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={i}>
+            <Box key={i} flex="1 1 250px">
               <Skeleton variant="rectangular" height={120} />
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
       </Container>
     );
   }
@@ -251,8 +250,8 @@ export const ProjectDashboard: React.FC = () => {
       )}
 
       {/* Stats Overview */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+      <Box display="flex" flexWrap="wrap" gap={3} sx={{ mb: 4 }}>
+        <Box flex="1 1 250px">
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -280,9 +279,9 @@ export const ProjectDashboard: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Box flex="1 1 250px">
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -316,9 +315,9 @@ export const ProjectDashboard: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Box flex="1 1 250px">
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -347,9 +346,9 @@ export const ProjectDashboard: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
 
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Box flex="1 1 250px">
           <Card>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -372,8 +371,8 @@ export const ProjectDashboard: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       {/* Tabs */}
       <Paper elevation={3}>
@@ -392,24 +391,24 @@ export const ProjectDashboard: React.FC = () => {
         </Box>
 
         <TabPanel value={tabValue} index={0}>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12, md: 6 }}>
+          <Box display="flex" flexWrap="wrap" gap={3}>
+            <Box flex="1 1 300px">
               <Typography variant="h6" gutterBottom>
                 Recent Goals
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Feature coming soon...
               </Typography>
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
+            </Box>
+            <Box flex="1 1 300px">
               <Typography variant="h6" gutterBottom>
                 Recent Tasks
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Feature coming soon...
               </Typography>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>

@@ -1,15 +1,7 @@
-import axios from 'axios';
+import api from './api';
 import { KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate } from '../types/knowledgeBase';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-
 class KnowledgeBaseService {
-  private getHeaders() {
-    const token = localStorage.getItem('access_token');
-    return {
-      'Authorization': token ? `Bearer ${token}` : '',
-    };
-  }
 
   async listKnowledgeBases(
     organizationId: string,
@@ -23,28 +15,25 @@ class KnowledgeBaseService {
     if (departmentId) params.append('department_id', departmentId);
     if (agentType) params.append('agent_type', agentType);
 
-    const response = await axios.get(
-      `${API_BASE_URL}/api/knowledge-bases?${params.toString()}`,
-      { headers: this.getHeaders() }
+    const response = await api.get(
+      `/api/knowledge-bases/?${params.toString()}`
     );
     return response.data;
   }
 
   async getKnowledgeBase(id: string): Promise<KnowledgeBase> {
-    const response = await axios.get(
-      `${API_BASE_URL}/api/knowledge-bases/${id}`,
-      { headers: this.getHeaders() }
+    const response = await api.get(
+      `/api/knowledge-bases/${id}`
     );
     return response.data;
   }
 
   async createKnowledgeBase(formData: FormData): Promise<KnowledgeBase> {
-    const response = await axios.post(
-      `${API_BASE_URL}/api/knowledge-bases/`,
+    const response = await api.post(
+      `/api/knowledge-bases/`,
       formData,
       {
         headers: {
-          ...this.getHeaders(),
           'Content-Type': 'multipart/form-data',
         },
       }
@@ -56,26 +45,23 @@ class KnowledgeBaseService {
     id: string,
     update: KnowledgeBaseUpdate
   ): Promise<KnowledgeBase> {
-    const response = await axios.put(
-      `${API_BASE_URL}/api/knowledge-bases/${id}`,
-      update,
-      { headers: this.getHeaders() }
+    const response = await api.put(
+      `/api/knowledge-bases/${id}`,
+      update
     );
     return response.data;
   }
 
   async deleteKnowledgeBase(id: string): Promise<void> {
-    await axios.delete(
-      `${API_BASE_URL}/api/knowledge-bases/${id}`,
-      { headers: this.getHeaders() }
+    await api.delete(
+      `/api/knowledge-bases/${id}`
     );
   }
 
   async reindexKnowledgeBase(id: string): Promise<void> {
-    await axios.post(
-      `${API_BASE_URL}/api/knowledge-bases/${id}/reindex`,
-      {},
-      { headers: this.getHeaders() }
+    await api.post(
+      `/api/knowledge-bases/${id}/reindex`,
+      {}
     );
   }
 
@@ -91,9 +77,8 @@ class KnowledgeBaseService {
     if (departmentId) params.append('department_id', departmentId);
     if (agentType) params.append('agent_type', agentType);
 
-    const response = await axios.get(
-      `${API_BASE_URL}/api/knowledge-bases/applicable/search?${params.toString()}`,
-      { headers: this.getHeaders() }
+    const response = await api.get(
+      `/api/knowledge-bases/applicable/search/?${params.toString()}`
     );
     return response.data;
   }
