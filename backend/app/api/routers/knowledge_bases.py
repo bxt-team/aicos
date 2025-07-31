@@ -50,7 +50,7 @@ async def get_knowledge_base(
 @router.post("/", response_model=KnowledgeBase)
 async def create_knowledge_base(
     file: UploadFile = File(...),
-    name: str = Form(...),
+    name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     organization_id: UUID = Form(...),
     project_id: Optional[UUID] = Form(None),
@@ -61,16 +61,20 @@ async def create_knowledge_base(
 ):
     """Upload a new knowledge base file"""
     # Validate file type
-    allowed_types = {".pdf", ".txt", ".json", ".csv", ".docx"}
+    allowed_types = {".pdf", ".txt", ".json", ".csv", ".docx", ".md", ".markdown"}
     file_ext = os.path.splitext(file.filename)[1].lower()
     if file_ext not in allowed_types:
         raise HTTPException(
             status_code=400,
-            detail=f"File type {file_ext} not allowed. Allowed types: {', '.join(allowed_types)}"
+            detail=f"File type {file_ext} not allowed. Allowed types: {', '.join(sorted(allowed_types))}"
         )
     
     # Read file content
     content = await file.read()
+    
+    # Use filename as name if not provided
+    if not name:
+        name = os.path.splitext(file.filename)[0]
     
     kb_create = KnowledgeBaseCreate(
         name=name,

@@ -10,7 +10,8 @@ from langchain_community.document_loaders import (
     TextLoader, 
     JSONLoader, 
     CSVLoader,
-    Docx2txtLoader
+    Docx2txtLoader,
+    UnstructuredMarkdownLoader
 )
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
@@ -79,7 +80,9 @@ class KnowledgeBaseService:
             "txt": TextLoader,
             "json": JSONLoader,
             "csv": CSVLoader,
-            "docx": Docx2txtLoader
+            "docx": Docx2txtLoader,
+            "md": UnstructuredMarkdownLoader,
+            "markdown": UnstructuredMarkdownLoader
         }
         
         loader_class = loaders.get(file_type)
@@ -88,6 +91,8 @@ class KnowledgeBaseService:
         
         if file_type == "json":
             return loader_class(file_path, jq_schema=".", text_content=False)
+        elif file_type in ["md", "markdown"]:
+            return loader_class(file_path, mode="single", strategy="fast")
         else:
             return loader_class(file_path)
     
@@ -219,11 +224,23 @@ class KnowledgeBaseService:
                 raise ValueError("User ID is required to create knowledge base")
             
             # Create database record
+            kb_dict = kb_create.model_dump()
+            # Convert all UUID fields to strings
             kb_data = {
-                **kb_create.model_dump(),
-                "file_path": file_path,
-                "created_by": str(user_id),
                 "id": str(file_id),
+                "organization_id": str(kb_dict["organization_id"]),
+                "project_id": str(kb_dict["project_id"]) if kb_dict.get("project_id") else None,
+                "department_id": str(kb_dict["department_id"]) if kb_dict.get("department_id") else None,
+                "agent_type": kb_dict.get("agent_type"),
+                "name": kb_dict["name"],
+                "description": kb_dict.get("description"),
+                "file_type": kb_dict["file_type"],
+                "file_name": kb_dict["file_name"],
+                "file_size": kb_dict["file_size"],
+                "file_path": file_path,
+                "metadata": kb_dict.get("metadata", {}),
+                # Skip created_by for now due to foreign key constraint with users table
+                # "created_by": str(user_id),
                 "is_active": True,
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
@@ -388,6 +405,12 @@ class KnowledgeBaseService:
             
             # Store embeddings in database
             if embeddings_data:
+                # Convert metadata to ensure JSON serialization
+                for embedding in embeddings_data:
+                    if isinstance(embedding.get("metadata"), dict):
+                        # Ensure all values in metadata are JSON serializable
+                        embedding["metadata"] = {k: str(v) if isinstance(v, UUID) else v for k, v in embedding["metadata"].items()}
+                
                 self.supabase.table("knowledge_base_embeddings").insert(
                     embeddings_data
                 ).execute()
@@ -417,7 +440,9 @@ class KnowledgeBaseService:
             "txt": "text/plain",
             "json": "application/json",
             "csv": "text/csv",
-            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "md": "text/markdown",
+            "markdown": "text/markdown"
         }
         return content_types.get(file_type, "application/octet-stream")
 

@@ -51,7 +51,9 @@
       "mcp__supabase__list_migrations",
       "Bash(npm i:*)",
       "Bash(npm uninstall:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(pip index:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": []
   },

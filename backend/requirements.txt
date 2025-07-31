@@ -41,13 +41,17 @@ flake8==6.1.0
 loguru==0.7.2
 
 # Database
-supabase==2.1.0
+supabase==2.17.0
 psycopg2-binary==2.9.9
+websockets>=13.0,<16.0
 
 # Authentication
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
+
+# Document processing
+unstructured[md]==0.11.6
 
 # Meta Marketing API
 facebook-business==18.0.4
