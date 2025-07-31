@@ -33,6 +33,7 @@ import Header from './components/Header';
 import ProjectDetail from './components/ProjectDetail';
 import ProjectKnowledgeBase from './components/ProjectKnowledgeBase';
 import ProjectTasks from './components/ProjectTasks';
+import ProjectGoals from './components/ProjectGoals';
 import SideMenu from './components/SideMenu';
 import { BrandedSupabaseLogin } from './components/auth/BrandedSupabaseLogin';
 import { BrandedSupabaseSignup } from './components/auth/BrandedSupabaseSignup';
@@ -112,8 +113,9 @@ function AppContent() {
             <Route path="/organization-settings/:tab" element={<ProtectedRoute><OrganizationSettings /></ProtectedRoute>} />
             <Route path="/organization-debug" element={<ProtectedRoute><OrganizationDebug /></ProtectedRoute>} />
             <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectDetail /></ProtectedRoute>} />
-            <Route path="/projects/:projectId/knowledgebase" element={<ProtectedRoute><ProjectKnowledgeBase /></ProtectedRoute>} />
+            <Route path="/projects/:projectId/goals" element={<ProtectedRoute><ProjectGoals /></ProtectedRoute>} />
             <Route path="/projects/:projectId/tasks" element={<ProtectedRoute><ProjectTasks /></ProtectedRoute>} />
+            <Route path="/projects/:projectId/knowledgebase" element={<ProtectedRoute><ProjectKnowledgeBase /></ProtectedRoute>} />
             </Routes>
           </main>
           </div>

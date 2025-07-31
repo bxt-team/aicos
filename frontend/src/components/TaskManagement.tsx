@@ -52,6 +52,7 @@ import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import api from '../services/api';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 interface Goal {
   id: string;
@@ -104,10 +105,12 @@ interface TaskHistory {
 interface TaskManagementProps {
   goalId?: string;
   projectId?: string;
+  onGoToGoals?: () => void;
 }
 
-export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectId }) => {
+export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectId, onGoToGoals }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user } = useSupabaseAuth();
   const { currentOrganization } = useOrganization();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -592,11 +595,24 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
       ) : tasks.length === 0 ? (
         <Card>
           <CardContent>
-            <Typography color="textSecondary" align="center">
-              {goals.length === 0
-                ? 'No goals available. Create a goal first to add tasks.'
-                : 'No tasks found. Click "Add Task" to get started.'}
-            </Typography>
+            <Box textAlign="center">
+              <Typography color="textSecondary" gutterBottom>
+                {goals.length === 0
+                  ? 'No goals available. Please go to "Goals" in the side menu to create a goal first, then you can add tasks.'
+                  : 'No tasks found. Click "Add Task" to get started.'}
+              </Typography>
+              {goals.length === 0 && projectId && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => navigate(`/projects/${projectId}/goals`)}
+                  sx={{ mt: 2 }}
+                  startIcon={<FlagIcon />}
+                >
+                  Go to Goals
+                </Button>
+              )}
+            </Box>
           </CardContent>
         </Card>
       ) : viewMode === 'list' ? (

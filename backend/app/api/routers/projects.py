@@ -42,6 +42,7 @@ class ProjectUpdateRequest(BaseModel):
     description: Optional[str] = None
     settings: Optional[dict] = None
     is_active: Optional[bool] = None
+    enhanced_data: Optional[dict] = None  # AI-enhanced project data
 
 class ProjectMemberAddRequest(BaseModel):
     user_id: str
@@ -420,6 +421,8 @@ async def update_project(
             update_data["description"] = request.description
         if request.settings is not None:
             update_data["settings"] = request.settings
+        if request.enhanced_data is not None:
+            update_data["enhanced_data"] = request.enhanced_data
         
         if update_data:
             update_data["updated_at"] = datetime.utcnow().isoformat()

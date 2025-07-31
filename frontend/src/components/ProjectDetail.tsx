@@ -27,7 +27,9 @@ import {
   DialogContent,
   DialogActions,
   Breadcrumbs,
-  Link
+  Link,
+  Card,
+  CardContent
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import {
@@ -39,7 +41,10 @@ import {
   Description as DescriptionIcon,
   Group as GroupIcon,
   ArrowBack as ArrowBackIcon,
-  AutoFixHigh as AutoFixHighIcon
+  AutoFixHigh as AutoFixHighIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  Visibility as VisibilityIcon
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
@@ -86,6 +91,8 @@ const ProjectDetail: React.FC = () => {
   const [project, setProject] = useState<any>(null);
   const [isEditingDetails, setIsEditingDetails] = useState(false);
   const [isRewritingDescription, setIsRewritingDescription] = useState(false);
+  const [enhancedData, setEnhancedData] = useState<any>(null);
+  const [showEnhancedView, setShowEnhancedView] = useState(false);
   
   // Members
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
@@ -116,6 +123,12 @@ const ProjectDetail: React.FC = () => {
     try {
       const response = await apiService.projects.get(projectId);
       setProject(response.data.project);
+      
+      // Check if project has enhanced data stored
+      if (response.data.project.enhanced_data) {
+        setEnhancedData(response.data.project.enhanced_data);
+        setShowEnhancedView(true);
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || t('errors.errorLoading', { resource: t('project.project').toLowerCase() }));
     } finally {
@@ -163,11 +176,18 @@ const ProjectDetail: React.FC = () => {
     setError('');
     
     try {
-      await apiService.projects.update(project.id, {
+      const updateData: any = {
         name: project.name,
         description: project.description,
         settings: project.settings
-      });
+      };
+      
+      // Include enhanced data if available
+      if (enhancedData) {
+        updateData.enhanced_data = enhancedData;
+      }
+      
+      await apiService.projects.update(project.id, updateData);
       
       // Update project in context to refresh sidebar
       await updateProjectInContext(project.id, {
@@ -201,20 +221,17 @@ const ProjectDetail: React.FC = () => {
       });
       
       if (response.data.success && response.data.data) {
-        // Extract the enhanced description from the AI response
-        const enhancedData = response.data.data;
-        let enhancedDescription = project.description || '';
+        // Store the full enhanced data
+        const aiData = response.data.data;
+        setEnhancedData(aiData);
         
-        if (enhancedData.description) {
-          enhancedDescription = enhancedData.description;
-        } else if (enhancedData.enhanced_description) {
-          enhancedDescription = enhancedData.enhanced_description;
-        } else if (typeof enhancedData === 'string') {
-          enhancedDescription = enhancedData;
-        }
-        
+        // Update the description with the detailed_description from AI
+        const enhancedDescription = aiData.detailed_description || aiData.executive_summary || project.description;
         setProject({ ...project, description: enhancedDescription });
-        setSuccess('Description enhanced with AI');
+        
+        // Show the enhanced view
+        setShowEnhancedView(true);
+        setSuccess('Project enhanced with AI-generated objectives, milestones, and KPIs');
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to enhance description with AI');
@@ -392,29 +409,225 @@ const ProjectDetail: React.FC = () => {
                     sx={{ pr: isEditingDetails ? 6 : 0 }}
                   />
                   {isEditingDetails && (
-                    <IconButton
-                      onClick={handleAIRewrite}
-                      disabled={isRewritingDescription}
-                      sx={{
-                        position: 'absolute',
-                        right: 8,
-                        top: 8,
-                        backgroundColor: 'background.paper',
-                        '&:hover': {
-                          backgroundColor: 'action.hover',
-                        },
-                      }}
-                      title={t('project.aiRewrite', 'AI Rewrite')}
-                    >
-                      {isRewritingDescription ? (
-                        <CircularProgress size={20} />
-                      ) : (
-                        <AutoFixHighIcon />
+                    <Box sx={{ position: 'absolute', right: 8, top: 8, display: 'flex', gap: 1 }}>
+                      <IconButton
+                        onClick={handleAIRewrite}
+                        disabled={isRewritingDescription}
+                        sx={{
+                          backgroundColor: 'background.paper',
+                          '&:hover': {
+                            backgroundColor: 'action.hover',
+                          },
+                        }}
+                        title={t('project.aiRewrite', 'AI Rewrite')}
+                      >
+                        {isRewritingDescription ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <AutoFixHighIcon />
+                        )}
+                      </IconButton>
+                      {enhancedData && (
+                        <IconButton
+                          onClick={() => setShowEnhancedView(!showEnhancedView)}
+                          sx={{
+                            backgroundColor: 'background.paper',
+                            '&:hover': {
+                              backgroundColor: 'action.hover',
+                            },
+                          }}
+                          title={showEnhancedView ? 'Hide AI enhancements' : 'Show AI enhancements'}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
                       )}
-                    </IconButton>
+                    </Box>
                   )}
                 </Box>
               </Grid>
+              
+              {/* Display enhanced AI data if available */}
+              {showEnhancedView && enhancedData && (
+                <>
+                  <Grid size={12}>
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        AI-Enhanced Project Plan
+                      </Typography>
+                      <Typography variant="body2">
+                        The AI has generated objectives, key results, milestones, and risk analysis for your project.
+                      </Typography>
+                    </Alert>
+                  </Grid>
+                  
+                  {/* Executive Summary */}
+                  {enhancedData.executive_summary && (
+                    <Grid size={12}>
+                      <Paper elevation={1} sx={{ p: 2, mb: 2, backgroundColor: 'background.default' }}>
+                        <Typography variant="h6" gutterBottom>
+                          Executive Summary
+                        </Typography>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                          {enhancedData.executive_summary}
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                  )}
+                  
+                  {/* Objectives */}
+                  {enhancedData.objectives && enhancedData.objectives.length > 0 && (
+                    <Grid size={12}>
+                      <Paper elevation={1} sx={{ p: 2, mb: 2, backgroundColor: 'background.default' }}>
+                        <Typography variant="h6" gutterBottom>
+                          Project Objectives
+                        </Typography>
+                        <List dense>
+                          {enhancedData.objectives.map((objective: string, index: number) => (
+                            <ListItem key={index}>
+                              <ListItemAvatar>
+                                <Avatar sx={{ width: 24, height: 24, bgcolor: 'primary.main' }}>
+                                  {index + 1}
+                                </Avatar>
+                              </ListItemAvatar>
+                              <ListItemText primary={objective} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Paper>
+                    </Grid>
+                  )}
+                  
+                  {/* Key Results */}
+                  {enhancedData.key_results && enhancedData.key_results.length > 0 && (
+                    <Grid size={12}>
+                      <Paper elevation={1} sx={{ p: 2, mb: 2, backgroundColor: 'background.default' }}>
+                        <Typography variant="h6" gutterBottom>
+                          Key Results (KPIs)
+                        </Typography>
+                        <Grid container spacing={2}>
+                          {enhancedData.key_results.map((kr: any, index: number) => (
+                            <Grid size={{ xs: 12, md: 6 }} key={index}>
+                              <Card variant="outlined">
+                                <CardContent>
+                                  <Typography variant="subtitle2" color="primary" gutterBottom>
+                                    {kr.metric}
+                                  </Typography>
+                                  <Typography variant="body2" paragraph>
+                                    <strong>Target:</strong> {kr.target}
+                                  </Typography>
+                                  <Typography variant="body2" paragraph>
+                                    <strong>Timeframe:</strong> {kr.timeframe}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    <strong>Measurement:</strong> {kr.measurement_method}
+                                  </Typography>
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Paper>
+                    </Grid>
+                  )}
+                  
+                  {/* Milestones */}
+                  {enhancedData.milestones && enhancedData.milestones.length > 0 && (
+                    <Grid size={12}>
+                      <Paper elevation={1} sx={{ p: 2, mb: 2, backgroundColor: 'background.default' }}>
+                        <Typography variant="h6" gutterBottom>
+                          Project Milestones
+                        </Typography>
+                        <Grid container spacing={2}>
+                          {enhancedData.milestones.map((milestone: any, index: number) => (
+                            <Grid size={{ xs: 12, md: 6 }} key={index}>
+                              <Card variant="outlined">
+                                <CardContent>
+                                  <Typography variant="subtitle2" color="primary" gutterBottom>
+                                    {milestone.name}
+                                  </Typography>
+                                  <Typography variant="body2" paragraph>
+                                    {milestone.description}
+                                  </Typography>
+                                  <Typography variant="caption" display="block" gutterBottom>
+                                    <strong>Due:</strong> {milestone.estimated_completion}
+                                  </Typography>
+                                  {milestone.deliverables && milestone.deliverables.length > 0 && (
+                                    <>
+                                      <Typography variant="caption" color="text.secondary">
+                                        <strong>Deliverables:</strong>
+                                      </Typography>
+                                      <List dense sx={{ mt: 0.5 }}>
+                                        {milestone.deliverables.map((deliverable: string, idx: number) => (
+                                          <ListItem key={idx} sx={{ py: 0 }}>
+                                            <ListItemText 
+                                              primary={deliverable} 
+                                              primaryTypographyProps={{ variant: 'caption' }}
+                                            />
+                                          </ListItem>
+                                        ))}
+                                      </List>
+                                    </>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Paper>
+                    </Grid>
+                  )}
+                  
+                  {/* Success Factors */}
+                  {enhancedData.success_factors && enhancedData.success_factors.length > 0 && (
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Paper elevation={1} sx={{ p: 2, mb: 2, backgroundColor: 'background.default' }}>
+                        <Typography variant="h6" gutterBottom>
+                          Success Factors
+                        </Typography>
+                        <List dense>
+                          {enhancedData.success_factors.map((factor: string, index: number) => (
+                            <ListItem key={index}>
+                              <ListItemAvatar>
+                                <Avatar sx={{ width: 24, height: 24, bgcolor: 'success.main' }}>
+                                  <CheckCircleIcon sx={{ fontSize: 16 }} />
+                                </Avatar>
+                              </ListItemAvatar>
+                              <ListItemText primary={factor} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Paper>
+                    </Grid>
+                  )}
+                  
+                  {/* Risks and Mitigations */}
+                  {enhancedData.risks_and_mitigations && Object.keys(enhancedData.risks_and_mitigations).length > 0 && (
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Paper elevation={1} sx={{ p: 2, mb: 2, backgroundColor: 'background.default' }}>
+                        <Typography variant="h6" gutterBottom>
+                          Risks & Mitigations
+                        </Typography>
+                        <List dense>
+                          {Object.entries(enhancedData.risks_and_mitigations).map(([risk, mitigation], index) => (
+                            <ListItem key={index} alignItems="flex-start">
+                              <ListItemAvatar>
+                                <Avatar sx={{ width: 24, height: 24, bgcolor: 'warning.main' }}>
+                                  <WarningIcon sx={{ fontSize: 16 }} />
+                                </Avatar>
+                              </ListItemAvatar>
+                              <ListItemText 
+                                primary={<Typography variant="body2" color="error">{risk}</Typography>}
+                                secondary={<Typography variant="caption">{String(mitigation)}</Typography>}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      </Paper>
+                    </Grid>
+                  )}
+                </>
+              )}
+              
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   fullWidth

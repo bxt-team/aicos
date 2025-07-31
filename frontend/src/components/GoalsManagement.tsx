@@ -20,6 +20,7 @@ import {
   ListItem,
   ListItemText,
   Grid,
+  Checkbox,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -29,6 +30,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
   Assignment as AssignmentIcon,
+  AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -83,6 +85,10 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
   const [goalToDelete, setGoalToDelete] = useState<Goal | null>(null);
   const [filterProject, setFilterProject] = useState<string>(projectId || 'all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
+  const [suggestedGoals, setSuggestedGoals] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (currentOrganization || projectId) {
@@ -250,6 +256,95 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
     }
   };
 
+  const handleSuggestGoals = async () => {
+    if (!projectId) {
+      setError('Please select a project first');
+      return;
+    }
+
+    setLoadingSuggestions(true);
+    setSuggestDialogOpen(true);
+    setError(null);
+
+    try {
+      const response = await api.post('/api/goals/suggest', {
+        project_id: projectId,
+        include_knowledge_base: true,
+      });
+
+      setSuggestedGoals(response.data.goals || []);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to generate goal suggestions');
+      setSuggestDialogOpen(false);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleToggleSuggestion = (index: number) => {
+    const newSelection = new Set(selectedSuggestions);
+    if (newSelection.has(index)) {
+      newSelection.delete(index);
+    } else {
+      newSelection.add(index);
+    }
+    setSelectedSuggestions(newSelection);
+  };
+
+  const handleApplySuggestions = async () => {
+    const goalsToCreate = Array.from(selectedSuggestions).map(index => suggestedGoals[index]);
+    
+    for (const goal of goalsToCreate) {
+      try {
+        await api.post('/api/goals', {
+          project_id: projectId,
+          title: goal.title,
+          description: `${goal.description}\n\nSuccess Criteria:\n${goal.success_criteria.map((c: string, i: number) => `${i + 1}. ${c}`).join('\n')}\n\nKey Milestones:\n${goal.key_milestones.map((m: string, i: number) => `${i + 1}. ${m}`).join('\n')}`,
+          // Parse target date suggestion (e.g., "3 months" -> actual date)
+          target_date: goal.target_date_suggestion ? calculateTargetDate(goal.target_date_suggestion) : null,
+        });
+      } catch (err: any) {
+        setError(`Failed to create goal "${goal.title}": ${err.response?.data?.detail || err.message}`);
+      }
+    }
+
+    setSuggestDialogOpen(false);
+    setSuggestedGoals([]);
+    setSelectedSuggestions(new Set());
+    fetchGoals();
+  };
+
+  const calculateTargetDate = (suggestion: string): string | null => {
+    const now = new Date();
+    const match = suggestion.match(/(\d+)\s*(week|month|day|year)/i);
+    
+    if (!match) return null;
+    
+    const [, amount, unit] = match;
+    const num = parseInt(amount);
+    
+    switch (unit.toLowerCase()) {
+      case 'day':
+      case 'days':
+        now.setDate(now.getDate() + num);
+        break;
+      case 'week':
+      case 'weeks':
+        now.setDate(now.getDate() + (num * 7));
+        break;
+      case 'month':
+      case 'months':
+        now.setMonth(now.getMonth() + num);
+        break;
+      case 'year':
+      case 'years':
+        now.setFullYear(now.getFullYear() + num);
+        break;
+    }
+    
+    return now.toISOString().split('T')[0];
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -281,14 +376,26 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
           <FlagIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
           Goals & Key Results
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-          disabled={projectId ? false : projects.length === 0}
-        >
-          Add Goal
-        </Button>
+        <Box display="flex" gap={1}>
+          {projectId && (
+            <Button
+              variant="outlined"
+              startIcon={<AutoAwesomeIcon />}
+              onClick={handleSuggestGoals}
+              color="primary"
+            >
+              AI Suggest
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+            disabled={!projectId && projects.length === 0}
+          >
+            Add Goal
+          </Button>
+        </Box>
       </Box>
 
       {/* Filters */}
@@ -349,9 +456,11 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
         <Card>
           <CardContent>
             <Typography color="textSecondary" align="center">
-              {projects.length === 0
-                ? 'No projects available. Create a project first to add goals.'
-                : 'No goals created yet. Click "Add Goal" to get started.'}
+              {projectId 
+                ? 'No goals created yet. Click "Add Goal" to get started.'
+                : projects.length === 0
+                  ? 'No projects available. Create a project first to add goals.'
+                  : 'No goals created yet. Click "Add Goal" to get started.'}
             </Typography>
           </CardContent>
         </Card>
@@ -558,6 +667,99 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
           <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* AI Suggestions Dialog */}
+      <Dialog 
+        open={suggestDialogOpen} 
+        onClose={() => !loadingSuggestions && setSuggestDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <AutoAwesomeIcon color="primary" />
+            AI Goal Suggestions
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {loadingSuggestions ? (
+            <Box py={4} textAlign="center">
+              <Typography variant="body1" gutterBottom>
+                Analyzing project context and generating goal suggestions...
+              </Typography>
+              <Box display="flex" justifyContent="center" mt={2}>
+                <Skeleton variant="rectangular" width="100%" height={100} />
+              </Box>
+              <Box display="flex" justifyContent="center" mt={2}>
+                <Skeleton variant="rectangular" width="100%" height={100} />
+              </Box>
+              <Box display="flex" justifyContent="center" mt={2}>
+                <Skeleton variant="rectangular" width="100%" height={100} />
+              </Box>
+            </Box>
+          ) : suggestedGoals.length > 0 ? (
+            <>
+              <Typography variant="body2" color="textSecondary" gutterBottom>
+                Select the goals you'd like to add to your project:
+              </Typography>
+              <List>
+                {suggestedGoals.map((goal, index) => (
+                  <Card key={index} sx={{ mb: 2 }}>
+                    <CardContent>
+                      <Box display="flex" alignItems="flex-start">
+                        <Checkbox
+                          checked={selectedSuggestions.has(index)}
+                          onChange={() => handleToggleSuggestion(index)}
+                          sx={{ mt: -1 }}
+                        />
+                        <Box flex={1}>
+                          <Typography variant="h6" gutterBottom>
+                            {goal.title}
+                          </Typography>
+                          <Typography variant="body2" paragraph>
+                            {goal.description}
+                          </Typography>
+                          <Box display="flex" gap={1} mb={1}>
+                            <Chip 
+                              label={goal.priority} 
+                              size="small" 
+                              color={goal.priority === 'urgent' ? 'error' : goal.priority === 'high' ? 'warning' : 'default'}
+                            />
+                            <Chip 
+                              label={`Target: ${goal.target_date_suggestion}`} 
+                              size="small" 
+                              variant="outlined"
+                            />
+                          </Box>
+                          <Typography variant="caption" color="textSecondary">
+                            <strong>Rationale:</strong> {goal.rationale}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                ))}
+              </List>
+            </>
+          ) : (
+            <Alert severity="info">
+              No suggestions generated. Please try again.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSuggestDialogOpen(false)} disabled={loadingSuggestions}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleApplySuggestions} 
+            variant="contained" 
+            disabled={loadingSuggestions || selectedSuggestions.size === 0}
+          >
+            Add Selected Goals ({selectedSuggestions.size})
           </Button>
         </DialogActions>
       </Dialog>

@@ -7,6 +7,8 @@ from datetime import datetime, date
 from supabase import create_client, Client
 import os
 from ...core.supabase_auth import get_current_user
+from ...core.dependencies import get_goal_suggestion_crew, get_supabase_client
+from ...agents.crews.goal_suggestion_crew import GoalSuggestionInput, GoalSuggestionOutput
 
 router = APIRouter(prefix="/api/goals", tags=["goals"])
 
@@ -440,4 +442,101 @@ async def delete_goal(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete goal: {str(e)}"
+        )
+
+
+class GoalSuggestionRequest(BaseModel):
+    project_id: UUID
+    include_knowledge_base: bool = True
+    user_feedback: Optional[str] = None
+    previous_goals: Optional[List[Dict[str, Any]]] = None
+
+
+@router.post("/suggest", response_model=GoalSuggestionOutput)
+async def suggest_goals(
+    request: GoalSuggestionRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    goal_crew = Depends(get_goal_suggestion_crew)
+):
+    """Generate AI-powered goal suggestions based on project context."""
+    supabase = get_supabase()
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get('email')
+    user_id = str(current_user['user_id'])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table('users').select('id').eq('email', auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]['id']
+    
+    # Verify user has access to the project
+    if not await verify_project_access(str(request.project_id), user_id, supabase):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this project"
+        )
+    
+    try:
+        # Get project details
+        project_response = supabase.table('projects').select(
+            '*, organizations!inner(name, description)'
+        ).eq('id', str(request.project_id)).single().execute()
+        
+        if not project_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        
+        project = project_response.data
+        organization = project.get('organizations', {})
+        
+        # Prepare knowledge base content if requested
+        knowledge_content = ""
+        if request.include_knowledge_base:
+            try:
+                # Get knowledge base files for the project
+                kb_response = supabase.table('knowledge_bases').select(
+                    'id, file_name, content'
+                ).eq('project_id', str(request.project_id)).execute()
+                
+                if kb_response.data:
+                    # Combine content from all knowledge base files
+                    knowledge_content = "\n\n".join([
+                        f"--- {kb['file_name']} ---\n{kb.get('content', '')[:3000]}"
+                        for kb in kb_response.data
+                    ])
+            except Exception as e:
+                # Continue without knowledge base if there's an error
+                pass
+        
+        # Extract objectives from enhanced_data if available
+        project_objectives = []
+        if project.get('enhanced_data'):
+            enhanced_data = project.get('enhanced_data', {})
+            project_objectives = enhanced_data.get('objectives', [])
+        
+        # Prepare input for the crew
+        crew_input = GoalSuggestionInput(
+            project_description=project.get('description', ''),
+            project_objectives=project_objectives,
+            organization_purpose=organization.get('description', ''),  # Use description instead of purpose
+            knowledge_files_content=knowledge_content if knowledge_content else None,
+            user_feedback=request.user_feedback,
+            previous_goals=request.previous_goals
+        )
+        
+        # Generate suggestions
+        result = goal_crew.suggest_goals(crew_input)
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate goal suggestions: {str(e)}"
         )

@@ -146,7 +146,8 @@
     "newProject": "Neues Projekt",
     "goalsAndDescriptionOptional": "Ziele & Beschreibung (optional)",
     "enhanceWithAI": "Mit KI verbessern",
-    "aiEnhancementComingSoon": "KI-Projektbeschreibungsverbesserung kommt bald!"
+    "aiEnhancementComingSoon": "KI-Projektbeschreibungsverbesserung kommt bald!",
+    "aiRewrite": "KI-Überarbeitung"
   },
   "department": {
     "department": "Abteilung",

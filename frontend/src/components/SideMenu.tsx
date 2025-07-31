@@ -150,12 +150,12 @@ const SideMenu: React.FC = () => {
                           </li>
                           <li>
                             <Link
-                              to={`/projects/${project.id}/knowledgebase`}
-                              className={`nav-item sub-item ${location.pathname === `/projects/${project.id}/knowledgebase` ? 'active' : ''}`}
-                              title="Knowledgebase"
+                              to={`/projects/${project.id}/goals`}
+                              className={`nav-item sub-item ${location.pathname === `/projects/${project.id}/goals` ? 'active' : ''}`}
+                              title="Goals"
                             >
-                              <span className="nav-icon">📚</span>
-                              <span className="nav-text">Knowledgebase</span>
+                              <span className="nav-icon">🎯</span>
+                              <span className="nav-text">Goals</span>
                             </Link>
                           </li>
                           <li>
@@ -166,6 +166,16 @@ const SideMenu: React.FC = () => {
                             >
                               <span className="nav-icon">✅</span>
                               <span className="nav-text">Tasks</span>
+                            </Link>
+                          </li>
+                          <li>
+                            <Link
+                              to={`/projects/${project.id}/knowledgebase`}
+                              className={`nav-item sub-item ${location.pathname === `/projects/${project.id}/knowledgebase` ? 'active' : ''}`}
+                              title="Knowledgebase"
+                            >
+                              <span className="nav-icon">📚</span>
+                              <span className="nav-text">Knowledgebase</span>
                             </Link>
                           </li>
                         </ul>

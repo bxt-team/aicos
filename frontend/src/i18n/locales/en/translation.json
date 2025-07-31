@@ -146,7 +146,8 @@
     "newProject": "New Project",
     "goalsAndDescriptionOptional": "Goals & Description (optional)",
     "enhanceWithAI": "Enhance with AI",
-    "aiEnhancementComingSoon": "AI project description enhancement coming soon!"
+    "aiEnhancementComingSoon": "AI project description enhancement coming soon!",
+    "aiRewrite": "AI Rewrite"
   },
   "department": {
     "department": "Department",

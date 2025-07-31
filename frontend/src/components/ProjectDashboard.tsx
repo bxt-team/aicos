@@ -416,7 +416,10 @@ export const ProjectDashboard: React.FC = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          <TaskManagement projectId={projectId} />
+          <TaskManagement 
+            projectId={projectId} 
+            onGoToGoals={() => setTabValue(1)} 
+          />
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
