@@ -27,7 +27,14 @@ import {
   Paper,
   Tooltip,
   Badge,
-  Grid,
+  CircularProgress,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  FormLabel,
+  Checkbox,
+  Rating,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -44,6 +51,8 @@ import {
   ViewList as ViewListIcon,
   ViewModule as ViewModuleIcon,
   History as HistoryIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  Feedback as FeedbackIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -139,6 +148,19 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
   const [historyDialog, setHistoryDialog] = useState(false);
   const [selectedTaskHistory, setSelectedTaskHistory] = useState<TaskHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [promptTemplateOpen, setPromptTemplateOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(0);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
+  const [suggestedTasks, setSuggestedTasks] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [taskRatings, setTaskRatings] = useState<{ [key: number]: number }>({});
+  const [taskFeedback, setTaskFeedback] = useState<{ [key: number]: string }>({});
+  const [feedbackSummary, setFeedbackSummary] = useState<any>(null);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [selectedGoalForAI, setSelectedGoalForAI] = useState<string>('');
 
   useEffect(() => {
     fetchTasks();
@@ -362,6 +384,170 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
     }
   };
 
+  const promptTemplates = [
+    {
+      name: 'Goal Achievement Tasks',
+      description: 'Break down a goal into specific, actionable tasks with clear deliverables',
+      prompt: 'Generate tasks that systematically work towards achieving the goal. Focus on concrete deliverables, clear action items, and logical progression. Include tasks for planning, execution, validation, and documentation.',
+    },
+    {
+      name: 'Quick Wins & Milestones',
+      description: 'Create tasks that deliver quick wins and measurable milestones',
+      prompt: 'Generate tasks that provide quick wins and early momentum. Include milestone tasks that show clear progress, build confidence, and validate the approach. Balance quick wins with foundational work.',
+    },
+    {
+      name: 'Risk Mitigation & Dependencies',
+      description: 'Generate tasks that address risks, dependencies, and potential blockers',
+      prompt: 'Generate tasks that identify and mitigate risks, manage dependencies, and prevent blockers. Include tasks for research, validation, contingency planning, and coordination with stakeholders.',
+    },
+  ];
+
+  const handleOpenPromptDialog = () => {
+    const currentGoalId = goalId || filterGoal;
+    if (!currentGoalId || currentGoalId === 'all') {
+      setError('Please select a specific goal first');
+      return;
+    }
+    setSelectedGoalForAI(currentGoalId);
+    setCustomPrompt(promptTemplates[selectedTemplate].prompt);
+    setPromptTemplateOpen(true);
+  };
+
+  const handleSuggestTasks = async () => {
+    if (!selectedGoalForAI) {
+      setError('Please select a goal first');
+      return;
+    }
+
+    setPromptTemplateOpen(false);
+    setLoadingSuggestions(true);
+    setSuggestDialogOpen(true);
+    setError(null);
+    setShowFeedbackForm(false);
+    setTaskRatings({});
+    setTaskFeedback({});
+
+    try {
+      // First fetch feedback summary
+      try {
+        const summaryResponse = await api.get(`/api/tasks/feedback/summary?goal_id=${selectedGoalForAI}`);
+        setFeedbackSummary(summaryResponse.data);
+      } catch (err) {
+        // Continue without feedback summary
+      }
+
+      const response = await api.post('/api/tasks/suggest', {
+        goal_id: selectedGoalForAI,
+        custom_prompt: customPrompt,
+        session_id: sessionId,
+      });
+
+      setSuggestedTasks(response.data.tasks || []);
+      setSessionId(response.data.session_id || null);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to generate task suggestions');
+      setSuggestDialogOpen(false);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleToggleSuggestion = (index: number) => {
+    const newSelection = new Set(selectedSuggestions);
+    if (newSelection.has(index)) {
+      newSelection.delete(index);
+    } else {
+      newSelection.add(index);
+    }
+    setSelectedSuggestions(newSelection);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!sessionId || !selectedGoalForAI) return;
+
+    try {
+      const feedbackData = suggestedTasks.map((task, index) => ({
+        task_index: index,
+        feedback_type: selectedSuggestions.has(index) ? 'accepted' : 'rejected',
+        rating: taskRatings[index] || undefined,
+        feedback_text: taskFeedback[index] || undefined,
+      }));
+
+      await api.post('/api/tasks/suggest/feedback', {
+        goal_id: selectedGoalForAI,
+        session_id: sessionId,
+        suggested_tasks: suggestedTasks,
+        feedback: feedbackData,
+      });
+
+      setShowFeedbackForm(false);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to submit feedback');
+    }
+  };
+
+  const handleApplySuggestions = async () => {
+    const tasksToCreate = Array.from(selectedSuggestions).map(index => suggestedTasks[index]);
+    
+    // Submit feedback before creating tasks
+    if (showFeedbackForm) {
+      await handleSubmitFeedback();
+    }
+    
+    for (const task of tasksToCreate) {
+      try {
+        await api.post('/api/tasks', {
+          goal_id: selectedGoalForAI,
+          title: task.title,
+          description: task.description,
+          priority: task.priority,
+          assigned_to_type: task.suggested_assignee_type || undefined,
+          assigned_to_id: task.suggested_assignee_id || undefined,
+          due_date: task.estimated_duration ? calculateDueDate(task.estimated_duration) : undefined,
+        });
+      } catch (err: any) {
+        setError(`Failed to create task "${task.title}": ${err.response?.data?.detail || err.message}`);
+      }
+    }
+
+    setSuggestDialogOpen(false);
+    setSuggestedTasks([]);
+    setSelectedSuggestions(new Set());
+    setSessionId(null);
+    fetchTasks();
+  };
+
+  const calculateDueDate = (duration: string): string | null => {
+    const now = new Date();
+    const match = duration.match(/(\d+)\s*(hour|day|week|month)/i);
+    
+    if (!match) return null;
+    
+    const [, amount, unit] = match;
+    const num = parseInt(amount);
+    
+    switch (unit.toLowerCase()) {
+      case 'hour':
+      case 'hours':
+        now.setHours(now.getHours() + num);
+        break;
+      case 'day':
+      case 'days':
+        now.setDate(now.getDate() + num);
+        break;
+      case 'week':
+      case 'weeks':
+        now.setDate(now.getDate() + (num * 7));
+        break;
+      case 'month':
+      case 'months':
+        now.setMonth(now.getMonth() + num);
+        break;
+    }
+    
+    return now.toISOString().split('T')[0];
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'urgent':
@@ -523,6 +709,16 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
               <ViewModuleIcon />
             </ToggleButton>
           </ToggleButtonGroup>
+          {(goalId || filterGoal !== 'all') && (
+            <Button
+              variant="outlined"
+              startIcon={<AutoAwesomeIcon />}
+              onClick={handleOpenPromptDialog}
+              color="primary"
+            >
+              AI Suggest
+            </Button>
+          )}
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -585,13 +781,11 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
       )}
 
       {loading ? (
-        <Grid container spacing={2}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {[1, 2, 3].map((i) => (
-            <Grid size={{ xs: 12 }} key={i}>
-              <Skeleton variant="rectangular" height={150} />
-            </Grid>
+            <Skeleton key={i} variant="rectangular" height={150} />
           ))}
-        </Grid>
+        </Box>
       ) : tasks.length === 0 ? (
         <Card>
           <CardContent>
@@ -620,20 +814,24 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
           {tasks.map((task) => renderTaskCard(task))}
         </Box>
       ) : (
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 3 }}>
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(4, 1fr)' },
+          gap: 2 
+        }}>
+          <Box>
             {renderKanbanColumn('pending', tasks.filter(t => t.status === 'pending'))}
-          </Grid>
-          <Grid size={{ xs: 12, md: 3 }}>
+          </Box>
+          <Box>
             {renderKanbanColumn('in_progress', tasks.filter(t => t.status === 'in_progress'))}
-          </Grid>
-          <Grid size={{ xs: 12, md: 3 }}>
+          </Box>
+          <Box>
             {renderKanbanColumn('completed', tasks.filter(t => t.status === 'completed'))}
-          </Grid>
-          <Grid size={{ xs: 12, md: 3 }}>
+          </Box>
+          <Box>
             {renderKanbanColumn('cancelled', tasks.filter(t => t.status === 'cancelled'))}
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       )}
 
       {/* Create/Edit Dialog */}
@@ -831,6 +1029,345 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
           <Button onClick={() => setDeleteConfirmOpen(false)}>{t('common.cancel')}</Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Prompt Template Dialog */}
+      <Dialog
+        open={promptTemplateOpen}
+        onClose={() => setPromptTemplateOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <AutoAwesomeIcon color="primary" />
+            Choose AI Task Generation Template
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <FormControl component="fieldset" sx={{ width: '100%' }}>
+            <FormLabel component="legend" sx={{ mb: 2 }}>
+              Select a template or customize the prompt for generating tasks:
+            </FormLabel>
+            <RadioGroup
+              value={selectedTemplate}
+              onChange={(e) => {
+                const newTemplate = parseInt(e.target.value);
+                setSelectedTemplate(newTemplate);
+                setCustomPrompt(promptTemplates[newTemplate].prompt);
+              }}
+            >
+              {promptTemplates.map((template, index) => (
+                <Paper key={index} sx={{ p: 2, mb: 2, border: selectedTemplate === index ? 2 : 1, borderColor: selectedTemplate === index ? 'primary.main' : 'divider' }}>
+                  <FormControlLabel
+                    value={index}
+                    control={<Radio />}
+                    label={
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {template.name}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          {template.description}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Paper>
+              ))}
+            </RadioGroup>
+          </FormControl>
+          
+          <Box mt={3}>
+            <Typography variant="subtitle1" gutterBottom>
+              Customize the prompt:
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Enter your custom prompt for task generation..."
+              helperText="You can modify the prompt to better suit your specific needs and context"
+              sx={{ mt: 1 }}
+            />
+          </Box>
+          
+          <Alert severity="info" sx={{ mt: 2 }}>
+            The AI will analyze the selected goal and generate specific tasks based on your prompt.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPromptTemplateOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSuggestTasks}
+            variant="contained"
+            startIcon={<AutoAwesomeIcon />}
+            disabled={!customPrompt.trim()}
+          >
+            Generate Tasks
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* AI Suggestions Dialog */}
+      <Dialog 
+        open={suggestDialogOpen} 
+        onClose={() => !loadingSuggestions && setSuggestDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <AutoAwesomeIcon color="primary" />
+            AI Task Suggestions
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {loadingSuggestions ? (
+            <Box py={4} textAlign="center">
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 3,
+                }}
+              >
+                {/* Animated brain/thinking icon */}
+                <Box
+                  sx={{
+                    position: 'relative',
+                    width: 80,
+                    height: 80,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AutoAwesomeIcon
+                    sx={{
+                      fontSize: 40,
+                      color: 'primary.main',
+                      animation: 'pulse 2s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%': {
+                          opacity: 0.4,
+                          transform: 'scale(1)',
+                        },
+                        '50%': {
+                          opacity: 1,
+                          transform: 'scale(1.1)',
+                        },
+                        '100%': {
+                          opacity: 0.4,
+                          transform: 'scale(1)',
+                        },
+                      },
+                    }}
+                  />
+                  <CircularProgress
+                    size={80}
+                    thickness={2}
+                    sx={{
+                      position: 'absolute',
+                      color: 'primary.light',
+                    }}
+                  />
+                </Box>
+                
+                <Box textAlign="center">
+                  <Typography variant="h6" gutterBottom>
+                    AI is thinking...
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                    Analyzing the goal and generating specific tasks
+                  </Typography>
+                  
+                  {/* Animated thinking dots */}
+                  <Typography
+                    variant="body2"
+                    color="primary"
+                    sx={{
+                      '& .dot': {
+                        display: 'inline-block',
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: 'primary.main',
+                        margin: '0 4px',
+                        animation: 'thinking 1.4s infinite ease-in-out',
+                      },
+                      '& .dot:nth-of-type(1)': {
+                        animationDelay: '-0.32s',
+                      },
+                      '& .dot:nth-of-type(2)': {
+                        animationDelay: '-0.16s',
+                      },
+                      '@keyframes thinking': {
+                        '0%, 80%, 100%': {
+                          transform: 'scale(0.8)',
+                          opacity: 0.5,
+                        },
+                        '40%': {
+                          transform: 'scale(1)',
+                          opacity: 1,
+                        },
+                      },
+                    }}
+                  >
+                    <span className="dot" />
+                    <span className="dot" />
+                    <span className="dot" />
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          ) : suggestedTasks.length > 0 ? (
+            <>
+              <Typography variant="body2" color="textSecondary" gutterBottom>
+                Select the tasks you'd like to add:
+              </Typography>
+              
+              {/* Feedback Summary */}
+              {feedbackSummary && feedbackSummary.total_feedback > 0 && (
+                <Paper sx={{ p: 2, mb: 2, bgcolor: 'background.default' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    <FeedbackIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+                    Previous Feedback Summary
+                  </Typography>
+                  <Box display="flex" gap={2} alignItems="center">
+                    <Rating value={feedbackSummary.average_rating} readOnly size="small" />
+                    <Typography variant="body2" color="textSecondary">
+                      {feedbackSummary.average_rating.toFixed(1)}/5 ({feedbackSummary.total_feedback} reviews)
+                    </Typography>
+                  </Box>
+                </Paper>
+              )}
+              
+              <List>
+                {suggestedTasks.map((task, index) => (
+                  <Card key={index} sx={{ mb: 2 }}>
+                    <CardContent>
+                      <Box display="flex" alignItems="flex-start">
+                        <Checkbox
+                          checked={selectedSuggestions.has(index)}
+                          onChange={() => handleToggleSuggestion(index)}
+                          sx={{ mt: -1 }}
+                        />
+                        <Box flex={1}>
+                          <Typography variant="h6" gutterBottom>
+                            {task.title}
+                          </Typography>
+                          <Typography variant="body2" paragraph>
+                            {task.description}
+                          </Typography>
+                          <Box display="flex" gap={1} mb={1} flexWrap="wrap">
+                            <Chip 
+                              label={task.priority} 
+                              size="small" 
+                              color={getPriorityColor(task.priority)}
+                            />
+                            {task.estimated_duration && (
+                              <Chip 
+                                label={`Duration: ${task.estimated_duration}`} 
+                                size="small" 
+                                variant="outlined"
+                              />
+                            )}
+                            {task.suggested_assignee_type && (
+                              <Chip 
+                                label={`Assign to: ${task.suggested_assignee_type}`} 
+                                size="small" 
+                                variant="outlined"
+                              />
+                            )}
+                          </Box>
+                          <Typography variant="caption" color="textSecondary">
+                            <strong>Rationale:</strong> {task.rationale}
+                          </Typography>
+                          
+                          {/* Feedback Form */}
+                          {showFeedbackForm && (
+                            <Box mt={2} p={2} bgcolor="background.default" borderRadius={1}>
+                              <Typography variant="subtitle2" gutterBottom>
+                                Rate this suggestion:
+                              </Typography>
+                              <Rating
+                                value={taskRatings[index] || 0}
+                                onChange={(event, newValue) => {
+                                  setTaskRatings({ ...taskRatings, [index]: newValue || 0 });
+                                }}
+                                size="small"
+                              />
+                              <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="Optional feedback..."
+                                value={taskFeedback[index] || ''}
+                                onChange={(e) => {
+                                  setTaskFeedback({ ...taskFeedback, [index]: e.target.value });
+                                }}
+                                sx={{ mt: 1 }}
+                                multiline
+                                rows={2}
+                              />
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                ))}
+              </List>
+              
+              {/* Show/Hide Feedback Toggle */}
+              {!showFeedbackForm && (
+                <Box textAlign="center" mt={2}>
+                  <Button
+                    startIcon={<FeedbackIcon />}
+                    onClick={() => setShowFeedbackForm(true)}
+                    size="small"
+                  >
+                    Provide Feedback
+                  </Button>
+                </Box>
+              )}
+            </>
+          ) : (
+            <Alert severity="info">
+              No suggestions generated. Please try again.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setSuggestDialogOpen(false);
+            setSessionId(null);
+            setShowFeedbackForm(false);
+          }} disabled={loadingSuggestions}>
+            Cancel
+          </Button>
+          {showFeedbackForm && (
+            <Button 
+              onClick={handleSubmitFeedback}
+              disabled={loadingSuggestions}
+              startIcon={<FeedbackIcon />}
+            >
+              Submit Feedback Only
+            </Button>
+          )}
+          <Button 
+            onClick={handleApplySuggestions} 
+            variant="contained" 
+            disabled={loadingSuggestions || selectedSuggestions.size === 0}
+          >
+            Add Selected Tasks ({selectedSuggestions.size})
           </Button>
         </DialogActions>
       </Dialog>

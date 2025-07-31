@@ -1,12 +1,15 @@
 from typing import List, Optional, Dict, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from datetime import datetime, date
+import json
 
 from supabase import create_client, Client
 import os
 from ...core.supabase_auth import get_current_user
+from ...core.dependencies import get_task_suggestion_crew
+from ...agents.crews.task_suggestion_crew import TaskSuggestionInput, TaskSuggestionOutput
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -675,3 +678,231 @@ async def delete_task(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete task: {str(e)}"
         )
+
+class TaskSuggestionRequest(BaseModel):
+    goal_id: UUID
+    custom_prompt: Optional[str] = None
+    session_id: Optional[UUID] = None
+
+
+class TaskSuggestionFeedback(BaseModel):
+    goal_id: UUID
+    session_id: UUID
+    suggested_tasks: List[Dict[str, Any]]
+    feedback: List[Dict[str, Any]]
+
+
+@router.post("/suggest", response_model=TaskSuggestionOutput)
+async def suggest_tasks(
+    request: TaskSuggestionRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    task_crew = Depends(get_task_suggestion_crew)
+):
+    """Generate AI-powered task suggestions based on a goal."""
+    supabase = get_supabase()
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get("email")
+    user_id = str(current_user["user_id"])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]["id"]
+    
+    # Verify user has access to the goal
+    if not await verify_goal_access(str(request.goal_id), user_id, supabase):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this goal"
+        )
+    
+    try:
+        # Get goal details
+        goal_response = supabase.table("goals").select(
+            "*, projects\!inner(id, name, description)"
+        ).eq("id", str(request.goal_id)).single().execute()
+        
+        if not goal_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Goal not found"
+            )
+        
+        goal = goal_response.data
+        project = goal.get("projects", {})
+        
+        # Get existing tasks for context
+        existing_tasks_response = supabase.table("tasks").select(
+            "title, description, status, priority"
+        ).eq("goal_id", str(request.goal_id)).execute()
+        
+        existing_tasks = existing_tasks_response.data if existing_tasks_response.data else []
+        
+        # Get historical feedback for the crew
+        historical_feedback = None
+        try:
+            feedback_data = supabase.table("task_suggestion_feedback").select(
+                "rating, feedback_type, feedback_text"
+            ).eq("goal_id", str(request.goal_id)).order(
+                "created_at", desc=True
+            ).limit(20).execute()
+            
+            if feedback_data.data:
+                ratings = [f["rating"] for f in feedback_data.data if f.get("rating")]
+                historical_feedback = {
+                    "average_rating": sum(ratings) / len(ratings) if ratings else 0,
+                    "total_feedback": len(feedback_data.data),
+                    "recent_feedback": feedback_data.data[:5]
+                }
+        except:
+            pass
+        
+        # Prepare input for the crew
+        crew_input = TaskSuggestionInput(
+            goal_title=goal.get("title", ""),
+            goal_description=goal.get("description", ""),
+            goal_target_date=goal.get("target_date"),
+            project_description=project.get("description", ""),
+            existing_tasks=existing_tasks,
+            custom_prompt=request.custom_prompt,
+            historical_feedback=historical_feedback
+        )
+        
+        # Generate suggestions
+        result = task_crew.suggest_tasks(crew_input)
+        
+        # Generate session ID if not provided
+        session_id = request.session_id or uuid4()
+        
+        # Add session_id to the response
+        result_dict = result.dict() if hasattr(result, "dict") else result
+        result_dict["session_id"] = str(session_id)
+        
+        return result_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate task suggestions: {str(e)}"
+        )
+
+
+@router.post("/suggest/feedback", status_code=status.HTTP_201_CREATED)
+async def submit_task_suggestion_feedback(
+    feedback: TaskSuggestionFeedback,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Submit feedback on AI-generated task suggestions."""
+    supabase = get_supabase()
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get("email")
+    user_id = str(current_user["user_id"])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]["id"]
+    
+    # Verify user has access to the goal
+    if not await verify_goal_access(str(feedback.goal_id), user_id, supabase):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this goal"
+        )
+    
+    try:
+        # Process each feedback item
+        feedback_records = []
+        for fb_item in feedback.feedback:
+            task_index = fb_item.get("task_index", 0)
+            
+            # Validate task index
+            if task_index >= len(feedback.suggested_tasks):
+                continue
+            
+            suggested_task = feedback.suggested_tasks[task_index]
+            
+            feedback_record = {
+                "goal_id": str(feedback.goal_id),
+                "user_id": user_id,
+                "suggestion_session_id": str(feedback.session_id),
+                "suggested_task": json.dumps(suggested_task),
+                "feedback_type": fb_item.get("feedback_type", "neutral"),
+                "rating": fb_item.get("rating"),
+                "feedback_text": fb_item.get("feedback_text"),
+                "created_at": datetime.utcnow().isoformat()
+            }
+            
+            feedback_records.append(feedback_record)
+        
+        # Insert feedback records
+        if feedback_records:
+            supabase.table("task_suggestion_feedback").insert(feedback_records).execute()
+        
+        return {"message": "Feedback submitted successfully", "count": len(feedback_records)}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to submit feedback: {str(e)}"
+        )
+
+
+@router.get("/feedback/summary")
+async def get_task_feedback_summary(
+    goal_id: UUID,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get summary of feedback for task suggestions for a goal."""
+    supabase = get_supabase()
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get("email")
+    user_id = str(current_user["user_id"])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table("users").select("id").eq("email", auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]["id"]
+    
+    # Verify user has access to the goal
+    if not await verify_goal_access(str(goal_id), user_id, supabase):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this goal"
+        )
+    
+    try:
+        feedback_data = supabase.table("task_suggestion_feedback").select(
+            "rating, feedback_type"
+        ).eq("goal_id", str(goal_id)).execute()
+        
+        if not feedback_data.data:
+            return {"total_feedback": 0, "average_rating": 0, "feedback_types": {}}
+        
+        ratings = [f["rating"] for f in feedback_data.data if f.get("rating")]
+        feedback_types = {}
+        
+        for f in feedback_data.data:
+            ft = f.get("feedback_type", "neutral")
+            feedback_types[ft] = feedback_types.get(ft, 0) + 1
+        
+        return {
+            "total_feedback": len(feedback_data.data),
+            "average_rating": sum(ratings) / len(ratings) if ratings else 0,
+            "feedback_types": feedback_types
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get feedback summary: {str(e)}"
+        )
+
