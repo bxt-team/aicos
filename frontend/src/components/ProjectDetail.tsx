@@ -40,7 +40,6 @@ import {
   Delete as DeleteIcon,
   Description as DescriptionIcon,
   Group as GroupIcon,
-  ArrowBack as ArrowBackIcon,
   AutoFixHigh as AutoFixHighIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
@@ -348,9 +347,6 @@ const ProjectDetail: React.FC = () => {
       <Paper elevation={3}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', px: 2, pt: 2 }}>
-            <IconButton onClick={() => navigate('/organization-settings/projects')} sx={{ mr: 2 }}>
-              <ArrowBackIcon />
-            </IconButton>
             <Typography variant="h5" sx={{ flexGrow: 1 }}>
               {project.name}
             </Typography>

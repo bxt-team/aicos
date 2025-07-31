@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -29,17 +29,88 @@ import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useProject } from '../contexts/ProjectContext';
+import { GettingStartedGuide } from './GettingStartedGuide';
+import api from '../services/api';
 
 const MainDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSupabaseAuth();
   const { currentOrganization, organizations } = useOrganization();
   const { currentProject, projects } = useProject();
+  const [showGettingStarted, setShowGettingStarted] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
 
   // Quick stats
   const stats = {
     organizations: organizations.length,
     projects: projects.length,
+  };
+
+  // Check if user is new (show getting started guide)
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      try {
+        // Check if user has completed onboarding
+        const onboardingCompleted = localStorage.getItem('onboarding_completed');
+        const hasProjects = projects.length > 0;
+        
+        // Show guide if: no onboarding completion flag OR no projects
+        if (!onboardingCompleted || !hasProjects) {
+          setShowGettingStarted(true);
+        }
+
+        // Check completed steps
+        const steps = new Set<string>();
+        if (hasProjects) steps.add('create-project');
+        
+        // Check for goals and tasks if there's a current project
+        if (currentProject) {
+          try {
+            const goalsResponse = await api.get(`/api/goals?project_id=${currentProject.id}`);
+            if (goalsResponse.data && goalsResponse.data.length > 0) {
+              steps.add('set-goals');
+            }
+
+            const tasksResponse = await api.get(`/api/tasks?project_id=${currentProject.id}`);
+            if (tasksResponse.data && tasksResponse.data.length > 0) {
+              steps.add('add-tasks');
+            }
+
+            const deptResponse = await api.get(`/api/departments?project_id=${currentProject.id}`);
+            if (deptResponse.data && deptResponse.data.length > 0) {
+              steps.add('setup-department');
+              
+              // Check if any department has agents assigned
+              const hasAgents = deptResponse.data.some((dept: any) => dept.ai_agent_count > 0);
+              if (hasAgents) {
+                steps.add('assign-agents');
+              }
+            }
+          } catch (error) {
+            console.error('Error checking onboarding steps:', error);
+          }
+        }
+        
+        setCompletedSteps(steps);
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [projects, currentProject]);
+
+  const handleDismissGuide = () => {
+    setShowGettingStarted(false);
+    localStorage.setItem('onboarding_completed', 'true');
+  };
+
+  const handleStepComplete = (step: string) => {
+    setCompletedSteps(prev => {
+      const newSet = new Set(prev);
+      newSet.add(step);
+      return newSet;
+    });
   };
 
   return (
@@ -54,6 +125,15 @@ const MainDashboard: React.FC = () => {
           Here's your workspace overview
         </Typography>
       </Box>
+
+      {/* Getting Started Guide */}
+      {showGettingStarted && (
+        <GettingStartedGuide
+          onDismiss={handleDismissGuide}
+          completedSteps={completedSteps}
+          onStepComplete={handleStepComplete}
+        />
+      )}
 
       {/* Current Context */}
       {currentOrganization && (

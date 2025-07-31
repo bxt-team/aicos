@@ -403,11 +403,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
   ];
 
   const handleOpenPromptDialog = () => {
-    const currentGoalId = goalId || filterGoal;
-    if (!currentGoalId || currentGoalId === 'all') {
-      setError('Please select a specific goal first');
-      return;
-    }
+    const currentGoalId = goalId || (filterGoal !== 'all' ? filterGoal : '');
     setSelectedGoalForAI(currentGoalId);
     setCustomPrompt(promptTemplates[selectedTemplate].prompt);
     setPromptTemplateOpen(true);
@@ -709,16 +705,15 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
               <ViewModuleIcon />
             </ToggleButton>
           </ToggleButtonGroup>
-          {(goalId || filterGoal !== 'all') && (
-            <Button
-              variant="outlined"
-              startIcon={<AutoAwesomeIcon />}
-              onClick={handleOpenPromptDialog}
-              color="primary"
-            >
-              AI Suggest
-            </Button>
-          )}
+          <Button
+            variant="contained"
+            startIcon={<AutoAwesomeIcon />}
+            onClick={handleOpenPromptDialog}
+            color="secondary"
+            disabled={goals.length === 0}
+          >
+            AI Generate Tasks
+          </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -1047,6 +1042,25 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
           </Box>
         </DialogTitle>
         <DialogContent>
+          {!selectedGoalForAI && (
+            <Box mb={3}>
+              <TextField
+                fullWidth
+                select
+                label="Select Goal"
+                value={selectedGoalForAI}
+                onChange={(e) => setSelectedGoalForAI(e.target.value)}
+                helperText="Please select a goal for which you want to generate tasks"
+                error={!selectedGoalForAI}
+              >
+                {goals.map((goal) => (
+                  <MenuItem key={goal.id} value={goal.id}>
+                    {goal.title}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
+          )}
           <FormControl component="fieldset" sx={{ width: '100%' }}>
             <FormLabel component="legend" sx={{ mb: 2 }}>
               Select a template or customize the prompt for generating tasks:
@@ -1108,7 +1122,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({ goalId, projectI
             onClick={handleSuggestTasks}
             variant="contained"
             startIcon={<AutoAwesomeIcon />}
-            disabled={!customPrompt.trim()}
+            disabled={!selectedGoalForAI || !customPrompt.trim()}
           >
             Generate Tasks
           </Button>

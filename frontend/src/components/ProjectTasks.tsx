@@ -10,7 +10,6 @@ import {
   Alert,
 } from '@mui/material';
 import {
-  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -61,9 +60,6 @@ export default function ProjectTasks() {
 
       <Paper elevation={3} sx={{ p: 3 }}>
         <Box display="flex" alignItems="center" mb={3}>
-          <IconButton onClick={() => navigate(`/projects/${projectId}`)} sx={{ mr: 2 }}>
-            <ArrowBackIcon />
-          </IconButton>
           <Typography variant="h5">
             {project.name} - {t('task.tasks')}
           </Typography>

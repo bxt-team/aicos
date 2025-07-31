@@ -30,7 +30,6 @@ import {
   Edit as EditIcon,
   Refresh as RefreshIcon,
   Description as DocumentIcon,
-  ArrowBack as ArrowBackIcon,
   TextFields as TextFieldsIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -258,9 +257,6 @@ export default function ProjectKnowledgeBase() {
       <Paper elevation={3} sx={{ p: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Box display="flex" alignItems="center">
-            <IconButton onClick={() => navigate(`/projects/${projectId}`)} sx={{ mr: 2 }}>
-              <ArrowBackIcon />
-            </IconButton>
             <Typography variant="h5">
               {project.name} - {t('knowledgeBase.knowledgeBase')}
             </Typography>
