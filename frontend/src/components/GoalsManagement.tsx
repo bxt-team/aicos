@@ -21,6 +21,15 @@ import {
   ListItemText,
   Grid,
   Checkbox,
+  Rating,
+  Divider,
+  Paper,
+  CircularProgress,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  FormLabel,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -31,6 +40,9 @@ import {
   Schedule as ScheduleIcon,
   Assignment as AssignmentIcon,
   AutoAwesome as AutoAwesomeIcon,
+  ThumbUp as ThumbUpIcon,
+  ThumbDown as ThumbDownIcon,
+  Feedback as FeedbackIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -89,6 +101,14 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
   const [suggestedGoals, setSuggestedGoals] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [goalRatings, setGoalRatings] = useState<{ [key: number]: number }>({});
+  const [goalFeedback, setGoalFeedback] = useState<{ [key: number]: string }>({});
+  const [feedbackSummary, setFeedbackSummary] = useState<any>(null);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [promptTemplateOpen, setPromptTemplateOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(0);
+  const [customPrompt, setCustomPrompt] = useState('');
 
   useEffect(() => {
     if (currentOrganization || projectId) {
@@ -256,23 +276,61 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
     }
   };
 
+  const promptTemplates = [
+    {
+      name: 'Strategic Business Goals',
+      description: 'Generate high-level strategic goals for business growth and development',
+      prompt: 'Generate strategic business goals that focus on growth, market expansion, and competitive advantage. Consider revenue targets, market positioning, and long-term sustainability.',
+    },
+    {
+      name: 'Operational Excellence',
+      description: 'Create goals focused on improving operational efficiency and processes',
+      prompt: 'Generate operational goals that improve efficiency, reduce costs, and enhance quality. Focus on process optimization, automation opportunities, and performance metrics.',
+    },
+    {
+      name: 'Innovation & Development',
+      description: 'Develop goals for innovation, R&D, and product/service development',
+      prompt: 'Generate innovation-focused goals for new product development, research initiatives, and technological advancement. Include experimentation, prototyping, and market validation.',
+    },
+  ];
+
+  const handleOpenPromptDialog = () => {
+    setCustomPrompt(promptTemplates[selectedTemplate].prompt);
+    setPromptTemplateOpen(true);
+  };
+
   const handleSuggestGoals = async () => {
     if (!projectId) {
       setError('Please select a project first');
       return;
     }
 
+    setPromptTemplateOpen(false);
     setLoadingSuggestions(true);
     setSuggestDialogOpen(true);
     setError(null);
+    setShowFeedbackForm(false);
+    setGoalRatings({});
+    setGoalFeedback({});
 
     try {
+      // First fetch feedback summary
+      try {
+        const summaryResponse = await api.get(`/api/goals/feedback/summary?project_id=${projectId}`);
+        setFeedbackSummary(summaryResponse.data);
+      } catch (err) {
+        // Continue without feedback summary
+      }
+
       const response = await api.post('/api/goals/suggest', {
         project_id: projectId,
         include_knowledge_base: true,
+        session_id: sessionId,
+        custom_prompt: customPrompt,
       });
 
       setSuggestedGoals(response.data.goals || []);
+      setSessionId(response.data.session_id || null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to generate goal suggestions');
       setSuggestDialogOpen(false);
@@ -291,8 +349,37 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
     setSelectedSuggestions(newSelection);
   };
 
+  const handleSubmitFeedback = async () => {
+    if (!sessionId || !projectId) return;
+
+    try {
+      const feedbackData = suggestedGoals.map((goal, index) => ({
+        goal_index: index,
+        feedback_type: selectedSuggestions.has(index) ? 'accepted' : 'rejected',
+        rating: goalRatings[index] || undefined,
+        feedback_text: goalFeedback[index] || undefined,
+      }));
+
+      await api.post('/api/goals/suggest/feedback', {
+        project_id: projectId,
+        session_id: sessionId,
+        suggested_goals: suggestedGoals,
+        feedback: feedbackData,
+      });
+
+      setShowFeedbackForm(false);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to submit feedback');
+    }
+  };
+
   const handleApplySuggestions = async () => {
     const goalsToCreate = Array.from(selectedSuggestions).map(index => suggestedGoals[index]);
+    
+    // Submit feedback before creating goals
+    if (showFeedbackForm) {
+      await handleSubmitFeedback();
+    }
     
     for (const goal of goalsToCreate) {
       try {
@@ -311,6 +398,7 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
     setSuggestDialogOpen(false);
     setSuggestedGoals([]);
     setSelectedSuggestions(new Set());
+    setSessionId(null);
     fetchGoals();
   };
 
@@ -381,7 +469,7 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
             <Button
               variant="outlined"
               startIcon={<AutoAwesomeIcon />}
-              onClick={handleSuggestGoals}
+              onClick={handleOpenPromptDialog}
               color="primary"
             >
               AI Suggest
@@ -671,6 +759,88 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
         </DialogActions>
       </Dialog>
 
+      {/* Prompt Template Dialog */}
+      <Dialog
+        open={promptTemplateOpen}
+        onClose={() => setPromptTemplateOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <AutoAwesomeIcon color="primary" />
+            Choose AI Goal Generation Template
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <FormControl component="fieldset" sx={{ width: '100%' }}>
+            <FormLabel component="legend" sx={{ mb: 2 }}>
+              Select a template or customize the prompt for your specific needs:
+            </FormLabel>
+            <RadioGroup
+              value={selectedTemplate}
+              onChange={(e) => {
+                const newTemplate = parseInt(e.target.value);
+                setSelectedTemplate(newTemplate);
+                setCustomPrompt(promptTemplates[newTemplate].prompt);
+              }}
+            >
+              {promptTemplates.map((template, index) => (
+                <Paper key={index} sx={{ p: 2, mb: 2, border: selectedTemplate === index ? 2 : 1, borderColor: selectedTemplate === index ? 'primary.main' : 'divider' }}>
+                  <FormControlLabel
+                    value={index}
+                    control={<Radio />}
+                    label={
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {template.name}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          {template.description}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Paper>
+              ))}
+            </RadioGroup>
+          </FormControl>
+          
+          <Box mt={3}>
+            <Typography variant="subtitle1" gutterBottom>
+              Customize the prompt:
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Enter your custom prompt for goal generation..."
+              helperText="You can modify the prompt to better suit your specific needs and context"
+              sx={{ mt: 1 }}
+            />
+          </Box>
+          
+          <Alert severity="info" sx={{ mt: 2 }}>
+            The AI will use this prompt along with your project context and knowledge base to generate relevant goals.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPromptTemplateOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSuggestGoals}
+            variant="contained"
+            startIcon={<AutoAwesomeIcon />}
+            disabled={!customPrompt.trim()}
+          >
+            Generate Goals
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* AI Suggestions Dialog */}
       <Dialog 
         open={suggestDialogOpen} 
@@ -687,17 +857,135 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
         <DialogContent>
           {loadingSuggestions ? (
             <Box py={4} textAlign="center">
-              <Typography variant="body1" gutterBottom>
-                Analyzing project context and generating goal suggestions...
-              </Typography>
-              <Box display="flex" justifyContent="center" mt={2}>
-                <Skeleton variant="rectangular" width="100%" height={100} />
-              </Box>
-              <Box display="flex" justifyContent="center" mt={2}>
-                <Skeleton variant="rectangular" width="100%" height={100} />
-              </Box>
-              <Box display="flex" justifyContent="center" mt={2}>
-                <Skeleton variant="rectangular" width="100%" height={100} />
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 3,
+                }}
+              >
+                {/* Animated brain/thinking icon */}
+                <Box
+                  sx={{
+                    position: 'relative',
+                    width: 80,
+                    height: 80,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AutoAwesomeIcon
+                    sx={{
+                      fontSize: 40,
+                      color: 'primary.main',
+                      animation: 'pulse 2s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%': {
+                          opacity: 0.4,
+                          transform: 'scale(1)',
+                        },
+                        '50%': {
+                          opacity: 1,
+                          transform: 'scale(1.1)',
+                        },
+                        '100%': {
+                          opacity: 0.4,
+                          transform: 'scale(1)',
+                        },
+                      },
+                    }}
+                  />
+                  <CircularProgress
+                    size={80}
+                    thickness={2}
+                    sx={{
+                      position: 'absolute',
+                      color: 'primary.light',
+                    }}
+                  />
+                </Box>
+                
+                <Box textAlign="center">
+                  <Typography variant="h6" gutterBottom>
+                    AI is thinking...
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                    Analyzing your project context and knowledge base
+                  </Typography>
+                  
+                  {/* Animated thinking dots */}
+                  <Typography
+                    variant="body2"
+                    color="primary"
+                    sx={{
+                      '& .dot': {
+                        display: 'inline-block',
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: 'primary.main',
+                        margin: '0 4px',
+                        animation: 'thinking 1.4s infinite ease-in-out',
+                      },
+                      '& .dot:nth-of-type(1)': {
+                        animationDelay: '-0.32s',
+                      },
+                      '& .dot:nth-of-type(2)': {
+                        animationDelay: '-0.16s',
+                      },
+                      '@keyframes thinking': {
+                        '0%, 80%, 100%': {
+                          transform: 'scale(0.8)',
+                          opacity: 0.5,
+                        },
+                        '40%': {
+                          transform: 'scale(1)',
+                          opacity: 1,
+                        },
+                      },
+                    }}
+                  >
+                    <span className="dot" />
+                    <span className="dot" />
+                    <span className="dot" />
+                  </Typography>
+                </Box>
+                
+                {/* Progress steps */}
+                <Box sx={{ width: '100%', maxWidth: 400 }}>
+                  <LinearProgress
+                    variant="indeterminate"
+                    sx={{
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: 'grey.200',
+                      '& .MuiLinearProgress-bar': {
+                        borderRadius: 3,
+                        background: 'linear-gradient(90deg, #1976d2 0%, #42a5f5 50%, #1976d2 100%)',
+                        backgroundSize: '200% 100%',
+                        animation: 'shimmer 2s linear infinite',
+                      },
+                      '@keyframes shimmer': {
+                        '0%': {
+                          backgroundPosition: '200% 0',
+                        },
+                        '100%': {
+                          backgroundPosition: '-200% 0',
+                        },
+                      },
+                    }}
+                  />
+                  <Box display="flex" justifyContent="space-between" mt={1}>
+                    <Typography variant="caption" color="textSecondary">
+                      Analyzing context
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Generating suggestions
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
             </Box>
           ) : suggestedGoals.length > 0 ? (
@@ -705,6 +993,23 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
               <Typography variant="body2" color="textSecondary" gutterBottom>
                 Select the goals you'd like to add to your project:
               </Typography>
+              
+              {/* Feedback Summary */}
+              {feedbackSummary && feedbackSummary.total_feedback > 0 && (
+                <Paper sx={{ p: 2, mb: 2, bgcolor: 'background.default' }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    <FeedbackIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }} />
+                    Previous Feedback Summary
+                  </Typography>
+                  <Box display="flex" gap={2} alignItems="center">
+                    <Rating value={feedbackSummary.average_rating} readOnly size="small" />
+                    <Typography variant="body2" color="textSecondary">
+                      {feedbackSummary.average_rating.toFixed(1)}/5 ({feedbackSummary.total_feedback} reviews)
+                    </Typography>
+                  </Box>
+                </Paper>
+              )}
+              
               <List>
                 {suggestedGoals.map((goal, index) => (
                   <Card key={index} sx={{ mb: 2 }}>
@@ -737,12 +1042,53 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
                           <Typography variant="caption" color="textSecondary">
                             <strong>Rationale:</strong> {goal.rationale}
                           </Typography>
+                          
+                          {/* Feedback Form */}
+                          {showFeedbackForm && (
+                            <Box mt={2} p={2} bgcolor="background.default" borderRadius={1}>
+                              <Typography variant="subtitle2" gutterBottom>
+                                Rate this suggestion:
+                              </Typography>
+                              <Rating
+                                value={goalRatings[index] || 0}
+                                onChange={(event, newValue) => {
+                                  setGoalRatings({ ...goalRatings, [index]: newValue || 0 });
+                                }}
+                                size="small"
+                              />
+                              <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="Optional feedback..."
+                                value={goalFeedback[index] || ''}
+                                onChange={(e) => {
+                                  setGoalFeedback({ ...goalFeedback, [index]: e.target.value });
+                                }}
+                                sx={{ mt: 1 }}
+                                multiline
+                                rows={2}
+                              />
+                            </Box>
+                          )}
                         </Box>
                       </Box>
                     </CardContent>
                   </Card>
                 ))}
               </List>
+              
+              {/* Show/Hide Feedback Toggle */}
+              {!showFeedbackForm && (
+                <Box textAlign="center" mt={2}>
+                  <Button
+                    startIcon={<FeedbackIcon />}
+                    onClick={() => setShowFeedbackForm(true)}
+                    size="small"
+                  >
+                    Provide Feedback
+                  </Button>
+                </Box>
+              )}
             </>
           ) : (
             <Alert severity="info">
@@ -751,9 +1097,22 @@ export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) =
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSuggestDialogOpen(false)} disabled={loadingSuggestions}>
+          <Button onClick={() => {
+            setSuggestDialogOpen(false);
+            setSessionId(null);
+            setShowFeedbackForm(false);
+          }} disabled={loadingSuggestions}>
             Cancel
           </Button>
+          {showFeedbackForm && (
+            <Button 
+              onClick={handleSubmitFeedback}
+              disabled={loadingSuggestions}
+              startIcon={<FeedbackIcon />}
+            >
+              Submit Feedback Only
+            </Button>
+          )}
           <Button 
             onClick={handleApplySuggestions} 
             variant="contained" 

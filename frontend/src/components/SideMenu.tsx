@@ -19,6 +19,21 @@ const SideMenu: React.FC = () => {
   const [showProjects, setShowProjects] = useState(true);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
+  // Auto-expand current project
+  useEffect(() => {
+    if (currentProject?.id && !expandedProjects.has(currentProject.id)) {
+      setExpandedProjects(prev => new Set(prev).add(currentProject.id));
+    }
+  }, [currentProject]);
+
+  // Check URL on mount and expand project if in project route
+  useEffect(() => {
+    const pathMatch = location.pathname.match(/\/projects\/([^\/]+)/);
+    if (pathMatch) {
+      const projectId = pathMatch[1];
+      setExpandedProjects(prev => new Set(prev).add(projectId));
+    }
+  }, []);
 
   // Close menu on route change for mobile
   useEffect(() => {
@@ -121,7 +136,10 @@ const SideMenu: React.FC = () => {
                         className={`nav-item expandable ${currentProject?.id === project.id ? 'active' : ''}`}
                         onClick={() => {
                           setCurrentProject(project);
-                          toggleProjectExpansion(project.id);
+                          // Only toggle expansion if it's not the current project being clicked
+                          if (currentProject?.id !== project.id) {
+                            setExpandedProjects(prev => new Set(prev).add(project.id));
+                          }
                         }}
                       >
                         <span 

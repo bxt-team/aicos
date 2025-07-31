@@ -19,6 +19,8 @@ class GoalSuggestionInput(BaseModel):
     knowledge_files_content: Optional[str] = None
     user_feedback: Optional[str] = None
     previous_goals: Optional[List[Dict[str, Any]]] = None
+    historical_feedback: Optional[Dict[str, Any]] = None  # Previous feedback data
+    custom_prompt: Optional[str] = None  # Custom prompt for goal generation
 
 
 class GoalSuggestion(BaseModel):
@@ -145,9 +147,62 @@ class GoalSuggestionCrew(BaseCrew):
             )
             
             # Task 3: Generate and refine specific goals
-            goal_generation_task = Task(
-                description=f"""
+            feedback_context = ""
+            if input_data.historical_feedback:
+                fb = input_data.historical_feedback
+                feedback_context = f"""
+                Historical Feedback Analysis:
+                - Average rating of previous suggestions: {fb.get('average_rating', 0):.1f}/5
+                - Total feedback received: {fb.get('total_feedback', 0)}
+                - Common feedback themes: {', '.join([f.get('feedback_text', '') for f in fb.get('recent_feedback', [])[:3] if f.get('feedback_text')])}
+                
+                Based on this feedback, focus on:
+                - Making goals more specific and measurable
+                - Providing realistic timeframes
+                - Aligning with user expectations
+                """
+            
+            # Use custom prompt if provided, otherwise use default
+            if input_data.custom_prompt:
+                goal_description = f"""
+                Based on the analysis and methodology insights, generate goals for this project using the following custom criteria:
+                
+                {input_data.custom_prompt}
+                
+                {feedback_context}
+                
+                {f"Previous goals to improve upon: {json.dumps(input_data.previous_goals, indent=2)}" if input_data.previous_goals else ""}
+                
+                For each goal, ensure you provide:
+                - A clear, concise title (max 100 characters)
+                - A detailed description explaining what needs to be achieved
+                - A suggested target date (relative timeframe like "3 months", "6 weeks", etc.)
+                - Priority level (low, medium, high, urgent)
+                - Rationale for why this goal is important
+                - 3-5 specific success criteria (measurable outcomes)
+                - 2-3 key milestones to track progress
+                
+                Return the result as a JSON object with this structure:
+                {{
+                    "goals": [
+                        {{
+                            "title": "Goal title",
+                            "description": "Detailed description",
+                            "target_date_suggestion": "3 months",
+                            "priority": "high",
+                            "rationale": "Why this goal matters",
+                            "success_criteria": ["Criterion 1", "Criterion 2"],
+                            "key_milestones": ["Milestone 1", "Milestone 2"]
+                        }}
+                    ],
+                    "methodology_rationale": "How these goals align with the project objectives and methodology"
+                }}
+                """
+            else:
+                goal_description = f"""
                 Based on the analysis and methodology insights, generate 3-5 specific, actionable goals for this project.
+                
+                {feedback_context}
                 
                 {f"Previous goals to improve upon: {json.dumps(input_data.previous_goals, indent=2)}" if input_data.previous_goals else ""}
                 
@@ -177,7 +232,10 @@ class GoalSuggestionCrew(BaseCrew):
                     ],
                     "methodology_rationale": "How these goals align with the 7 Cycles methodology"
                 }}
-                """,
+                """
+            
+            goal_generation_task = Task(
+                description=goal_description,
                 agent=self.goal_refiner,
                 expected_output="A JSON object containing refined, actionable goals with all required fields"
             )

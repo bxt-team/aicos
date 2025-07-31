@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from datetime import datetime, date
@@ -450,6 +450,23 @@ class GoalSuggestionRequest(BaseModel):
     include_knowledge_base: bool = True
     user_feedback: Optional[str] = None
     previous_goals: Optional[List[Dict[str, Any]]] = None
+    session_id: Optional[UUID] = None  # To link feedback to suggestions
+    custom_prompt: Optional[str] = None  # Custom prompt for goal generation
+
+
+class GoalSuggestionFeedback(BaseModel):
+    project_id: UUID
+    session_id: UUID
+    suggested_goals: List[Dict[str, Any]]
+    feedback: List[Dict[str, Any]]  # Array of feedback per goal
+
+
+class GoalFeedbackItem(BaseModel):
+    goal_index: int  # Index in the suggested_goals array
+    feedback_type: str  # 'accepted', 'rejected', 'modified'
+    rating: Optional[int] = Field(None, ge=1, le=5)
+    feedback_text: Optional[str] = None
+    modifications: Optional[Dict[str, Any]] = None  # What was changed if modified
 
 
 @router.post("/suggest", response_model=GoalSuggestionOutput)
@@ -518,6 +535,25 @@ async def suggest_goals(
             enhanced_data = project.get('enhanced_data', {})
             project_objectives = enhanced_data.get('objectives', [])
         
+        # Get historical feedback for the crew
+        historical_feedback = None
+        try:
+            feedback_data = supabase.table('goal_suggestion_feedback').select(
+                'rating, feedback_type, feedback_text'
+            ).eq('project_id', str(request.project_id)).order(
+                'created_at', desc=True
+            ).limit(20).execute()
+            
+            if feedback_data.data:
+                ratings = [f['rating'] for f in feedback_data.data if f.get('rating')]
+                historical_feedback = {
+                    'average_rating': sum(ratings) / len(ratings) if ratings else 0,
+                    'total_feedback': len(feedback_data.data),
+                    'recent_feedback': feedback_data.data[:5]
+                }
+        except:
+            pass
+        
         # Prepare input for the crew
         crew_input = GoalSuggestionInput(
             project_description=project.get('description', ''),
@@ -525,13 +561,42 @@ async def suggest_goals(
             organization_purpose=organization.get('description', ''),  # Use description instead of purpose
             knowledge_files_content=knowledge_content if knowledge_content else None,
             user_feedback=request.user_feedback,
-            previous_goals=request.previous_goals
+            previous_goals=request.previous_goals,
+            historical_feedback=historical_feedback,
+            custom_prompt=request.custom_prompt
         )
         
         # Generate suggestions
         result = goal_crew.suggest_goals(crew_input)
         
-        return result
+        # Generate session ID if not provided
+        session_id = request.session_id or uuid4()
+        
+        # Add session_id to the response
+        result_dict = result.dict() if hasattr(result, 'dict') else result
+        result_dict['session_id'] = str(session_id)
+        
+        # Get previous feedback for this project to improve suggestions
+        try:
+            feedback_data = supabase.table('goal_suggestion_feedback').select(
+                'rating, feedback_type, feedback_text'
+            ).eq('project_id', str(request.project_id)).order(
+                'created_at', desc=True
+            ).limit(10).execute()
+            
+            if feedback_data.data:
+                # Calculate average rating and feedback summary
+                ratings = [f['rating'] for f in feedback_data.data if f.get('rating')]
+                avg_rating = sum(ratings) / len(ratings) if ratings else 0
+                result_dict['historical_feedback'] = {
+                    'average_rating': avg_rating,
+                    'total_feedback': len(feedback_data.data),
+                    'recent_feedback': feedback_data.data[:3]
+                }
+        except:
+            pass  # Continue without feedback data
+        
+        return result_dict
         
     except HTTPException:
         raise
@@ -539,4 +604,150 @@ async def suggest_goals(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate goal suggestions: {str(e)}"
+        )
+
+
+@router.post("/suggest/feedback", status_code=status.HTTP_201_CREATED)
+async def submit_goal_suggestion_feedback(
+    feedback: GoalSuggestionFeedback,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Submit feedback on AI-generated goal suggestions."""
+    supabase = get_supabase()
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get('email')
+    user_id = str(current_user['user_id'])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table('users').select('id').eq('email', auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]['id']
+    
+    # Verify user has access to the project
+    if not await verify_project_access(str(feedback.project_id), user_id, supabase):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this project"
+        )
+    
+    try:
+        # Process each feedback item
+        feedback_records = []
+        for fb_item in feedback.feedback:
+            goal_index = fb_item.get('goal_index', 0)
+            
+            # Validate goal index
+            if goal_index >= len(feedback.suggested_goals):
+                continue
+            
+            suggested_goal = feedback.suggested_goals[goal_index]
+            
+            feedback_record = {
+                'project_id': str(feedback.project_id),
+                'user_id': user_id,
+                'suggestion_session_id': str(feedback.session_id),
+                'suggested_goal': suggested_goal,
+                'feedback_type': fb_item.get('feedback_type', 'rejected'),
+                'rating': fb_item.get('rating'),
+                'feedback_text': fb_item.get('feedback_text'),
+                'modifications': fb_item.get('modifications'),
+                'created_at': datetime.utcnow().isoformat()
+            }
+            
+            feedback_records.append(feedback_record)
+        
+        # Insert all feedback records
+        if feedback_records:
+            result = supabase.table('goal_suggestion_feedback').insert(feedback_records).execute()
+            
+            return {
+                'success': True,
+                'message': f'Feedback submitted for {len(feedback_records)} goals',
+                'feedback_count': len(feedback_records)
+            }
+        else:
+            return {
+                'success': False,
+                'message': 'No valid feedback items to submit',
+                'feedback_count': 0
+            }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to submit feedback: {str(e)}"
+        )
+
+
+@router.get("/feedback/summary")
+async def get_goal_feedback_summary(
+    project_id: UUID,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get a summary of goal suggestion feedback for a project."""
+    supabase = get_supabase()
+    
+    # Get the user ID from the auth context
+    auth_email = current_user.get('email')
+    user_id = str(current_user['user_id'])
+    
+    # Get the public user ID from the users table if needed
+    if auth_email:
+        user_result = supabase.table('users').select('id').eq('email', auth_email).execute()
+        if user_result.data:
+            user_id = user_result.data[0]['id']
+    
+    # Verify user has access to the project
+    if not await verify_project_access(str(project_id), user_id, supabase):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this project"
+        )
+    
+    try:
+        # Get feedback summary
+        feedback_data = supabase.table('goal_suggestion_feedback').select(
+            'rating, feedback_type, feedback_text, created_at'
+        ).eq('project_id', str(project_id)).execute()
+        
+        if not feedback_data.data:
+            return {
+                'total_feedback': 0,
+                'average_rating': 0,
+                'feedback_types': {},
+                'recent_feedback': []
+            }
+        
+        # Calculate statistics
+        ratings = [f['rating'] for f in feedback_data.data if f.get('rating')]
+        feedback_types = {}
+        for f in feedback_data.data:
+            ft = f.get('feedback_type', 'unknown')
+            feedback_types[ft] = feedback_types.get(ft, 0) + 1
+        
+        # Get recent feedback with text
+        recent_feedback = [
+            {
+                'rating': f.get('rating'),
+                'feedback_type': f.get('feedback_type'),
+                'feedback_text': f.get('feedback_text'),
+                'created_at': f.get('created_at')
+            }
+            for f in sorted(feedback_data.data, key=lambda x: x.get('created_at', ''), reverse=True)[:5]
+            if f.get('feedback_text')
+        ]
+        
+        return {
+            'total_feedback': len(feedback_data.data),
+            'average_rating': sum(ratings) / len(ratings) if ratings else 0,
+            'feedback_types': feedback_types,
+            'recent_feedback': recent_feedback
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get feedback summary: {str(e)}"
         )
