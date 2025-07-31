@@ -53,7 +53,9 @@ const Hero = () => {
             </h1>
             
             <p className="mt-6 text-lg md:text-xl text-secondary-600 leading-relaxed">
-              Whether you're a solo founder, small AI-first team, or digital entrepreneur - 
+              Built for <span className="font-semibold text-secondary-800">solo founders</span>, 
+              <span className="font-semibold text-secondary-800"> small AI-first teams</span>, and 
+              <span className="font-semibold text-secondary-800"> digital entrepreneurs</span> - 
               set up entire departments powered by AI agents. Define your projects and key results, 
               then let AI teams do the work while you focus on strategy.
             </p>
