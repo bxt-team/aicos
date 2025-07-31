@@ -210,7 +210,14 @@
     "agent": "Agent",
     "noKnowledgeBasesFound": "No knowledge bases found",
     "reindex": "Reindex",
-    "indexing": "Indexing"
+    "indexing": "Indexing",
+    "addText": "Add Text",
+    "addTextContent": "Add Text Content",
+    "content": "Content",
+    "pasteTextHere": "Paste or type your text content here...",
+    "selectFile": "Select File",
+    "editDocument": "Edit Document",
+    "fileType": "File Type"
   },
   "billing": {
     "billing": "Billing",

@@ -31,6 +31,7 @@ import {
   Refresh as RefreshIcon,
   Description as DocumentIcon,
   ArrowBack as ArrowBackIcon,
+  TextFields as TextFieldsIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
@@ -55,6 +56,7 @@ export default function ProjectKnowledgeBase() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [textDialogOpen, setTextDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedKB, setSelectedKB] = useState<KnowledgeBase | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -64,6 +66,13 @@ export default function ProjectKnowledgeBase() {
     name: '',
     description: '',
     file: null as File | null,
+  });
+  
+  // Text form state
+  const [textForm, setTextForm] = useState({
+    name: '',
+    description: '',
+    content: '',
   });
 
   useEffect(() => {
@@ -123,6 +132,39 @@ export default function ProjectKnowledgeBase() {
       fetchKnowledgeBases();
     } catch (err: any) {
       setError(err.message || 'Failed to upload knowledge base');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTextSubmit = async () => {
+    if (!currentOrganization || !projectId || !textForm.name || !textForm.content) {
+      setError(t('errors.requiredField'));
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await knowledgeBaseService.createTextKnowledgeBase({
+        name: textForm.name,
+        description: textForm.description || '',
+        content: textForm.content,
+        organization_id: currentOrganization.id,
+        project_id: projectId,
+      });
+      
+      setSuccess('Text content added successfully');
+      setTextDialogOpen(false);
+      setTextForm({
+        name: '',
+        description: '',
+        content: '',
+      });
+      fetchKnowledgeBases();
+    } catch (err: any) {
+      setError(err.message || 'Failed to add text content');
     } finally {
       setLoading(false);
     }
@@ -224,14 +266,24 @@ export default function ProjectKnowledgeBase() {
             <IconButton onClick={fetchKnowledgeBases} disabled={loading}>
               <RefreshIcon />
             </IconButton>
-            <Button
-              variant="contained"
-              startIcon={<UploadIcon />}
-              onClick={() => setUploadDialogOpen(true)}
-              disabled={loading}
-            >
-              {t('knowledgeBase.uploadDocument')}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                startIcon={<UploadIcon />}
+                onClick={() => setUploadDialogOpen(true)}
+                disabled={loading}
+              >
+                {t('knowledgeBase.uploadDocument')}
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<TextFieldsIcon />}
+                onClick={() => setTextDialogOpen(true)}
+                disabled={loading}
+              >
+                {t('knowledgeBase.addText')}
+              </Button>
+            </Box>
           </Box>
         </Box>
 
@@ -364,6 +416,54 @@ export default function ProjectKnowledgeBase() {
             disabled={loading || !uploadForm.name || !uploadForm.file}
           >
             {t('common.upload')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Text Dialog */}
+      <Dialog open={textDialogOpen} onClose={() => setTextDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>{t('knowledgeBase.addTextContent')}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label={t('common.name')}
+              value={textForm.name}
+              onChange={(e) => setTextForm({ ...textForm, name: e.target.value })}
+              margin="normal"
+              required
+            />
+            <TextField
+              fullWidth
+              label={t('common.description')}
+              value={textForm.description}
+              onChange={(e) => setTextForm({ ...textForm, description: e.target.value })}
+              margin="normal"
+              multiline
+              rows={2}
+            />
+            <TextField
+              fullWidth
+              label={t('knowledgeBase.content')}
+              value={textForm.content}
+              onChange={(e) => setTextForm({ ...textForm, content: e.target.value })}
+              margin="normal"
+              multiline
+              rows={10}
+              required
+              placeholder={t('knowledgeBase.pasteTextHere')}
+              helperText={`${textForm.content.length} characters`}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTextDialogOpen(false)}>{t('common.cancel')}</Button>
+          <Button
+            onClick={handleTextSubmit}
+            variant="contained"
+            disabled={loading || !textForm.name || !textForm.content}
+          >
+            {t('common.add')}
           </Button>
         </DialogActions>
       </Dialog>

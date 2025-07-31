@@ -210,7 +210,14 @@
     "agent": "Agent",
     "noKnowledgeBasesFound": "Keine Wissensdatenbanken gefunden",
     "reindex": "Neu indizieren",
-    "indexing": "Indizierung"
+    "indexing": "Indizierung",
+    "addText": "Text hinzufügen",
+    "addTextContent": "Textinhalt hinzufügen",
+    "content": "Inhalt",
+    "pasteTextHere": "Fügen Sie hier Ihren Textinhalt ein oder tippen Sie ihn...",
+    "selectFile": "Datei auswählen",
+    "editDocument": "Dokument bearbeiten",
+    "fileType": "Dateityp"
   },
   "billing": {
     "billing": "Abrechnung",

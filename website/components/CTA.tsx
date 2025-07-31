@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
 import Link from 'next/link'
+import WaitlistSignup from './WaitlistSignup'
 
 const CTA = () => {
   const [ref, inView] = useInView({
@@ -26,28 +27,10 @@ const CTA = () => {
             Join innovative founders and teams who are building the future with AI departments.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="http://localhost:3000/signup"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white text-primary-600 rounded-full font-semibold text-lg hover:shadow-xl transition-all transform hover:scale-105"
-            >
-              Start Free Trial
-              <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </Link>
-            
-            <Link
-              href="/demo"
-              className="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white rounded-full font-semibold text-lg hover:bg-white hover:text-primary-600 transition-all"
-            >
-              Schedule Demo
-            </Link>
+          {/* Replace CTAs with waitlist for ProductHunt launch */}
+          <div className="max-w-lg mx-auto">
+            <WaitlistSignup variant="inline" />
           </div>
-          
-          <p className="mt-6 text-sm opacity-75">
-            No credit card required • 14-day free trial • Cancel anytime
-          </p>
         </motion.div>
       </div>
     </section>

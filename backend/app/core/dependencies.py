@@ -38,8 +38,35 @@ from app.services.knowledge_base_manager import knowledge_base_manager
 from app.services.knowledge_base_service import KnowledgeBaseService
 from .config import settings
 import logging
+from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
+
+# Global Supabase client instance
+_supabase_client: Optional[Client] = None
+
+def get_supabase_client() -> Client:
+    """Get or create Supabase client instance"""
+    global _supabase_client
+    if _supabase_client is None:
+        if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_KEY:
+            raise ValueError("Supabase URL and service key must be set in environment variables")
+        
+        # Create client without options to get default behavior
+        _supabase_client = create_client(
+            settings.SUPABASE_URL, 
+            settings.SUPABASE_SERVICE_KEY
+        )
+        
+        # Log client attributes for debugging
+        logger.info(f"Supabase client created successfully")
+        
+        # Verify that table method exists
+        if not hasattr(_supabase_client, 'table'):
+            logger.error(f"Supabase client missing table method. Available methods: {[attr for attr in dir(_supabase_client) if not attr.startswith('_')]}")
+            raise ValueError("Supabase client is not properly initialized - missing table method")
+        
+    return _supabase_client
 
 # Global agent instances
 image_generator: Optional[ImageGenerator] = None

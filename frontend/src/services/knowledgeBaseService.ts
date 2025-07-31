@@ -41,6 +41,20 @@ class KnowledgeBaseService {
     return response.data;
   }
 
+  async createTextKnowledgeBase(data: {
+    name: string;
+    description: string;
+    content: string;
+    organization_id: string;
+    project_id: string;
+  }): Promise<KnowledgeBase> {
+    const response = await api.post(
+      `/api/knowledge-bases/text`,
+      data
+    );
+    return response.data;
+  }
+
   async updateKnowledgeBase(
     id: string,
     update: KnowledgeBaseUpdate

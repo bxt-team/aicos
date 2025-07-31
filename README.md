@@ -66,10 +66,16 @@ npm run dev-backend
 npm run dev-frontend
 ```
 
-3. **Access the application**:
+3. **Start the marketing website** (optional):
+```bash
+npm run dev-website
+```
+
+4. **Access the application**:
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8000
    - API Documentation: http://localhost:8000/docs
+   - Marketing Website: http://localhost:3000 (Note: Run either frontend OR website, not both simultaneously as they use the same port)
 
 ## Usage
 
@@ -178,40 +184,40 @@ The system is being upgraded to support multiple organizations and projects with
 
 ### Implementation Progress
 
-#### Week 1-2: Core Infrastructure ⏳
-- [ ] Database schema for organizations, projects, and users
-- [ ] JWT authentication system
-- [ ] Row-Level Security (RLS) policies
-- [ ] Authentication endpoints (/auth/signup, /auth/login)
-- [ ] Context middleware for request scoping
-- [ ] Permission system (RBAC)
+#### Week 1-2: Core Infrastructure ✅
+- [x] Database schema for organizations, projects, and users
+- [x] JWT authentication system (Supabase Auth)
+- [x] Row-Level Security (RLS) policies
+- [x] Authentication endpoints (/auth/signup, /auth/login)
+- [x] Context middleware for request scoping
+- [x] Permission system (RBAC)
 
-#### Week 3: Storage Layer 🔄
-- [ ] Scoped storage adapter
-- [ ] Multi-tenant Supabase adapter
-- [ ] Data migration utilities
+#### Week 3: Storage Layer ✅
+- [x] Scoped storage adapter
+- [x] Multi-tenant Supabase adapter
+- [x] Data migration utilities
 
-#### Week 4-5: Agent Migration 🤖
-- [ ] Update base agent class with context support
-- [ ] Migrate QA agent (pilot)
+#### Week 4-5: Agent Migration 🔄
+- [x] Update base agent class with context support
+- [x] Migrate QA agent (pilot)
 - [ ] Migrate all remaining agents
 
-#### Week 6: API Updates 🔌
-- [ ] Add authentication to existing endpoints
-- [ ] Organization/project management APIs
-- [ ] API key management
+#### Week 6: API Updates 🔄
+- [x] Add authentication to existing endpoints
+- [x] Organization/project management APIs
+- [x] API key management
 
-#### Week 7: Frontend Integration 💻
-- [ ] Authentication UI (login/signup)
-- [ ] Organization/project selector
+#### Week 7: Frontend Integration 🔄
+- [x] Authentication UI (login/signup)
+- [x] Organization/project selector
 - [ ] Member management
 
-#### Week 8: Testing & Migration 🧪
+#### Week 8: Testing & Migration ⏳
 - [ ] Data migration from single to multi-tenant
 - [ ] Integration testing
 - [ ] Performance testing
 
-#### Week 9: Deployment 🚀
+#### Week 9: Deployment ⏳
 - [ ] Staged rollout with feature flags
 - [ ] Production deployment
 - [ ] Monitoring and support

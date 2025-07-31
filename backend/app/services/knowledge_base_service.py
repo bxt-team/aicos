@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 import os
 import logging
 from datetime import datetime
+from fastapi import HTTPException
 
 from langchain_community.document_loaders import (
     PyPDFLoader, 
@@ -28,8 +29,18 @@ logger = logging.getLogger(__name__)
 
 class KnowledgeBaseService:
     def __init__(self):
-        from app.core.dependencies import get_supabase_client
-        self.supabase = get_supabase_client()
+        # Try to get Supabase client, but don't fail if it's not available
+        try:
+            from app.core.dependencies import get_supabase_client
+            self.supabase = get_supabase_client()
+            logger.info(f"Supabase client initialized. Has table method: {hasattr(self.supabase, 'table')}")
+            if self.supabase:
+                available_methods = [attr for attr in dir(self.supabase) if not attr.startswith('_') and callable(getattr(self.supabase, attr))]
+                logger.info(f"Available Supabase client methods: {available_methods}")
+        except Exception as e:
+            logger.error(f"Could not initialize Supabase client: {e}", exc_info=True)
+            self.supabase = None
+            
         self.embeddings = OpenAIEmbeddings(openai_api_key=settings.OPENAI_API_KEY)
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
@@ -38,8 +49,13 @@ class KnowledgeBaseService:
         )
         self.storage_bucket = "knowledge-bases"
         
-        # Ensure storage bucket exists
-        self._ensure_bucket_exists()
+        
+        # Ensure storage bucket exists (only if storage is available)
+        try:
+            if self.supabase and hasattr(self.supabase, 'storage'):
+                self._ensure_bucket_exists()
+        except Exception as e:
+            logger.warning(f"Could not ensure storage bucket exists: {e}")
     
     def _ensure_bucket_exists(self):
         """Ensure the knowledge-bases bucket exists in Supabase storage"""
@@ -85,6 +101,13 @@ class KnowledgeBaseService:
     ) -> List[KnowledgeBaseList]:
         """List knowledge bases for a given scope"""
         try:
+            # Database is required
+            if not self.supabase or not hasattr(self.supabase, 'table'):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Database service is not available. Please check your Supabase configuration."
+                )
+                
             query = self.supabase.table("knowledge_bases").select("*")
             query = query.eq("organization_id", str(organization_id))
             query = query.eq("is_active", True)
@@ -97,10 +120,11 @@ class KnowledgeBaseService:
                 query = query.eq("agent_type", agent_type)
             
             response = query.execute()
+            data = response.data
             
             # Add scope level to each knowledge base
             kb_list = []
-            for kb in response.data:
+            for kb in data:
                 kb_dict = dict(kb)
                 if kb.get("agent_type") and kb.get("department_id"):
                     kb_dict["scope_level"] = "agent_department"
@@ -117,7 +141,7 @@ class KnowledgeBaseService:
             
             return kb_list
         except Exception as e:
-            logger.error(f"Error listing knowledge bases: {e}")
+            logger.error(f"Error listing knowledge bases: {e}", exc_info=True)
             return []
     
     async def get_knowledge_base(
@@ -150,32 +174,84 @@ class KnowledgeBaseService:
             file_id = uuid4()
             file_path = f"{kb_create.organization_id}/{file_id}_{kb_create.file_name}"
             
-            # Upload file to Supabase storage
-            response = self.supabase.storage.from_(self.storage_bucket).upload(
-                file_path,
-                file_content,
-                {
-                    "content-type": self._get_content_type(kb_create.file_type),
-                    "cache-control": "3600"
-                }
-            )
+            # For text content, store it locally as a temporary workaround
+            # Check if this is text content from the API
+            if kb_create.file_type == 'txt' and kb_create.file_name.endswith('.txt'):
+                # Store text content locally temporarily
+                import tempfile
+                temp_dir = tempfile.gettempdir()
+                local_path = os.path.join(temp_dir, f"kb_{file_id}.txt")
+                with open(local_path, 'wb') as f:
+                    f.write(file_content)
+                logger.info(f"Created text-based knowledge base locally: {kb_create.name} at {local_path}")
+            else:
+                # Upload file to Supabase storage (only if storage is available)
+                try:
+                    if hasattr(self.supabase, 'storage'):
+                        response = self.supabase.storage.from_(self.storage_bucket).upload(
+                            file_path,
+                            file_content,
+                            {
+                                "content-type": self._get_content_type(kb_create.file_type),
+                                "cache-control": "3600"
+                            }
+                        )
+                    else:
+                        # Fallback: store locally
+                        import tempfile
+                        temp_dir = tempfile.gettempdir()
+                        local_path = os.path.join(temp_dir, f"kb_{file_id}_{kb_create.file_name}")
+                        with open(local_path, 'wb') as f:
+                            f.write(file_content)
+                        logger.warning(f"Storage not available, stored file locally at {local_path}")
+                except Exception as e:
+                    logger.error(f"Error uploading to storage: {e}")
+                    # Fallback: store locally
+                    import tempfile
+                    temp_dir = tempfile.gettempdir()
+                    local_path = os.path.join(temp_dir, f"kb_{file_id}_{kb_create.file_name}")
+                    with open(local_path, 'wb') as f:
+                        f.write(file_content)
+                    logger.warning(f"Storage error, stored file locally at {local_path}")
+            
+            # Ensure we have a valid user_id
+            if not user_id:
+                raise ValueError("User ID is required to create knowledge base")
             
             # Create database record
             kb_data = {
-                **kb_create.dict(),
+                **kb_create.model_dump(),
                 "file_path": file_path,
-                "created_by": str(user_id)
+                "created_by": str(user_id),
+                "id": str(file_id),
+                "is_active": True,
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
             }
             
-            response = self.supabase.table("knowledge_bases").insert(kb_data).execute()
-            kb = KnowledgeBase(**response.data[0])
+            # Database is required - no fallback to in-memory
+            if not self.supabase or not hasattr(self.supabase, 'table'):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Database service is not available. Please check your Supabase configuration."
+                )
+            
+            try:
+                response = self.supabase.table("knowledge_bases").insert(kb_data).execute()
+                kb = KnowledgeBase(**response.data[0])
+            except Exception as e:
+                logger.error(f"Failed to persist to database: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to create knowledge base: {str(e)}"
+                )
             
             # Process and index the file
             await self._index_knowledge_base(kb, file_content)
             
             return kb
         except Exception as e:
-            logger.error(f"Error creating knowledge base: {e}")
+            logger.error(f"Error creating knowledge base: {e}", exc_info=True)
             raise
     
     async def update_knowledge_base(

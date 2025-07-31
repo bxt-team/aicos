@@ -32,7 +32,7 @@ async def list_knowledge_bases(
         project_id=project_id,
         department_id=department_id,
         agent_type=agent_type,
-        user_id=current_user.get('id')
+        user_id=UUID(current_user.get('user_id')) if current_user.get('user_id') else None
     )
 
 @router.get("/{knowledge_base_id}", response_model=KnowledgeBase)
@@ -87,7 +87,45 @@ async def create_knowledge_base(
     return await kb_service.create_knowledge_base(
         kb_create=kb_create,
         file_content=content,
-        user_id=current_user.get('id')
+        user_id=UUID(current_user.get('user_id')) if current_user.get('user_id') else None
+    )
+
+@router.post("/text", response_model=KnowledgeBase)
+async def create_text_knowledge_base(
+    data: Dict[str, Any],
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    kb_service: KnowledgeBaseService = Depends(get_knowledge_base_service)
+):
+    """Create a knowledge base from text content"""
+    # Validate required fields
+    if not data.get('name') or not data.get('content'):
+        raise HTTPException(status_code=400, detail="Name and content are required")
+    
+    # Create knowledge base entry
+    kb_create = KnowledgeBaseCreate(
+        name=data['name'],
+        description=data.get('description'),
+        organization_id=UUID(data['organization_id']),
+        project_id=UUID(data['project_id']) if data.get('project_id') else None,
+        department_id=UUID(data['department_id']) if data.get('department_id') else None,
+        agent_type=data.get('agent_type'),
+        file_type='txt',  # Store text content as txt type
+        file_name=f"{data['name']}.txt",
+        file_size=len(data['content'].encode('utf-8'))
+    )
+    
+    # Convert text content to bytes
+    content_bytes = data['content'].encode('utf-8')
+    
+    # Get user_id from current_user
+    user_id = current_user.get('user_id')
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in authentication token")
+    
+    return await kb_service.create_knowledge_base(
+        kb_create=kb_create,
+        file_content=content_bytes,
+        user_id=UUID(user_id)
     )
 
 @router.put("/{knowledge_base_id}", response_model=KnowledgeBase)
@@ -101,7 +139,7 @@ async def update_knowledge_base(
     kb = await kb_service.update_knowledge_base(
         knowledge_base_id=knowledge_base_id,
         update=update,
-        user_id=current_user.get('id')
+        user_id=UUID(current_user.get('user_id')) if current_user.get('user_id') else None
     )
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
@@ -116,7 +154,7 @@ async def delete_knowledge_base(
     """Delete a knowledge base"""
     success = await kb_service.delete_knowledge_base(
         knowledge_base_id=knowledge_base_id,
-        user_id=current_user.get('id')
+        user_id=UUID(current_user.get('user_id')) if current_user.get('user_id') else None
     )
     if not success:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
@@ -131,7 +169,7 @@ async def reindex_knowledge_base(
     """Reindex a knowledge base (regenerate embeddings)"""
     success = await kb_service.reindex_knowledge_base(
         knowledge_base_id=knowledge_base_id,
-        user_id=current_user.get('id')
+        user_id=UUID(current_user.get('user_id')) if current_user.get('user_id') else None
     )
     if not success:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
@@ -152,5 +190,5 @@ async def get_applicable_knowledge_bases(
         project_id=project_id,
         department_id=department_id,
         agent_type=agent_type,
-        user_id=current_user.get('id')
+        user_id=UUID(current_user.get('user_id')) if current_user.get('user_id') else None
     )
