@@ -29,8 +29,8 @@ import {
   Tab,
   Tabs,
   CircularProgress,
-  Grid,
 } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -39,13 +39,11 @@ import {
   Business as BusinessIcon,
   SmartToy as SmartToyIcon,
   Person as PersonIcon,
-  AutoAwesome as AIIcon,
 } from '@mui/icons-material';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useProject } from '../contexts/ProjectContext';
 import api from '../services/api';
-import { organizationManagementService, DepartmentSuggestion } from '../services/organizationManagementService';
 import { useTranslation } from 'react-i18next';
 
 interface Department {
@@ -88,6 +86,126 @@ interface OrganizationMember {
   full_name?: string;
 }
 
+interface PredefinedDepartment {
+  emoji: string;
+  name: string;
+  goal: string;
+  aiAgents: string[];
+}
+
+const PREDEFINED_DEPARTMENTS: PredefinedDepartment[] = [
+  {
+    emoji: '🧠',
+    name: 'Growth & Marketing Department',
+    goal: 'Automate customer acquisition, branding, and engagement.',
+    aiAgents: [
+      'Content Generation Agent (reels, blogs, newsletters)',
+      'Campaign Testing Agent (A/B testing ads)',
+      'Scheduler & Posting Agent',
+      'SEO & Keyword Optimizer Agent'
+    ]
+  },
+  {
+    emoji: '🛍️',
+    name: 'Sales & Lead Management',
+    goal: 'Automate lead nurturing, sales funnels, and conversion.',
+    aiAgents: [
+      'Lead Scoring Agent',
+      'CRM Update Agent',
+      'Follow-up Email Agent',
+      'Proposal Generator Agent'
+    ]
+  },
+  {
+    emoji: '💬',
+    name: 'Customer Support & Success',
+    goal: 'Ensure satisfaction, solve problems, and retain users.',
+    aiAgents: [
+      'Chatbot Agent (contextual support)',
+      'Ticket Categorization Agent',
+      'Sentiment Analyzer Agent',
+      'Onboarding Flow Agent'
+    ]
+  },
+  {
+    emoji: '🧾',
+    name: 'Finance & Accounting',
+    goal: 'Automate transactions, billing, cash flow tracking.',
+    aiAgents: [
+      'Invoice Parser Agent',
+      'Subscription Tracking Agent',
+      'Expense Categorizer Agent',
+      'Forecasting Agent (MRR/ARR)'
+    ]
+  },
+  {
+    emoji: '👨‍💻',
+    name: 'Product & Development',
+    goal: 'AI-assisted feature development, testing & documentation.',
+    aiAgents: [
+      'Roadmap Prioritizer Agent',
+      'Code Explainer Agent',
+      'UI Tester Agent',
+      'Documentation Agent'
+    ]
+  },
+  {
+    emoji: '📦',
+    name: 'Operations & Logistics',
+    goal: 'Manage workflows, delivery pipelines, team syncs.',
+    aiAgents: [
+      'Task Sync Agent (Notion/Jira)',
+      'Resource Optimizer Agent',
+      'Delivery Tracker Agent',
+      'SOP Generator Agent'
+    ]
+  },
+  {
+    emoji: '📚',
+    name: 'Content & Knowledge Management',
+    goal: 'Create, reuse, and manage all internal/external knowledge.',
+    aiAgents: [
+      'Blog & Social Post Generator',
+      'Internal Wiki Agent',
+      'Video Transcript + Summary Agent',
+      'Searchable Docs Agent'
+    ]
+  },
+  {
+    emoji: '🧑‍💼',
+    name: 'HR & Recruiting',
+    goal: 'Simplify hiring, onboarding, and internal feedback.',
+    aiAgents: [
+      'CV Screening Agent',
+      'Interview Question Generator',
+      'Onboarding Task Generator',
+      'Team Feedback Analyzer'
+    ]
+  },
+  {
+    emoji: '🧑‍⚖️',
+    name: 'Legal & Compliance',
+    goal: 'Automate risk checks, contracts, and regulatory workflows.',
+    aiAgents: [
+      'Contract Checker Agent',
+      'GDPR Checker Agent',
+      'Terms & Policy Generator',
+      'Risk Alerting Agent'
+    ]
+  },
+  {
+    emoji: '📈',
+    name: 'Analytics & Strategy',
+    goal: 'Turn raw data into business decisions & reports.',
+    aiAgents: [
+      'Dashboard Agent',
+      'Goal Progress Analyzer',
+      'User Cohort Insights Agent',
+      'Strategic Idea Recommender'
+    ]
+  }
+];
+
 export const DepartmentManagement: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useSupabaseAuth();
@@ -117,15 +235,9 @@ export const DepartmentManagement: React.FC = () => {
   const [assignmentRole, setAssignmentRole] = useState('');
   const [assignmentTab, setAssignmentTab] = useState(0);
   
-  // AI Suggestion state
-  const [aiSuggestDialogOpen, setAISuggestDialogOpen] = useState(false);
-  const [aiLoading, setAILoading] = useState(false);
-  const [aiError, setAIError] = useState<string | null>(null);
-  const [aiSuggestions, setAISuggestions] = useState<DepartmentSuggestion[] | null>(null);
-  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
-  const [aiUserFeedback, setAIUserFeedback] = useState('');
-  const [aiCompanySize, setAICompanySize] = useState('small');
-  const [aiIndustry, setAIIndustry] = useState('');
+  // Predefined department selection state
+  const [selectedPredefinedDept, setSelectedPredefinedDept] = useState<number>(-1);
+  const [showPredefinedList, setShowPredefinedList] = useState(false);
 
   useEffect(() => {
     if (currentProject) {
@@ -205,6 +317,8 @@ export const DepartmentManagement: React.FC = () => {
       description: '',
     });
     setFormErrors({});
+    setShowPredefinedList(false);
+    setSelectedPredefinedDept(-1);
   };
 
   const validateForm = () => {
@@ -338,22 +452,13 @@ export const DepartmentManagement: React.FC = () => {
           {t('department.departments')}
         </Typography>
         {canManageDepartments && (
-          <Box display="flex" gap={1}>
-            <Button
-              variant="outlined"
-              startIcon={<AIIcon />}
-              onClick={() => setAISuggestDialogOpen(true)}
-            >
-              {t('department.aiSuggestDepartments', 'AI Suggest Departments')}
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog()}
-            >
-              {t('department.addDepartment', 'Add Department')}
-            </Button>
-          </Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+          >
+            {t('department.addDepartment', 'Add Department')}
+          </Button>
         )}
       </Box>
 
@@ -462,33 +567,117 @@ export const DepartmentManagement: React.FC = () => {
       )}
 
       {/* Create/Edit Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           {editingDepartment ? 'Edit Department' : 'Create New Department'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 1 }}>
-            <TextField
-              fullWidth
-              label="Department Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              error={!!formErrors.name}
-              helperText={formErrors.name}
-              margin="normal"
-              required
-            />
-            <TextField
-              fullWidth
-              label="Goals & Description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              error={!!formErrors.description}
-              helperText={formErrors.description}
-              margin="normal"
-              multiline
-              rows={3}
-            />
+            {!editingDepartment && !showPredefinedList && (
+              <Box mb={2}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Choose how to create your department:
+                </Typography>
+                <Stack direction="row" spacing={2} mt={2}>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => setShowPredefinedList(true)}
+                    startIcon={<BusinessIcon />}
+                  >
+                    Select from Templates
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => {
+                      setShowPredefinedList(false);
+                      setSelectedPredefinedDept(-1);
+                    }}
+                    startIcon={<EditIcon />}
+                  >
+                    Create Custom
+                  </Button>
+                </Stack>
+              </Box>
+            )}
+            
+            {!editingDepartment && showPredefinedList && (
+              <Box>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setShowPredefinedList(false);
+                    setSelectedPredefinedDept(-1);
+                    setFormData({ name: '', description: '' });
+                  }}
+                  sx={{ mb: 2 }}
+                >
+                  ← Back to options
+                </Button>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Select a department template:
+                </Typography>
+                <Grid container spacing={2} sx={{ mt: 1, mb: 2, maxHeight: 400, overflow: 'auto' }}>
+                  {PREDEFINED_DEPARTMENTS.map((dept, index) => (
+                    <Grid size={{ xs: 12 }} key={index}>
+                      <Card
+                        variant={selectedPredefinedDept === index ? "elevation" : "outlined"}
+                        sx={{
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          bgcolor: selectedPredefinedDept === index ? 'action.selected' : 'background.paper'
+                        }}
+                        onClick={() => {
+                          setSelectedPredefinedDept(index);
+                          const selected = PREDEFINED_DEPARTMENTS[index];
+                          setFormData({
+                            name: `${selected.emoji} ${selected.name}`,
+                            description: `Goal: ${selected.goal}\n\nAI-Agents Examples:\n${selected.aiAgents.map(agent => `• ${agent}`).join('\n')}`
+                          });
+                        }}
+                      >
+                        <CardContent>
+                          <Typography variant="h6" gutterBottom>
+                            {dept.emoji} {dept.name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" paragraph>
+                            {dept.goal}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+            )}
+            
+            {(editingDepartment || !showPredefinedList || selectedPredefinedDept >= 0) && (
+              <>
+                <TextField
+                  fullWidth
+                  label="Department Name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  error={!!formErrors.name}
+                  helperText={formErrors.name}
+                  margin="normal"
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Goals & Description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  error={!!formErrors.description}
+                  helperText={formErrors.description}
+                  margin="normal"
+                  multiline
+                  rows={6}
+                />
+              </>
+            )}
+            
             {formErrors.submit && (
               <Alert severity="error" sx={{ mt: 2 }}>
                 {formErrors.submit}
@@ -497,8 +686,16 @@ export const DepartmentManagement: React.FC = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={() => handleSubmit()} variant="contained">
+          <Button onClick={() => {
+            handleCloseDialog();
+            setShowPredefinedList(false);
+            setSelectedPredefinedDept(-1);
+          }}>Cancel</Button>
+          <Button 
+            onClick={() => handleSubmit()} 
+            variant="contained"
+            disabled={showPredefinedList && selectedPredefinedDept < 0 && !editingDepartment}
+          >
             {editingDepartment ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
@@ -655,227 +852,6 @@ export const DepartmentManagement: React.FC = () => {
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             Delete
           </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* AI Department Suggestion Dialog */}
-      <Dialog 
-        open={aiSuggestDialogOpen} 
-        onClose={() => {
-          setAISuggestDialogOpen(false);
-          setAISuggestions(null);
-          setSelectedSuggestions(new Set());
-          setAIUserFeedback('');
-          setAIError(null);
-        }}
-        maxWidth="lg"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box display="flex" alignItems="center" gap={1}>
-            <AIIcon color="primary" />
-            <Typography variant="h6">AI Department Structure Suggestions</Typography>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          {aiError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {aiError}
-            </Alert>
-          )}
-          
-          {!aiSuggestions ? (
-            <Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Our AI will analyze your organization and suggest an optimal department structure
-                based on your goals, industry, and company size.
-              </Typography>
-              
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <FormControl fullWidth margin="normal">
-                    <InputLabel>Company Size</InputLabel>
-                    <Select
-                      value={aiCompanySize}
-                      onChange={(e) => setAICompanySize(e.target.value)}
-                      label="Company Size"
-                    >
-                      <MenuItem value="small">Small (1-10 employees)</MenuItem>
-                      <MenuItem value="medium">Medium (11-50 employees)</MenuItem>
-                      <MenuItem value="large">Large (51-200 employees)</MenuItem>
-                      <MenuItem value="enterprise">Enterprise (200+ employees)</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <TextField
-                    fullWidth
-                    label="Industry (optional)"
-                    placeholder="e.g., Software, Healthcare, Retail"
-                    value={aiIndustry}
-                    onChange={(e) => setAIIndustry(e.target.value)}
-                    margin="normal"
-                  />
-                </Grid>
-              </Grid>
-              
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                label="Additional Context (optional)"
-                placeholder="Any specific requirements or focus areas for your departments?"
-                value={aiUserFeedback}
-                onChange={(e) => setAIUserFeedback(e.target.value)}
-                margin="normal"
-              />
-            </Box>
-          ) : (
-            <Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Select the departments you'd like to create:
-              </Typography>
-              
-              <Grid container spacing={2}>
-                {aiSuggestions.map((dept, index) => (
-                  <Grid size={{ xs: 12, md: 6 }} key={index}>
-                    <Card 
-                      variant={selectedSuggestions.has(index) ? "elevation" : "outlined"}
-                      sx={{ 
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        bgcolor: selectedSuggestions.has(index) ? 'action.selected' : 'background.paper'
-                      }}
-                      onClick={() => {
-                        const newSelected = new Set(selectedSuggestions);
-                        if (newSelected.has(index)) {
-                          newSelected.delete(index);
-                        } else {
-                          newSelected.add(index);
-                        }
-                        setSelectedSuggestions(newSelected);
-                      }}
-                    >
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom>
-                          {dept.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" paragraph>
-                          {dept.description}
-                        </Typography>
-                        <Typography variant="subtitle2" gutterBottom>
-                          Key Goals:
-                        </Typography>
-                        <Box component="ul" sx={{ pl: 2, mt: 0 }}>
-                          {dept.goals.slice(0, 3).map((goal, i) => (
-                            <Typography component="li" variant="body2" key={i}>
-                              {goal}
-                            </Typography>
-                          ))}
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-              
-              <Divider sx={{ my: 3 }} />
-              
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                label="Feedback for refinement (optional)"
-                placeholder="What would you like to adjust about these suggestions?"
-                value={aiUserFeedback}
-                onChange={(e) => setAIUserFeedback(e.target.value)}
-              />
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setAISuggestDialogOpen(false);
-            setAISuggestions(null);
-            setSelectedSuggestions(new Set());
-            setAIUserFeedback('');
-            setAIError(null);
-          }}>
-            Cancel
-          </Button>
-          {!aiSuggestions ? (
-            <Button
-              onClick={async () => {
-                if (!currentOrganization) return;
-                
-                setAILoading(true);
-                setAIError(null);
-                try {
-                  const result = await organizationManagementService.suggestDepartments({
-                    organization_description: currentOrganization.description || currentOrganization.name,
-                    organization_goals: [], // TODO: Add primary_goals to Organization interface when AI-enhanced goals are saved
-                    industry: aiIndustry || undefined,
-                    company_size: aiCompanySize,
-                    user_feedback: aiUserFeedback || undefined
-                  });
-                  setAISuggestions(result.departments);
-                  setSelectedSuggestions(new Set(result.departments.map((_, i) => i)));
-                } catch (error: any) {
-                  setAIError(error.response?.data?.detail || 'Failed to generate suggestions');
-                } finally {
-                  setAILoading(false);
-                }
-              }}
-              variant="contained"
-              disabled={aiLoading}
-              startIcon={aiLoading ? <CircularProgress size={20} /> : <AIIcon />}
-            >
-              {aiLoading ? 'Generating...' : 'Generate Suggestions'}
-            </Button>
-          ) : (
-            <>
-              <Button
-                onClick={async () => {
-                  setAISuggestions(null);
-                  setSelectedSuggestions(new Set());
-                }}
-                disabled={aiLoading}
-              >
-                Regenerate
-              </Button>
-              <Button
-                onClick={async () => {
-                  // Create the selected departments
-                  const selectedDepts = Array.from(selectedSuggestions).map(i => aiSuggestions[i]);
-                  
-                  setAILoading(true);
-                  try {
-                    for (const dept of selectedDepts) {
-                      await handleSubmit(null, {
-                        name: dept.name,
-                        description: `${dept.description}\n\nGoals:\n${dept.goals.join('\n')}\n\nKey Responsibilities:\n${dept.key_responsibilities.join('\n')}`
-                      });
-                    }
-                    
-                    await fetchDepartments();
-                    setAISuggestDialogOpen(false);
-                    setAISuggestions(null);
-                    setSelectedSuggestions(new Set());
-                    setError(null);
-                  } catch (error: any) {
-                    setAIError('Failed to create some departments');
-                  } finally {
-                    setAILoading(false);
-                  }
-                }}
-                variant="contained"
-                color="primary"
-                disabled={selectedSuggestions.size === 0 || aiLoading}
-              >
-                Create {selectedSuggestions.size} Department{selectedSuggestions.size !== 1 ? 's' : ''}
-              </Button>
-            </>
-          )}
         </DialogActions>
       </Dialog>
     </Box>

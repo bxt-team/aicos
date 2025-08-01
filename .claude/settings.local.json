@@ -53,7 +53,8 @@
       "Bash(npm uninstall:*)",
       "Bash(npm run dev:*)",
       "Bash(pip index:*)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git push:*)"
     ],
     "deny": []
   },

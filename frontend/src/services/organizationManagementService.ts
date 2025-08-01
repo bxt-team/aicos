@@ -14,26 +14,6 @@ export interface OrganizationGoalResponse {
   value_proposition: string;
 }
 
-export interface DepartmentSuggestion {
-  name: string;
-  description: string;
-  goals: string[];
-  key_responsibilities: string[];
-}
-
-export interface DepartmentStructureRequest {
-  organization_description: string;
-  organization_goals?: string[];
-  industry?: string;
-  company_size?: string;
-  user_feedback?: string;
-  previous_result?: DepartmentSuggestion[];
-}
-
-export interface DepartmentStructureResponse {
-  departments: DepartmentSuggestion[];
-  rationale: string;
-}
 
 export interface KeyResult {
   metric: string;
@@ -115,18 +95,6 @@ class OrganizationManagementService {
     }
   }
 
-  async suggestDepartments(request: DepartmentStructureRequest): Promise<DepartmentStructureResponse> {
-    try {
-      const response = await api.post(
-        '/api/organization-management/suggest-departments',
-        request
-      );
-      return response.data.data;
-    } catch (error: any) {
-      console.error('[OrgManagement] Error suggesting departments:', error);
-      throw error;
-    }
-  }
 
   async enhanceProjectDescription(request: ProjectDescriptionRequest): Promise<ProjectDescriptionResponse> {
     try {

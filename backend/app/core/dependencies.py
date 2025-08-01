@@ -30,7 +30,6 @@ from app.agents.x_post_generator_agent import XPostGeneratorAgent
 from app.agents.x_approval_agent import XApprovalAgent
 from app.agents.x_scheduler_agent import XSchedulerAgent
 from app.agents.crews.organization_goal_crew import OrganizationGoalCrew
-from app.agents.crews.department_structure_crew import DepartmentStructureCrew
 from app.agents.crews.project_description_crew import ProjectDescriptionCrew
 from app.agents.crews.project_task_crew import ProjectTaskCrew
 from app.agents.crews.goal_suggestion_crew import GoalSuggestionCrew
@@ -77,7 +76,6 @@ x_post_generator_agent: Optional[XPostGeneratorAgent] = None
 x_approval_agent: Optional[XApprovalAgent] = None
 x_scheduler_agent: Optional[XSchedulerAgent] = None
 organization_goal_crew: Optional[OrganizationGoalCrew] = None
-department_structure_crew: Optional[DepartmentStructureCrew] = None
 project_description_crew: Optional[ProjectDescriptionCrew] = None
 project_task_crew: Optional[ProjectTaskCrew] = None
 goal_suggestion_crew: Optional[GoalSuggestionCrew] = None
@@ -96,7 +94,7 @@ def initialize_agents():
     global app_store_analyst_agent, play_store_analyst_agent, meta_ads_analyst_agent, google_analytics_expert_agent
     global threads_analysis_agent, content_strategy_agent, post_generator_agent, approval_agent, scheduler_agent
     global x_analysis_agent, x_content_strategy_agent, x_post_generator_agent, x_approval_agent, x_scheduler_agent, supabase_client
-    global background_video_agent, organization_goal_crew, department_structure_crew, project_description_crew, project_task_crew, goal_suggestion_crew
+    global background_video_agent, organization_goal_crew, project_description_crew, project_task_crew, goal_suggestion_crew, task_suggestion_crew
     
     logger.info(f"[INIT] OPENAI_API_KEY present: {bool(settings.OPENAI_API_KEY)}")
     logger.info(f"[INIT] OPENAI_API_KEY length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
@@ -329,14 +327,6 @@ def initialize_agents():
             logger.error(f"[ORGANIZATION_GOAL_CREW] Failed to initialize: {str(e)}")
             organization_goal_crew = None
             
-        logger.info("[DEPARTMENT_STRUCTURE_CREW] Initializing...")
-        try:
-            department_structure_crew = DepartmentStructureCrew()
-            logger.info("[DEPARTMENT_STRUCTURE_CREW] Initialized successfully")
-        except Exception as e:
-            logger.error(f"[DEPARTMENT_STRUCTURE_CREW] Failed to initialize: {str(e)}")
-            department_structure_crew = None
-            
         logger.info("[PROJECT_DESCRIPTION_CREW] Initializing...")
         try:
             project_description_crew = ProjectDescriptionCrew()
@@ -414,9 +404,10 @@ def get_agent(agent_name: str):
         'x_approval': x_approval_agent,
         'x_scheduler': x_scheduler_agent,
         'organization_goal': organization_goal_crew,
-        'department_structure': department_structure_crew,
         'project_description': project_description_crew,
         'project_task': project_task_crew,
+        'goal_suggestion': goal_suggestion_crew,
+        'task_suggestion': task_suggestion_crew,
     }
     return agents.get(agent_name)
 
@@ -484,12 +475,6 @@ def get_organization_goal_crew():
     if not organization_goal_crew:
         raise RuntimeError("OrganizationGoalCrew not initialized")
     return organization_goal_crew
-
-def get_department_structure_crew():
-    """Get DepartmentStructureCrew instance"""
-    if not department_structure_crew:
-        raise RuntimeError("DepartmentStructureCrew not initialized")
-    return department_structure_crew
 
 def get_project_description_crew():
     """Get ProjectDescriptionCrew instance"""

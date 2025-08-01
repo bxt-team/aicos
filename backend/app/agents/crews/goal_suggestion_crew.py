@@ -42,7 +42,17 @@ class GoalSuggestionCrew(BaseCrew):
     """Crew for generating goal suggestions based on project context"""
     
     def __init__(self):
-        super().__init__()
+        # Skip BaseCrew init since we don't use YAML configs
+        # Initialize attributes that BaseCrew would set
+        self.config_dir = None
+        self.agents_config = {}
+        self.tasks_config = {}
+        self.crews_config = {}
+        self.cost_tracking_enabled = True
+        self.session_costs = []
+        self._context = None
+        self.storage_adapter = None
+        
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY not configured")
         
