@@ -11,6 +11,7 @@ import {
   IconButton,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
   ListItemSecondaryAction,
   TextField,
@@ -39,6 +40,8 @@ import {
   Business as BusinessIcon,
   SmartToy as SmartToyIcon,
   Person as PersonIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
 } from '@mui/icons-material';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -76,6 +79,8 @@ interface AIAgent {
   name: string;
   type: string;
   capabilities: string[];
+  category?: string;
+  description?: string;
 }
 
 interface OrganizationMember {
@@ -83,7 +88,10 @@ interface OrganizationMember {
   user_id: string;
   role: string;
   email: string;
+  name?: string;
   full_name?: string;
+  joined_at?: string;
+  is_current_user?: boolean;
 }
 
 interface PredefinedDepartment {
@@ -238,6 +246,10 @@ export const DepartmentManagement: React.FC = () => {
   // Predefined department selection state
   const [selectedPredefinedDept, setSelectedPredefinedDept] = useState<number>(-1);
   const [showPredefinedList, setShowPredefinedList] = useState(false);
+  
+  // Agent filtering state
+  const [agentSearchTerm, setAgentSearchTerm] = useState('');
+  const [selectedAgentCategory, setSelectedAgentCategory] = useState<string>('all');
 
   useEffect(() => {
     if (currentProject) {
@@ -276,9 +288,15 @@ export const DepartmentManagement: React.FC = () => {
     
     try {
       const response = await api.get(`/api/organizations/${currentOrganization.id}/members`);
-      setOrganizationMembers(response.data);
+      // The API returns { success: true, members: [...], count: number }
+      if (response.data && response.data.members) {
+        setOrganizationMembers(response.data.members);
+      } else {
+        setOrganizationMembers([]);
+      }
     } catch (err) {
       console.error('Failed to fetch organization members:', err);
+      setOrganizationMembers([]);
     }
   };
 
@@ -772,6 +790,8 @@ export const DepartmentManagement: React.FC = () => {
                   onChange={(e: SelectChangeEvent) => {
                     setAssignmentType(e.target.value as 'member' | 'ai_agent');
                     setSelectedAssignee('');
+                    setAgentSearchTerm('');
+                    setSelectedAgentCategory('all');
                   }}
                   label="Assignment Type"
                 >
@@ -780,39 +800,138 @@ export const DepartmentManagement: React.FC = () => {
                 </Select>
               </FormControl>
 
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>
-                  {assignmentType === 'member' ? 'Select Member' : 'Select AI Agent'}
-                </InputLabel>
-                <Select
-                  value={selectedAssignee}
-                  onChange={(e: SelectChangeEvent) => setSelectedAssignee(e.target.value)}
-                  label={assignmentType === 'member' ? 'Select Member' : 'Select AI Agent'}
-                >
-                  {assignmentType === 'member' ? (
-                    organizationMembers
+              {assignmentType === 'member' ? (
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel>Select Member</InputLabel>
+                  <Select
+                    value={selectedAssignee}
+                    onChange={(e: SelectChangeEvent) => setSelectedAssignee(e.target.value)}
+                    label="Select Member"
+                  >
+                    {organizationMembers
                       .filter(member => !assignments.some(a => 
                         a.assignee_type === 'member' && a.assignee_id === member.user_id
                       ))
                       .map((member) => (
                         <MenuItem key={member.user_id} value={member.user_id}>
-                          {member.full_name || member.email} ({member.role})
+                          {member.name || member.full_name || member.email} ({member.role})
                         </MenuItem>
-                      ))
-                  ) : (
-                    availableAgents
-                      .filter(agent => !assignments.some(a => 
-                        a.assignee_type === 'ai_agent' && 
-                        a.assignee_metadata?.agent_id === agent.id
-                      ))
-                      .map((agent) => (
-                        <MenuItem key={agent.id} value={agent.id}>
-                          {agent.name}
-                        </MenuItem>
-                      ))
-                  )}
-                </Select>
-              </FormControl>
+                      ))}
+                  </Select>
+                </FormControl>
+              ) : (
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+                    <TextField
+                      fullWidth
+                      placeholder="Search agents by name or description..."
+                      value={agentSearchTerm}
+                      onChange={(e) => setAgentSearchTerm(e.target.value)}
+                      InputProps={{
+                        startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                      }}
+                      size="small"
+                    />
+                    <FormControl sx={{ minWidth: 150 }} size="small">
+                      <Select
+                        value={selectedAgentCategory}
+                        onChange={(e) => setSelectedAgentCategory(e.target.value)}
+                        displayEmpty
+                        startAdornment={<FilterListIcon sx={{ mr: 1, color: 'text.secondary' }} />}
+                      >
+                        <MenuItem value="all">All Categories</MenuItem>
+                        {Array.from(new Set(availableAgents.map(a => a.category).filter(Boolean))).sort().map(cat => (
+                          <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+                  
+                  <Box sx={{ maxHeight: 400, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                    {(() => {
+                      const filteredAgents = availableAgents
+                        .filter(agent => !assignments.some(a => 
+                          a.assignee_type === 'ai_agent' && 
+                          a.assignee_metadata?.agent_id === agent.id
+                        ))
+                        .filter(agent => 
+                          selectedAgentCategory === 'all' || agent.category === selectedAgentCategory
+                        )
+                        .filter(agent => {
+                          const searchLower = agentSearchTerm.toLowerCase();
+                          return agent.name.toLowerCase().includes(searchLower) ||
+                                 (agent.description && agent.description.toLowerCase().includes(searchLower)) ||
+                                 agent.capabilities.some(cap => cap.toLowerCase().includes(searchLower));
+                        });
+                      
+                      if (filteredAgents.length === 0) {
+                        return (
+                          <Box p={3} textAlign="center">
+                            <Typography color="text.secondary">
+                              {agentSearchTerm || selectedAgentCategory !== 'all' 
+                                ? 'No agents found matching your criteria' 
+                                : 'All available agents have been assigned'}
+                            </Typography>
+                          </Box>
+                        );
+                      }
+                      
+                      return (
+                        <List>
+                          {filteredAgents.map((agent) => (
+                            <ListItem key={agent.id} disablePadding>
+                              <ListItemButton
+                                selected={selectedAssignee === agent.id}
+                                onClick={() => setSelectedAssignee(agent.id)}
+                              >
+                                <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                                  <SmartToyIcon />
+                                </Avatar>
+                                <ListItemText
+                                  primary={
+                                    <Box display="flex" alignItems="center" gap={1}>
+                                      <Typography variant="subtitle1">{agent.name}</Typography>
+                                      {agent.category && (
+                                        <Chip label={agent.category} size="small" variant="outlined" />
+                                      )}
+                                    </Box>
+                                  }
+                                  secondary={
+                                    <Box>
+                                      {agent.description && (
+                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                                          {agent.description}
+                                        </Typography>
+                                      )}
+                                      <Box display="flex" gap={0.5} flexWrap="wrap">
+                                        {agent.capabilities.slice(0, 3).map((cap, idx) => (
+                                          <Chip 
+                                            key={idx} 
+                                            label={cap} 
+                                            size="small" 
+                                            sx={{ fontSize: '0.75rem' }}
+                                          />
+                                        ))}
+                                        {agent.capabilities.length > 3 && (
+                                          <Chip 
+                                            label={`+${agent.capabilities.length - 3} more`} 
+                                            size="small" 
+                                            sx={{ fontSize: '0.75rem' }}
+                                          />
+                                        )}
+                                      </Box>
+                                    </Box>
+                                  }
+                                />
+                              </ListItemButton>
+                            </ListItem>
+                          ))}
+                        </List>
+                      );
+                    })()}
+                  </Box>
+                </Box>
+              )}
 
               <TextField
                 fullWidth

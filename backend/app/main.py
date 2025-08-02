@@ -24,7 +24,7 @@ from app.api.routers import (
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,  # Set to DEBUG for more detailed logs
+    level=logging.INFO,  # Set to INFO to reduce noise
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout)  # Ensure logs go to stdout
@@ -39,7 +39,7 @@ deps_logger.setLevel(logging.INFO)
 
 # Configure organizations router logger
 org_logger = logging.getLogger('app.api.routers.organizations')
-org_logger.setLevel(logging.DEBUG)
+org_logger.setLevel(logging.INFO)
 
 # Suppress httpcore.http11 DEBUG logs
 httpcore_logger = logging.getLogger('httpcore.http11')
@@ -49,9 +49,17 @@ httpcore_logger.setLevel(logging.WARNING)
 httpcore_base_logger = logging.getLogger('httpcore')
 httpcore_base_logger.setLevel(logging.WARNING)
 
-# Also suppress httpx if needed
+# Suppress hpack debug logs (HTTP/2 header compression)
+hpack_logger = logging.getLogger('hpack')
+hpack_logger.setLevel(logging.WARNING)
+
+# Suppress httpx debug logs
 httpx_logger = logging.getLogger('httpx')
 httpx_logger.setLevel(logging.WARNING)
+
+# Suppress h2 (HTTP/2) debug logs
+h2_logger = logging.getLogger('h2')
+h2_logger.setLevel(logging.WARNING)
 
 # Lifespan context manager for startup and shutdown
 @asynccontextmanager

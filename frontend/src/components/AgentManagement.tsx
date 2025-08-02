@@ -2,6 +2,37 @@ import React, { useState, useEffect } from 'react';
 import { agentConfigs, AgentConfig } from '../config/agents';
 import axios from 'axios';
 import './AgentManagement.css';
+import {
+  Box,
+  TextField,
+  FormControl,
+  Select,
+  MenuItem,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+  Avatar,
+  Chip,
+  Typography,
+  Button,
+  Collapse,
+  Divider,
+  Card,
+  CardContent,
+  IconButton,
+  InputAdornment,
+  SelectChangeEvent,
+} from '@mui/material';
+import {
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Launch as LaunchIcon,
+  SmartToy as SmartToyIcon,
+} from '@mui/icons-material';
 
 interface AgentPrompt {
   name: string;
@@ -22,6 +53,10 @@ const AgentManagement: React.FC = () => {
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [agentPrompts, setAgentPrompts] = useState<{ [key: string]: AgentPrompt }>({});
   const [loadingPrompts, setLoadingPrompts] = useState<Set<string>>(new Set());
+  
+  // Filtering state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -145,132 +180,284 @@ const AgentManagement: React.FC = () => {
     });
   };
 
+  // Get unique categories
+  const categories = Array.from(new Set(agents.map(a => a.category))).sort();
+  
+  // Filter agents
+  const filteredAgents = agents
+    .filter(agent => agent.enabled)
+    .filter(agent => 
+      selectedCategory === 'all' || agent.category === selectedCategory
+    )
+    .filter(agent => {
+      const searchLower = searchTerm.toLowerCase();
+      return agent.name.toLowerCase().includes(searchLower) ||
+             agent.description.toLowerCase().includes(searchLower) ||
+             agent.features.some(feature => feature.toLowerCase().includes(searchLower));
+    });
+
   return (
-    <div className="agent-management">
-      <div className="agents-section">
-        <h3>✅ Active Agents</h3>
-        <div className="agents-grid">
-          {agents
-            .filter(agent => agent.enabled)
-            .map(agent => (
-            <div key={agent.id} className="agent-card">
-              <div className="card-header">
-                <div className="agent-title-section">
-                  <span className="agent-icon">{agent.icon}</span>
-                  <div>
-                    <h4>{agent.name}</h4>
-                    <span 
-                      className={`category-badge ${getCategoryClass(agent.category)}`}
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <SmartToyIcon /> Active Agents
+      </Typography>
+      
+      {/* Search and Filter Controls */}
+      <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+        <TextField
+          fullWidth
+          placeholder="Search agents by name, description, or features..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ maxWidth: 600 }}
+        />
+        <FormControl sx={{ minWidth: 200 }}>
+          <Select
+            value={selectedCategory}
+            onChange={(e: SelectChangeEvent) => setSelectedCategory(e.target.value)}
+            displayEmpty
+            startAdornment={
+              <InputAdornment position="start">
+                <FilterListIcon />
+              </InputAdornment>
+            }
+          >
+            <MenuItem value="all">All Categories</MenuItem>
+            {categories.map(cat => (
+              <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {/* Agents List */}
+      <List sx={{ bgcolor: 'background.paper', borderRadius: 2 }}>
+        {filteredAgents.length === 0 ? (
+          <ListItem>
+            <ListItemText 
+              primary="No agents found"
+              secondary={searchTerm || selectedCategory !== 'all' 
+                ? 'Try adjusting your search criteria' 
+                : 'No agents are currently enabled'}
+              sx={{ textAlign: 'center', py: 4 }}
+            />
+          </ListItem>
+        ) : (
+          filteredAgents.map((agent, index) => (
+            <React.Fragment key={agent.id}>
+              {index > 0 && <Divider />}
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => toggleAgentExpansion(agent.id)}>
+                  <ListItemIcon>
+                    <Avatar sx={{ bgcolor: getCategoryColor(agent.category), width: 48, height: 48 }}>
+                      <Typography fontSize="large">{agent.icon}</Typography>
+                    </Avatar>
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="h6">{agent.name}</Typography>
+                        <Chip 
+                          label={agent.category} 
+                          size="small" 
+                          sx={{ 
+                            bgcolor: getCategoryColor(agent.category) + '20',
+                            color: getCategoryColor(agent.category),
+                            fontWeight: 500
+                          }}
+                        />
+                        <Chip 
+                          label={getStatusText(agent.id)} 
+                          size="small" 
+                          color="success"
+                          icon={<Typography fontSize="small">{getStatusIcon(agent.id)}</Typography>}
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          {agent.description}
+                        </Typography>
+                        <Box display="flex" gap={0.5} flexWrap="wrap">
+                          {agent.features.map((feature, idx) => (
+                            <Chip 
+                              key={idx} 
+                              label={feature} 
+                              size="small" 
+                              variant="outlined"
+                              sx={{ fontSize: '0.75rem' }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    }
+                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      startIcon={<LaunchIcon />}
+                      href={agent.route}
+                      size="small"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      {agent.category}
-                    </span>
-                  </div>
-                </div>
-                {/* Status and version info hidden */}
-              </div>
+                      Open
+                    </Button>
+                    <IconButton>
+                      {expandedAgents.has(agent.id) ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
+                  </Box>
+                </ListItemButton>
+              </ListItem>
+              
+              {/* Expanded Agent Details */}
+              <Collapse in={expandedAgents.has(agent.id)} timeout="auto" unmountOnExit>
+                <Box sx={{ px: 3, py: 2, bgcolor: 'grey.50' }}>
+                  {loadingPrompts.has(agent.id) ? (
+                    <Typography align="center" color="text.secondary">Loading agent configuration...</Typography>
+                  ) : agentPrompts[agent.id] ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        <Card variant="outlined" sx={{ flex: 1, minWidth: 300 }}>
+                          <CardContent>
+                            <Typography variant="h6" gutterBottom color="primary">
+                              🎯 Role & Goal
+                            </Typography>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                              Role:
+                            </Typography>
+                            <Typography variant="body2" paragraph>
+                              {agentPrompts[agent.id].role}
+                            </Typography>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                              Goal:
+                            </Typography>
+                            <Typography variant="body2">
+                              {agentPrompts[agent.id].goal}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                        
+                        <Card variant="outlined" sx={{ flex: 1, minWidth: 300 }}>
+                          <CardContent>
+                            <Typography variant="h6" gutterBottom color="primary">
+                              ⚙️ Settings
+                            </Typography>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                              <Box>
+                                <Typography variant="body2" color="text.secondary">
+                                  Verbose:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {agentPrompts[agent.id].settings.verbose ? 'Yes' : 'No'}
+                                </Typography>
+                              </Box>
+                              <Box>
+                                <Typography variant="body2" color="text.secondary">
+                                  Allow Delegation:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {agentPrompts[agent.id].settings.allow_delegation ? 'Yes' : 'No'}
+                                </Typography>
+                              </Box>
+                              <Box>
+                                <Typography variant="body2" color="text.secondary">
+                                  Max Iterations:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {agentPrompts[agent.id].settings.max_iter}
+                                </Typography>
+                              </Box>
+                              <Box>
+                                <Typography variant="body2" color="text.secondary">
+                                  Max Execution Time:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {agentPrompts[agent.id].settings.max_execution_time}s
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Box>
+                      
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Typography variant="h6" gutterBottom color="primary">
+                            📖 Background & Instructions
+                          </Typography>
+                          <Box sx={{ '& p': { mb: 1 }, '& li': { ml: 2 } }}>
+                            {formatBackstory(agentPrompts[agent.id].backstory)}
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Box>
+                  ) : (
+                    <Button 
+                      onClick={() => loadAgentPrompt(agent.id)}
+                      variant="outlined"
+                      size="small"
+                    >
+                      Load Configuration
+                    </Button>
+                  )}
+                </Box>
+              </Collapse>
+            </React.Fragment>
+          ))
+        )}
+      </List>
 
-              <div className="card-content">
-                <p className="agent-description">{agent.description}</p>
-                
-                <div className="features-section">
-                  <h5>Features:</h5>
-                  <div className="features-list">
-                    {agent.features.map((feature, index) => (
-                      <span key={index} className="feature-chip">{feature}</span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="card-actions">
-                  <a 
-                    href={agent.route} 
-                    className="action-button primary"
-                  >
-                    🚀 Open Agent
-                  </a>
-                  <button 
-                    className="action-button secondary"
-                    onClick={() => toggleAgentExpansion(agent.id)}
-                    disabled={loadingPrompts.has(agent.id)}
-                  >
-                    {loadingPrompts.has(agent.id) ? '⏳' : expandedAgents.has(agent.id) ? '📖 Hide Prompts' : '📋 Show Prompts'}
-                  </button>
-                </div>
-
-                {expandedAgents.has(agent.id) && agentPrompts[agent.id] && (
-                  <div className="agent-prompt-section">
-                    <div className="prompt-divider"></div>
-                    <h5>🤖 Agent Configuration</h5>
-                    
-                    <div className="prompt-item">
-                      <h6>Role:</h6>
-                      <p>{agentPrompts[agent.id].role}</p>
-                    </div>
-
-                    <div className="prompt-item">
-                      <h6>Goal:</h6>
-                      <p>{agentPrompts[agent.id].goal}</p>
-                    </div>
-
-                    <div className="prompt-item">
-                      <h6>Background & Instructions:</h6>
-                      <div className="backstory-content">
-                        {formatBackstory(agentPrompts[agent.id].backstory)}
-                      </div>
-                    </div>
-
-                    <div className="prompt-item">
-                      <h6>Settings:</h6>
-                      <div className="settings-grid">
-                        <div className="setting-item">
-                          <span className="setting-label">Verbose:</span>
-                          <span className={`setting-value ${agentPrompts[agent.id].settings.verbose ? 'true' : 'false'}`}>
-                            {agentPrompts[agent.id].settings.verbose ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                        <div className="setting-item">
-                          <span className="setting-label">Allow Delegation:</span>
-                          <span className={`setting-value ${agentPrompts[agent.id].settings.allow_delegation ? 'true' : 'false'}`}>
-                            {agentPrompts[agent.id].settings.allow_delegation ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                        <div className="setting-item">
-                          <span className="setting-label">Max Iterations:</span>
-                          <span className="setting-value">{agentPrompts[agent.id].settings.max_iter}</span>
-                        </div>
-                        <div className="setting-item">
-                          <span className="setting-label">Max Execution Time:</span>
-                          <span className="setting-value">{agentPrompts[agent.id].settings.max_execution_time}s</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-
-      <div className="system-info">
-        <h3>📊 System Information</h3>
-        <div className="info-grid">
-          <div className="info-item">
-            <strong>Backend URL:</strong> {API_BASE_URL}
-          </div>
-          <div className="info-item">
-            <strong>Last Check:</strong> {formatTimestamp(new Date().toISOString())}
-          </div>
-          <div className="info-item">
-            <strong>Frontend Version:</strong> 1.0.0
-          </div>
-          <div className="info-item">
-            <strong>Agent Framework:</strong> CrewAI + FastAPI
-          </div>
-        </div>
-      </div>
-    </div>
+      {/* System Information */}
+      <Card sx={{ mt: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            📊 System Information
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                Backend URL:
+              </Typography>
+              <Typography variant="body2">
+                {API_BASE_URL}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                Last Check:
+              </Typography>
+              <Typography variant="body2">
+                {formatTimestamp(new Date().toISOString())}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                Frontend Version:
+              </Typography>
+              <Typography variant="body2">
+                1.0.0
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary">
+                Agent Framework:
+              </Typography>
+              <Typography variant="body2">
+                CrewAI + FastAPI
+              </Typography>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 };
 
