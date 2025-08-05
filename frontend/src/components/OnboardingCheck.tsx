@@ -11,8 +11,8 @@ interface OnboardingCheckProps {
 
 const OnboardingCheck: React.FC<OnboardingCheckProps> = ({ children }) => {
   const { user } = useSupabaseAuth();
-  const { organizations, currentOrganization, loadOrganizations, loading: orgLoading } = useOrganization();
-  const [currentProject, setCurrentProject] = useState<any>(null);
+  const { organizations, currentOrganization, loading: orgLoading } = useOrganization();
+  const [, setCurrentProject] = useState<any>(null);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);

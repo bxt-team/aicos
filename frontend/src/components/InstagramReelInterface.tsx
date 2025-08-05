@@ -98,13 +98,6 @@ interface InstagramPost {
   period_color?: string;
 }
 
-interface ComposedPost {
-  id: string;
-  text: string;
-  period: string;
-  file_url: string;
-  created_at: string;
-}
 
 const InstagramReelInterface: React.FC<InstagramReelInterfaceProps> = ({ apiBaseUrl }) => {
   // Helper function to get recommended loop style based on period

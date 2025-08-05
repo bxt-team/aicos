@@ -126,7 +126,7 @@ const MobileAnalyticsDashboard: React.FC<DashboardProps> = ({ analysisData, anal
     if (!analysisData) return null;
 
     const { 
-      app_name, rating, total_reviews, downloads, category,
+      rating, total_reviews, downloads, category,
       keyword_analysis, review_sentiment, visual_analysis, 
       recommendations, competitor_analysis 
     } = analysisData;

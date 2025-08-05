@@ -17,12 +17,9 @@ import {
   MenuItem,
   Chip,
   List,
-  ListItem,
-  ListItemText,
   Grid,
   Checkbox,
   Rating,
-  Divider,
   Paper,
   CircularProgress,
   Radio,
@@ -40,8 +37,6 @@ import {
   Schedule as ScheduleIcon,
   Assignment as AssignmentIcon,
   AutoAwesome as AutoAwesomeIcon,
-  ThumbUp as ThumbUpIcon,
-  ThumbDown as ThumbDownIcon,
   Feedback as FeedbackIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -76,7 +71,7 @@ interface GoalsManagementProps {
 }
 
 export const GoalsManagement: React.FC<GoalsManagementProps> = ({ projectId }) => {
-  const { user } = useSupabaseAuth();
+  const { } = useSupabaseAuth();
   const { currentOrganization } = useOrganization();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);

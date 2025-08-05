@@ -50,7 +50,6 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppHeader from './components/AppHeader';
 import { useSupabaseAuth } from './contexts/SupabaseAuthContext';
 import OnboardingCheck from './components/OnboardingCheck';
-import { ProjectDashboard } from './components/ProjectDashboard';
 import MainDashboard from './components/MainDashboard';
 
 function AppContent() {

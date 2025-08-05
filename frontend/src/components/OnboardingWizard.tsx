@@ -29,7 +29,7 @@ interface OnboardingWizardProps {
 }
 
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
-  const { createOrganization, organizations, currentOrganization, createProject } = useOrganization();
+  const { createOrganization, currentOrganization, createProject } = useOrganization();
   
   // Start at step 1 if organization already exists
   const [activeStep, setActiveStep] = useState(currentOrganization ? 1 : 0);

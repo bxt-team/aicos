@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './MobileAnalyticsInterface.css';
 import MobileAnalyticsDashboard from './MobileAnalyticsDashboard';
-import { PlayStoreAnalysis, AppStoreAnalysis as AppStoreAnalysisType } from '../types/mobileAnalytics';
+import { } from '../types/mobileAnalytics';
 
 interface AppStoreAnalysis {
   app_id: string;

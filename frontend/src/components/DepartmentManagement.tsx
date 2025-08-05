@@ -26,10 +26,8 @@ import {
   SelectChangeEvent,
   Avatar,
   Stack,
-  Divider,
   Tab,
   Tabs,
-  CircularProgress,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import {
@@ -216,7 +214,7 @@ const PREDEFINED_DEPARTMENTS: PredefinedDepartment[] = [
 
 export const DepartmentManagement: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useSupabaseAuth();
+  const { } = useSupabaseAuth();
   const { currentOrganization, currentUserRole } = useOrganization();
   const { currentProject } = useProject();
   const [departments, setDepartments] = useState<Department[]>([]);

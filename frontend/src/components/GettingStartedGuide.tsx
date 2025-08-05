@@ -41,7 +41,7 @@ export const GettingStartedGuide: React.FC<GettingStartedGuideProps> = ({
   completedSteps,
   onStepComplete,
 }) => {
-  const { t } = useTranslation();
+  const { } = useTranslation();
   const navigate = useNavigate();
   const { currentProject } = useProject();
   const [activeStep, setActiveStep] = useState(0);

@@ -12,7 +12,6 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Chip,
   ListItemButton,
 } from '@mui/material';
 import {
@@ -22,7 +21,6 @@ import {
   People as PeopleIcon,
   CreditCard as CreditCardIcon,
   Add as AddIcon,
-  TrendingUp as TrendingUpIcon,
   Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';

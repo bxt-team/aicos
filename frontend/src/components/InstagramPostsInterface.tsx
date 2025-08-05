@@ -30,13 +30,6 @@ interface Affirmation {
   period_info: any;
 }
 
-interface GenerateResponse {
-  success: boolean;
-  post: InstagramPost;
-  source: string;
-  message: string;
-}
-
 interface PostsResponse {
   success: boolean;
   posts: InstagramPost[];
