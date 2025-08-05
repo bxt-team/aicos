@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { agentConfigs, AgentConfig } from '../config/agents';
 import axios from 'axios';
 import './AgentManagement.css';
@@ -67,13 +67,6 @@ const AgentManagement: React.FC = () => {
     return new Date(timestamp).toLocaleString('en-US');
   };
 
-  const getStatusIcon = (agentId: string) => {
-    return '✅';
-  };
-
-  const getStatusText = (agentId: string) => {
-    return 'Online';
-  };
 
   const getCategoryColor = (category: string) => {
     const colors: { [key: string]: string } = {
@@ -92,23 +85,6 @@ const AgentManagement: React.FC = () => {
     return colors[category] || '#718096';
   };
 
-  // Get CSS class for category instead of inline style
-  const getCategoryClass = (category: string) => {
-    const categoryMap: { [key: string]: string } = {
-      'Knowledge & Research': 'category-knowledge',
-      'Personal Development': 'category-personality',
-      'Social Media Marketing': 'category-social',
-      'Visual Content': 'category-visual',
-      'Content Creation': 'category-content',
-      'Email Marketing': 'category-email',
-      'Video Content': 'category-video',
-      'Education': 'category-education',
-      'Analytics': 'category-analytics',
-      'Quality Assurance': 'category-qa',
-      'System Management': 'category-system'
-    };
-    return categoryMap[category] || 'category-default';
-  };
 
   const loadAgentPrompt = async (agentId: string) => {
     // Map frontend agent IDs to backend agent IDs
@@ -272,12 +248,6 @@ const AgentManagement: React.FC = () => {
                             color: getCategoryColor(agent.category),
                             fontWeight: 500
                           }}
-                        />
-                        <Chip 
-                          label={getStatusText(agent.id)} 
-                          size="small" 
-                          color="success"
-                          icon={<Typography fontSize="small">{getStatusIcon(agent.id)}</Typography>}
                         />
                       </Box>
                     }

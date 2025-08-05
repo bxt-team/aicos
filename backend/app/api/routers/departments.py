@@ -33,7 +33,7 @@ AVAILABLE_AI_AGENTS = [
     {"id": "instagram_poster_agent", "name": "Instagram Poster Agent", "type": "instagram_poster_agent", "capabilities": ["social_media", "instagram"], "category": "Core", "description": "Manages and publishes content to Instagram"},
     {"id": "x_poster_agent", "name": "X Poster Agent", "type": "x_poster_agent", "capabilities": ["social_media", "twitter"], "category": "Core", "description": "Manages and publishes content to X (Twitter)"},
     {"id": "threads_poster_agent", "name": "Threads Poster Agent", "type": "threads_poster_agent", "capabilities": ["social_media", "threads"], "category": "Core", "description": "Manages and publishes content to Threads"},
-    
+     
     # Growth & Marketing Department
     {"id": "campaign_testing_agent", "name": "Campaign Testing Agent", "type": "campaign_testing_agent", "capabilities": ["ab_testing", "campaign_optimization", "analytics"], "category": "Marketing", "description": "Runs A/B tests and optimizes marketing campaigns for better performance"},
     {"id": "scheduler_posting_agent", "name": "Scheduler & Posting Agent", "type": "scheduler_posting_agent", "capabilities": ["content_scheduling", "multi_platform_posting", "timing_optimization"], "category": "Marketing", "description": "Schedules and posts content across multiple platforms at optimal times"},

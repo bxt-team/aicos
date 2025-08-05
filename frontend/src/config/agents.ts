@@ -12,17 +12,6 @@ export interface AgentConfig {
 
 export const agentConfigs: AgentConfig[] = [
   {
-    id: 'dashboard',
-    name: 'Agent Dashboard',
-    route: '/',
-    icon: '🏠',
-    description: 'Overview and management of all available AI agents',
-    category: 'System Management',
-    enabled: true,
-    features: ['Agent Übersicht', 'Health Monitoring', 'Systemstatus'],
-    version: '1.0'
-  },
-  {
     id: 'qa',
     name: 'Q&A Experte',
     route: '/qa',

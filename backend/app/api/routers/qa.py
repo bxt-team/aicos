@@ -223,3 +223,24 @@ async def submit_qa_feedback(
         return {"success": True, "message": "Feedback submitted successfully"}
     else:
         raise HTTPException(status_code=400, detail="Failed to submit feedback")
+
+@router.get("/qa-knowledge-bases")
+async def list_qa_knowledge_bases(
+    current_user: User = Depends(get_current_user),
+    context: RequestContext = Depends(get_request_context),
+    _: None = Depends(check_permission(Permission.AGENT_USE))
+):
+    """List all available knowledge bases for Q&A in the current context"""
+    qa_agent = get_agent('qa_agent')
+    if not qa_agent:
+        raise HTTPException(status_code=503, detail="Q&A agent not available")
+    
+    # Set context for multi-tenant support
+    qa_agent.set_context(context)
+    
+    result = await qa_agent.list_available_knowledge_bases()
+    
+    if result["success"]:
+        return result
+    else:
+        raise HTTPException(status_code=500, detail=result.get("error", "Failed to list knowledge bases"))
