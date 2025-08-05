@@ -6,7 +6,7 @@
 2. Sign in or create an account
 3. Click "New Project"
 4. Fill in:
-   - Project name: `7cycles-ai-dev`
+   - Project name: `aicos-dev`
    - Database password: (save this securely)
    - Region: Choose closest to you
    - Plan: Free tier is fine for development

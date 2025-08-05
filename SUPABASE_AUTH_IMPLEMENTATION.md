@@ -1,6 +1,6 @@
 # Supabase Authentication Implementation Guide
 
-This guide documents the complete Supabase authentication implementation for the 7cycles-ai project, supporting all authentication methods including email/password, magic links, OAuth providers (Google, GitHub, Apple), and 2FA.
+This guide documents the complete Supabase authentication implementation for the aicos project, supporting all authentication methods including email/password, magic links, OAuth providers (Google, GitHub, Apple), and 2FA.
 
 ## Overview
 

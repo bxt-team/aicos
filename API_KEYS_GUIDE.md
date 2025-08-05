@@ -1,6 +1,6 @@
-# API Keys Setup Guide for 7cycles-ai
+# API Keys Setup Guide for aicos
 
-This guide provides step-by-step instructions for obtaining all required API keys and tokens for the 7cycles-ai project.
+This guide provides step-by-step instructions for obtaining all required API keys and tokens for the aicos project.
 
 ## Required API Keys
 

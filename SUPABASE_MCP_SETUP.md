@@ -6,7 +6,7 @@
 2. **Click** "New Project"
 3. **Configure your project:**
    - Organization: Select or create one
-   - Project name: `7cycles-ai-dev`
+   - Project name: `aicos-dev`
    - Database Password: Generate a strong password (save this!)
    - Region: Choose closest to you (e.g., Frankfurt for EU)
    - Pricing Plan: Free tier

@@ -1,8 +1,8 @@
-# 7cycles-ai Supabase Migration Guide
+# aicos Supabase Migration Guide
 
 ## Overview
 
-This guide explains how to migrate your 7cycles-ai application from JSON file-based storage to Supabase database storage. The migration is designed to be gradual and safe, with no downtime.
+This guide explains how to migrate your aicos application from JSON file-based storage to Supabase database storage. The migration is designed to be gradual and safe, with no downtime.
 
 ## Current Status
 

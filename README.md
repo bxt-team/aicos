@@ -123,7 +123,7 @@ Add your content sources to the `knowledge_files/` directory:
 ## Project Structure
 
 ```
-7cycles-ai/
+aicos/
 ├── src/
 │   ├── agents/          # CrewAI agents
 │   ├── flows/           # CrewAI flows

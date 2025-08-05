@@ -91,7 +91,7 @@ Dieses Projekt bietet zwei Hauptfunktionen:
 ## Struktur
 
 ```
-7cycles-ai/
+aicos/
 ├── backend/
 │   └── main.py              # FastAPI Server
 ├── src/

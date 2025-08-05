@@ -2,7 +2,7 @@
 
 ## Overview
 
-The 7cycles-ai frontend has been successfully updated with a complete authentication and multi-tenant management system. Users can now log in, manage organizations and projects, and all data is properly scoped to their context.
+The aicos frontend has been successfully updated with a complete authentication and multi-tenant management system. Users can now log in, manage organizations and projects, and all data is properly scoped to their context.
 
 ## What Was Implemented
 
