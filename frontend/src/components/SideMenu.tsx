@@ -273,6 +273,16 @@ const SideMenu: React.FC = () => {
                 </li>
                 <li>
                   <Link
+                    to="/ideas"
+                    className={`nav-item ${location.pathname.includes('/ideas') ? 'active' : ''}`}
+                    title="Ideas"
+                  >
+                    <span className="nav-icon">💡</span>
+                    <span className="nav-text">Ideas</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     to="/agent-dashboard"
                     className={`nav-item ${location.pathname === '/agent-dashboard' ? 'active' : ''}`}
                     title="Agents"
@@ -312,6 +322,15 @@ const SideMenu: React.FC = () => {
                 title="Billing"
               >
                 <span className="agent-icon">💳</span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/ideas"
+                className={`menu-item-collapsed ${location.pathname.includes('/ideas') ? 'active' : ''}`}
+                title="Ideas"
+              >
+                <span className="agent-icon">💡</span>
               </Link>
             </li>
             <li>

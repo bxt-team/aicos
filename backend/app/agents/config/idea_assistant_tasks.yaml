@@ -1,0 +1,81 @@
+refine_idea:
+  description: |
+    Engage in a conversational dialogue to refine and clarify the user's idea.
+    Ask probing questions about:
+    - The core problem being solved
+    - Target audience or beneficiaries
+    - Expected outcomes and success metrics
+    - Resource requirements
+    - Timeline expectations
+    - Potential risks or challenges
+    
+    Build on the conversation history to progressively refine the idea.
+    Summarize the refined idea clearly at the end.
+  expected_output: |
+    A refined idea description that includes:
+    - Clear problem statement
+    - Proposed solution
+    - Target audience
+    - Success metrics
+    - Key requirements
+  agent: idea_refiner
+  context_variables:
+    - conversation_history
+    - project_context
+    - organization_goals
+
+validate_idea:
+  description: |
+    Validate the refined idea against multiple criteria:
+    1. Alignment with organization/project goals
+    2. Technical feasibility
+    3. Resource requirements (time, budget, personnel)
+    4. Market viability or user demand
+    5. Risk assessment
+    6. ROI potential
+    
+    Provide a validation score (0.0-1.0) and detailed reasoning for each criterion.
+    Consider the specific context of the organization and project.
+  expected_output: |
+    A validation report containing:
+    - Overall validation score (0.0-1.0)
+    - Detailed scoring for each criterion
+    - Key strengths of the idea
+    - Potential challenges or risks
+    - Recommendations for improvement
+    - Go/No-Go recommendation with reasoning
+  agent: idea_validator
+  context_variables:
+    - refined_idea
+    - organization_context
+    - project_constraints
+    - historical_data
+
+generate_tasks:
+  description: |
+    Break down the validated idea into concrete, actionable tasks.
+    For each task, define:
+    - Clear title and description
+    - Estimated effort (hours/days)
+    - Required skills or resources
+    - Dependencies on other tasks
+    - Success criteria
+    - Priority level
+    
+    Organize tasks in a logical sequence considering dependencies.
+    Ensure tasks are sized appropriately (not too large or too small).
+  expected_output: |
+    A structured list of tasks with:
+    - Task title
+    - Detailed description
+    - Estimated effort
+    - Dependencies
+    - Priority (high/medium/low)
+    - Success criteria
+    - Suggested assignee type (role/skill needed)
+  agent: task_generator
+  context_variables:
+    - validated_idea
+    - project_structure
+    - team_capabilities
+    - existing_tasks

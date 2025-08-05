@@ -1,0 +1,18 @@
+idea_assistant_crew:
+  name: "Idea Assistant Crew"
+  description: "A crew specialized in refining, validating, and converting ideas into actionable tasks"
+  agents:
+    - idea_refiner
+    - idea_validator
+    - task_generator
+  tasks:
+    - refine_idea
+    - validate_idea
+    - generate_tasks
+  process: "sequential"
+  memory: true
+  verbose: true
+  max_rpm: 10
+  manager_llm:
+    model: "gpt-4"
+    temperature: 0.5

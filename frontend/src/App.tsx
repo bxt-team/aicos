@@ -31,6 +31,8 @@ import AgentManagement from './components/AgentManagement';
 import AgentPromptsDisplay from './components/AgentPromptsDisplay';
 import Header from './components/Header';
 import ProjectDetail from './components/ProjectDetail';
+import IdeaBoard from './components/IdeaBoard';
+import IdeaAssistant from './components/IdeaAssistant';
 import ProjectKnowledgeBase from './components/ProjectKnowledgeBase';
 import ProjectTasks from './components/ProjectTasks';
 import ProjectGoals from './components/ProjectGoals';
@@ -115,6 +117,9 @@ function AppContent() {
             <Route path="/projects/:projectId/goals" element={<ProtectedRoute><ProjectGoals /></ProtectedRoute>} />
             <Route path="/projects/:projectId/tasks" element={<ProtectedRoute><ProjectTasks /></ProtectedRoute>} />
             <Route path="/projects/:projectId/knowledgebase" element={<ProtectedRoute><ProjectKnowledgeBase /></ProtectedRoute>} />
+            <Route path="/ideas" element={<ProtectedRoute><IdeaBoard /></ProtectedRoute>} />
+            <Route path="/ideas/new" element={<ProtectedRoute><IdeaAssistant /></ProtectedRoute>} />
+            <Route path="/ideas/:ideaId" element={<ProtectedRoute><IdeaAssistant /></ProtectedRoute>} />
             </Routes>
           </main>
           </div>

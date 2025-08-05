@@ -34,6 +34,7 @@ from app.agents.crews.project_description_crew import ProjectDescriptionCrew
 from app.agents.crews.project_task_crew import ProjectTaskCrew
 from app.agents.crews.goal_suggestion_crew import GoalSuggestionCrew
 from app.agents.crews.task_suggestion_crew import TaskSuggestionCrew
+from app.agents.crews.idea_assistant_crew import IdeaAssistantCrew
 from app.services.supabase_client import SupabaseClient
 from app.services.knowledge_base_manager import knowledge_base_manager
 from app.services.knowledge_base_service import KnowledgeBaseService
@@ -80,6 +81,7 @@ project_description_crew: Optional[ProjectDescriptionCrew] = None
 project_task_crew: Optional[ProjectTaskCrew] = None
 goal_suggestion_crew: Optional[GoalSuggestionCrew] = None
 task_suggestion_crew: Optional[TaskSuggestionCrew] = None
+idea_assistant_crew: Optional[IdeaAssistantCrew] = None
 supabase_client: Optional[SupabaseClient] = None
 
 # Storage
@@ -94,7 +96,7 @@ def initialize_agents():
     global app_store_analyst_agent, play_store_analyst_agent, meta_ads_analyst_agent, google_analytics_expert_agent
     global threads_analysis_agent, content_strategy_agent, post_generator_agent, approval_agent, scheduler_agent
     global x_analysis_agent, x_content_strategy_agent, x_post_generator_agent, x_approval_agent, x_scheduler_agent, supabase_client
-    global background_video_agent, organization_goal_crew, project_description_crew, project_task_crew, goal_suggestion_crew, task_suggestion_crew
+    global background_video_agent, organization_goal_crew, project_description_crew, project_task_crew, goal_suggestion_crew, task_suggestion_crew, idea_assistant_crew
     
     logger.info(f"[INIT] OPENAI_API_KEY present: {bool(settings.OPENAI_API_KEY)}")
     logger.info(f"[INIT] OPENAI_API_KEY length: {len(settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else 0}")
@@ -358,6 +360,14 @@ def initialize_agents():
         except Exception as e:
             logger.error(f"[TASK_SUGGESTION_CREW] Failed to initialize: {str(e)}")
             task_suggestion_crew = None
+            
+        logger.info("[IDEA_ASSISTANT_CREW] Initializing...")
+        try:
+            idea_assistant_crew = IdeaAssistantCrew()
+            logger.info("[IDEA_ASSISTANT_CREW] Initialized successfully")
+        except Exception as e:
+            logger.error(f"[IDEA_ASSISTANT_CREW] Failed to initialize: {str(e)}")
+            idea_assistant_crew = None
     else:
         logger.warning("OpenAI API key not found. Agents not initialized.")
 
@@ -408,6 +418,7 @@ def get_agent(agent_name: str):
         'project_task': project_task_crew,
         'goal_suggestion': goal_suggestion_crew,
         'task_suggestion': task_suggestion_crew,
+        'idea_assistant': idea_assistant_crew,
     }
     return agents.get(agent_name)
 
@@ -499,3 +510,9 @@ def get_task_suggestion_crew():
     if not task_suggestion_crew:
         raise RuntimeError("TaskSuggestionCrew not initialized")
     return task_suggestion_crew
+
+def get_idea_assistant_crew():
+    """Get IdeaAssistantCrew instance"""
+    if not idea_assistant_crew:
+        raise RuntimeError("IdeaAssistantCrew not initialized")
+    return idea_assistant_crew

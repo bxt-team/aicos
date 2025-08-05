@@ -109,6 +109,9 @@ Common pattern for fixing agent issues:
 - React app with TypeScript in `frontend/`
 - Proxy configured to reach backend at localhost:8000
 - Main components in `frontend/src/components/`
+- Uses Material-UI (MUI) v5 - Grid component requires `item` prop for children
+- For responsive layouts, use `Grid container` with `Grid item` children, NOT Grid2
+- Example: `<Grid container spacing={2}><Grid item xs={12} md={6}>content</Grid></Grid>`
 
 ## Configuration
 

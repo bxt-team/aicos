@@ -19,7 +19,7 @@ from app.api.routers import (
     health, content, affirmations, visual_posts, instagram,
     media, workflows, app_testing, feedback, qa, images, mobile_analytics, threads, x, agent_prompts,
     background_video, auth, organizations, projects, departments, goals, tasks, agent_tasks,
-    credits, billing, knowledge_bases, ai_agents, organization_management
+    credits, billing, knowledge_bases, ai_agents, organization_management, ideas
 )
 
 # Configure logging
@@ -192,6 +192,7 @@ app.include_router(billing.router)  # Billing and subscriptions
 app.include_router(knowledge_bases.router)  # Knowledge base management
 app.include_router(ai_agents.router)  # AI agents management
 app.include_router(organization_management.router)  # Organization management AI agents
+app.include_router(ideas.router)  # Ideas management
 
 if __name__ == "__main__":
     import uvicorn
