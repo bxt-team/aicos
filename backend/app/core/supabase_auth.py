@@ -137,11 +137,30 @@ async def get_current_user(
     try:
         supabase = create_client(supabase_url, supabase_key)
 
+        # First, try to find the user in the users table by email
+        # This handles the case where auth user ID differs from application user ID
+        users_result = None
+        if "email" in user_info:
+            users_result = (
+                supabase.table("users")
+                .select("id")
+                .eq("email", user_info["email"])
+                .execute()
+            )
+        
+        # Determine which user ID to use for organization lookup
+        lookup_user_id = user_info["user_id"]
+        if users_result and users_result.data:
+            # Use the application user ID if found
+            lookup_user_id = users_result.data[0]["id"]
+            user_info["app_user_id"] = lookup_user_id
+            logger.info(f"Mapped auth user {user_info['user_id']} to app user {lookup_user_id}")
+
         # Get the user's primary organization
         result = (
             supabase.table("organization_members")
             .select("organization_id, role")
-            .eq("user_id", user_info["user_id"])
+            .eq("user_id", lookup_user_id)
             .execute()
         )
 
@@ -151,7 +170,7 @@ async def get_current_user(
             user_info["organization_role"] = result.data[0]["role"]
         else:
             logger.warning(
-                f"User {user_info['user_id']} has no organization membership"
+                f"User {lookup_user_id} has no organization membership"
             )
             # Optionally, you could create a default organization here
 

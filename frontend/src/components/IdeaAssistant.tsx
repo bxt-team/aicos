@@ -35,7 +35,8 @@ import {
   Business as CompanyIcon,
   Folder as ProjectIcon,
   Delete as DeleteIcon,
-  ArrowBack as BackIcon
+  ArrowBack as BackIcon,
+  TrendingUp as ScoreIcon
 } from '@mui/icons-material';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import './IdeaAssistant.css';
@@ -304,64 +305,44 @@ const IdeaAssistant: React.FC = () => {
     return (
       <Box
         key={index}
-        sx={{
-          display: 'flex',
-          justifyContent: isUser ? 'flex-end' : 'flex-start',
-          mb: 2
-        }}
+        className={`message-wrapper ${message.role}`}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            maxWidth: '70%',
-            flexDirection: isUser ? 'row-reverse' : 'row'
-          }}
-        >
-          <Avatar
-            sx={{
-              bgcolor: isUser ? 'primary.main' : 'secondary.main',
-              mx: 1
-            }}
-          >
+        <Box className="message-content">
+          <Avatar className={`message-avatar ${message.role}`}>
             {isUser ? <PersonIcon /> : <BotIcon />}
           </Avatar>
           
-          <Paper
-            elevation={1}
-            sx={{
-              p: 2,
-              bgcolor: isUser ? 'primary.light' : 'background.paper',
-              color: isUser ? 'primary.contrastText' : 'text.primary',
-              borderRadius: 2
-            }}
-          >
-            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+          <Box className={`message-bubble ${message.role}`}>
+            <Typography variant="body1" className="message-text">
               {message.content}
             </Typography>
             
             {message.questions && message.questions.length > 0 && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="caption" sx={{ fontStyle: 'italic' }}>
+              <Box className="questions-section">
+                <Typography variant="caption" className="questions-title">
+                  <IdeaIcon fontSize="small" />
                   Questions to consider:
                 </Typography>
-                <List dense>
+                <Box>
                   {message.questions.map((question, idx) => (
-                    <ListItem key={idx}>
-                      <ListItemText
-                        primary={question}
-                        primaryTypographyProps={{ variant: 'body2' }}
-                      />
-                    </ListItem>
+                    <Box 
+                      key={idx} 
+                      className="question-item"
+                      onClick={() => setInputMessage(question)}
+                    >
+                      <Typography variant="body2">
+                        {question}
+                      </Typography>
+                    </Box>
                   ))}
-                </List>
+                </Box>
               </Box>
             )}
             
-            <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.7 }}>
+            <Typography variant="caption" className="message-timestamp">
               {new Date(message.timestamp).toLocaleTimeString()}
             </Typography>
-          </Paper>
+          </Box>
         </Box>
       </Box>
     );
@@ -396,61 +377,77 @@ const IdeaAssistant: React.FC = () => {
   }
 
   return (
-    <Box className="idea-assistant-container">
+    <Box className={`idea-assistant-container ${idea?.status || ''}`}>
       {/* Header */}
-      <Paper elevation={1} sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <IconButton onClick={() => navigate('/ideas')}>
+      <Paper elevation={0} className="idea-header">
+        <Box className="idea-header-content">
+          <Box className="idea-header-left">
+            <IconButton 
+              onClick={() => navigate('/ideas')}
+              sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}
+            >
               <BackIcon />
             </IconButton>
             
             {idea && (
               <>
-                <Typography variant="h5">{idea.title}</Typography>
+                <Typography variant="h5" className="idea-header-title">{idea.title}</Typography>
                 <Chip
                   label={idea.status}
-                  color={getStatusColor(idea.status)}
                   icon={getStatusIcon(idea.status)}
                   size="small"
+                  className="idea-status-badge"
+                  sx={{ color: 'white' }}
                 />
                 {idea.validation_score !== undefined && (
                   <Chip
                     label={`${(idea.validation_score * 100).toFixed(0)}%`}
-                    color="primary"
-                    variant="outlined"
+                    icon={<ScoreIcon />}
                     size="small"
+                    className="idea-status-badge"
+                    sx={{ color: 'white' }}
                   />
                 )}
                 <Chip
                   label={idea.project_id ? 'Project' : 'Company'}
                   icon={idea.project_id ? <ProjectIcon /> : <CompanyIcon />}
                   size="small"
-                  variant="outlined"
+                  className="idea-status-badge"
+                  sx={{ color: 'white' }}
                 />
               </>
             )}
           </Box>
           
           {idea && idea.status !== 'converted' && (
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box className="idea-header-actions">
               {idea.status === 'draft' || idea.status === 'refining' ? (
                 <Button
                   variant="contained"
-                  color="primary"
                   onClick={validateIdea}
                   disabled={processingAction !== null}
                   startIcon={<CheckIcon />}
+                  sx={{ 
+                    bgcolor: 'white', 
+                    color: '#667eea',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
+                    fontWeight: 600
+                  }}
                 >
                   Validate Idea
                 </Button>
               ) : idea.status === 'validated' ? (
                 <Button
                   variant="contained"
-                  color="success"
                   onClick={convertToTasks}
                   disabled={processingAction !== null}
                   startIcon={<TaskIcon />}
+                  sx={{ 
+                    bgcolor: 'white', 
+                    color: '#10b981',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
+                    fontWeight: 600
+                  }}
                 >
                   Convert to Tasks
                 </Button>
@@ -458,9 +455,13 @@ const IdeaAssistant: React.FC = () => {
               
               <Tooltip title="Delete Idea">
                 <IconButton
-                  color="error"
                   onClick={deleteIdea}
                   disabled={idea.status === 'converted'}
+                  sx={{ 
+                    color: 'white', 
+                    bgcolor: 'rgba(239,68,68,0.2)',
+                    '&:hover': { bgcolor: 'rgba(239,68,68,0.3)' }
+                  }}
                 >
                   <DeleteIcon />
                 </IconButton>
@@ -470,80 +471,94 @@ const IdeaAssistant: React.FC = () => {
         </Box>
       </Paper>
 
-      {/* Chat Messages */}
-      <Paper elevation={1} sx={{ flex: 1, p: 2, mb: 2, minHeight: '400px', maxHeight: '600px', overflow: 'auto' }}>
-        {messages.length === 0 && idea && (
-          <Card sx={{ mb: 2, bgcolor: 'info.light' }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Welcome to the Idea Assistant!
-              </Typography>
-              <Typography variant="body2">
-                I'm here to help you refine your idea: "{idea.initial_description}"
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Let's work together to develop this into a clear, actionable plan. Feel free to share more details or answer any questions I have.
-              </Typography>
-            </CardContent>
-          </Card>
-        )}
+      {/* Chat Container */}
+      <Box className="chat-container">
+        <Box className="chat-messages">
+          {messages.length === 0 && idea && (
+            <Card className="welcome-card fade-in" elevation={0}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Welcome to the Idea Assistant! 🚀
+                </Typography>
+                <Typography variant="body2" className="idea-description">
+                  {idea.initial_description}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 2 }}>
+                  Let's work together to develop this into a clear, actionable plan. Feel free to share more details or answer any questions I have.
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
         
         {messages.map((message, index) => renderMessage(message, index))}
         
-        {loading && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
-            <CircularProgress size={20} />
-            <Typography variant="body2" color="text.secondary">
-              AI is thinking...
-            </Typography>
-          </Box>
-        )}
+          {loading && (
+            <Box className="typing-indicator">
+              <Box className="typing-dots">
+                <span className="typing-dot"></span>
+                <span className="typing-dot"></span>
+                <span className="typing-dot"></span>
+              </Box>
+              <Typography variant="body2">
+                AI is thinking...
+              </Typography>
+            </Box>
+          )}
         
-        {processingAction && (
-          <Alert severity="info" sx={{ mt: 2 }}>
-            {processingAction === 'validating' ? 'Validating your idea...' : 'Converting to tasks...'}
-          </Alert>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </Paper>
-
-      {/* Input Area */}
-      {idea && idea.status !== 'converted' && (
-        <Paper elevation={1} sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              placeholder="Type your message..."
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              disabled={loading || processingAction !== null}
-              multiline
-              maxRows={4}
-            />
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={sendMessage}
-              disabled={!inputMessage.trim() || loading || processingAction !== null}
-              sx={{ minWidth: '120px' }}
-              endIcon={<SendIcon />}
+          {processingAction && (
+            <Alert 
+              severity="info" 
+              className="processing-alert slide-up"
+              icon={<CircularProgress size={20} />}
             >
-              Send
-            </Button>
+              {processingAction === 'validating' ? 'Validating your idea...' : 'Converting to tasks...'}
+            </Alert>
+          )}
+        
+          <div ref={messagesEndRef} />
+        </Box>
+
+        {/* Input Area */}
+        {idea && idea.status !== 'converted' && (
+          <Box className="input-area">
+            <Box className="input-wrapper">
+              <TextField
+                fullWidth
+                placeholder="Type your message here..."
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                disabled={loading || processingAction !== null}
+                multiline
+                maxRows={4}
+                className="message-input"
+                InputProps={{
+                  disableUnderline: true,
+                  sx: { fontSize: '16px' }
+                }}
+                variant="standard"
+              />
+              <Button
+                variant="contained"
+                onClick={sendMessage}
+                disabled={!inputMessage.trim() || loading || processingAction !== null}
+                className="send-button"
+                endIcon={<SendIcon />}
+              >
+                Send
+              </Button>
+            </Box>
           </Box>
-        </Paper>
-      )}
+        )}
+      </Box>
 
       {/* New Idea Dialog */}
-      <Dialog open={showNewIdeaDialog} onClose={() => navigate('/ideas')} maxWidth="sm" fullWidth>
+      <Dialog open={showNewIdeaDialog} onClose={() => navigate('/ideas')} maxWidth="sm" fullWidth className="idea-dialog">
         <DialogTitle>Create New Idea</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
@@ -563,7 +578,7 @@ const IdeaAssistant: React.FC = () => {
               multiline
               rows={4}
             />
-            <Alert severity="info">
+            <Alert severity="info" className="create-idea-info" icon={<IdeaIcon />}>
               The AI assistant will help you refine this idea through conversation, validate its feasibility, and break it down into actionable tasks.
             </Alert>
           </Stack>

@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime
 import logging
+import traceback
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -84,15 +85,19 @@ async def create_idea(
 ):
     """Create a new idea"""
     try:
-        # Get user's organization
-        org_result = supabase.table('organization_members').select(
-            'organization_id'
-        ).eq('user_id', current_user['id']).execute()
-        
-        if not org_result.data:
-            raise HTTPException(status_code=404, detail="No organization found for user")
-        
-        organization_id = org_result.data[0]['organization_id']
+        # Get user's organization - prefer from current_user if available
+        if 'organization_id' in current_user:
+            organization_id = current_user['organization_id']
+        else:
+            # Fallback to querying organization_members
+            org_result = supabase.table('organization_members').select(
+                'organization_id'
+            ).eq('user_id', current_user.get('app_user_id', current_user['user_id'])).execute()
+            
+            if not org_result.data:
+                raise HTTPException(status_code=404, detail="No organization found for user. Please ensure you belong to an organization.")
+            
+            organization_id = org_result.data[0]['organization_id']
         
         # Verify project belongs to organization if provided
         if idea.project_id:
@@ -107,7 +112,7 @@ async def create_idea(
         idea_data = {
             'organization_id': organization_id,
             'project_id': str(idea.project_id) if idea.project_id else None,
-            'user_id': current_user['id'],
+            'user_id': current_user['user_id'],  # Use auth user ID, not app user ID
             'title': idea.title,
             'initial_description': idea.initial_description,
             'status': 'draft',
@@ -115,16 +120,25 @@ async def create_idea(
             'metadata': {}
         }
         
+        logger.info(f"Attempting to create idea with data: {idea_data}")
+        
         result = supabase.table('ideas').insert(idea_data).execute()
+        
+        logger.info(f"Insert result: {result}")
         
         if result.data:
             return IdeaResponse(**result.data[0])
         else:
+            logger.error(f"Insert failed, no data returned. Result: {result}")
             raise HTTPException(status_code=500, detail="Failed to create idea")
             
+    except HTTPException:
+        # Re-raise HTTPException as-is (for 404, 403, etc.)
+        raise
     except Exception as e:
         logger.error(f"Error creating idea: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e) if str(e) else "Failed to create idea")
 
 
 @router.get("/ideas", response_model=List[IdeaResponse])
@@ -142,15 +156,20 @@ async def list_ideas(
         query = supabase.table('ideas').select('*')
         
         # Filter by user's organizations
-        org_result = supabase.table('organization_members').select(
-            'organization_id'
-        ).eq('user_id', current_user['id']).execute()
-        
-        if org_result.data:
-            org_ids = [row['organization_id'] for row in org_result.data]
-            query = query.in_('organization_id', org_ids)
+        if 'organization_id' in current_user:
+            # User has organization_id in their context
+            query = query.eq('organization_id', current_user['organization_id'])
         else:
-            return []
+            # Fallback to querying organization_members
+            org_result = supabase.table('organization_members').select(
+                'organization_id'
+            ).eq('user_id', current_user.get('app_user_id', current_user['user_id'])).execute()
+            
+            if org_result.data:
+                org_ids = [row['organization_id'] for row in org_result.data]
+                query = query.in_('organization_id', org_ids)
+            else:
+                return []
         
         # Apply filters
         if project_id:
@@ -165,6 +184,9 @@ async def list_ideas(
         
         return [IdeaResponse(**idea) for idea in result.data]
         
+    except HTTPException:
+        # Re-raise HTTPException as-is
+        raise
     except Exception as e:
         logger.error(f"Error listing ideas: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -188,7 +210,7 @@ async def get_idea(
         # Verify user has access
         org_result = supabase.table('organization_members').select(
             'organization_id'
-        ).eq('user_id', current_user['id']).eq(
+        ).eq('user_id', current_user.get('app_user_id', current_user['user_id'])).eq(
             'organization_id', idea['organization_id']
         ).execute()
         
@@ -222,7 +244,7 @@ async def update_idea(
         idea = idea_result.data[0]
         
         # Verify user owns the idea
-        if idea['user_id'] != current_user['id']:
+        if idea['user_id'] != current_user['user_id']:
             raise HTTPException(status_code=403, detail="Can only update your own ideas")
         
         # Build update data
@@ -268,7 +290,7 @@ async def delete_idea(
         idea = idea_result.data[0]
         
         # Verify user owns the idea and it's not converted
-        if idea['user_id'] != current_user['id']:
+        if idea['user_id'] != current_user['user_id']:
             raise HTTPException(status_code=403, detail="Can only delete your own ideas")
         
         if idea['status'] == 'converted':
@@ -304,7 +326,7 @@ async def refine_idea(
         idea = idea_result.data[0]
         
         # Verify user has access
-        if idea['user_id'] != current_user['id']:
+        if idea['user_id'] != current_user['user_id']:
             raise HTTPException(status_code=403, detail="Can only refine your own ideas")
         
         # Get organization and project context
@@ -383,7 +405,7 @@ async def validate_idea(
         idea = idea_result.data[0]
         
         # Verify user has access
-        if idea['user_id'] != current_user['id']:
+        if idea['user_id'] != current_user['user_id']:
             raise HTTPException(status_code=403, detail="Can only validate your own ideas")
         
         # Get the refined description or use initial
@@ -454,7 +476,7 @@ async def convert_to_tasks(
         idea = idea_result.data[0]
         
         # Verify user has access and idea is validated
-        if idea['user_id'] != current_user['id']:
+        if idea['user_id'] != current_user['user_id']:
             raise HTTPException(status_code=403, detail="Can only convert your own ideas")
         
         if idea['status'] not in ['validated', 'refining']:
@@ -495,7 +517,7 @@ async def convert_to_tasks(
                     'effort': task.get('effort', 'TBD'),
                     'generated_from_idea': str(idea_id)
                 },
-                'created_by': current_user['id']
+                'created_by': current_user.get('app_user_id', current_user['user_id'])  # Use app user ID for tasks table
             }
             
             task_result = supabase.table('tasks').insert(task_data).execute()

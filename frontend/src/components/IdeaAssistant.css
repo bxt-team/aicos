@@ -1,41 +1,127 @@
+/* IdeaAssistant Component Styles */
+
 .idea-assistant-container {
+  height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
-  max-width: 1200px;
+  background-color: #f5f7fa;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
 }
 
-.idea-assistant-container .MuiPaper-root {
-  transition: all 0.3s ease;
+/* Header Styles */
+.idea-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.idea-assistant-container .MuiPaper-root:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+.idea-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-/* Custom scrollbar for chat messages */
-.idea-assistant-container .MuiPaper-root::-webkit-scrollbar {
+.idea-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.idea-header-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.idea-status-badge {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.idea-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Chat Container */
+.chat-container {
+  flex: 1;
+  background: white;
+  margin: 16px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.chat-messages::-webkit-scrollbar {
   width: 8px;
 }
 
-.idea-assistant-container .MuiPaper-root::-webkit-scrollbar-track {
+.chat-messages::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 4px;
 }
 
-.idea-assistant-container .MuiPaper-root::-webkit-scrollbar-thumb {
-  background: #888;
+.chat-messages::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
   border-radius: 4px;
 }
 
-.idea-assistant-container .MuiPaper-root::-webkit-scrollbar-thumb:hover {
-  background: #555;
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
 }
 
-/* Message animations */
-@keyframes slideIn {
+/* Welcome Card */
+.welcome-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.welcome-card h6 {
+  font-size: 1.25rem;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.welcome-card .idea-description {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-style: italic;
+  border-left: 3px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Message Styles */
+.message-wrapper {
+  display: flex;
+  margin-bottom: 20px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -46,6 +132,304 @@
   }
 }
 
-.idea-assistant-container .MuiBox-root {
-  animation: slideIn 0.3s ease;
+.message-wrapper.user {
+  justify-content: flex-end;
+}
+
+.message-wrapper.assistant {
+  justify-content: flex-start;
+}
+
+.message-content {
+  display: flex;
+  align-items: flex-start;
+  max-width: 70%;
+  gap: 12px;
+}
+
+.message-wrapper.user .message-content {
+  flex-direction: row-reverse;
+}
+
+.message-avatar {
+  flex-shrink: 0;
+}
+
+.message-avatar.user {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.message-avatar.assistant {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.message-bubble {
+  border-radius: 18px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.message-bubble.user {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.message-bubble.assistant {
+  background: #f8f9fa;
+  color: #2d3748;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 4px;
+}
+
+.message-text {
+  margin: 0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message-timestamp {
+  display: block;
+  font-size: 0.75rem;
+  margin-top: 8px;
+  opacity: 0.7;
+}
+
+.message-bubble.user .message-timestamp {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Questions Section */
+.questions-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.questions-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.question-item {
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.question-item:hover {
+  border-color: #667eea;
+  transform: translateX(4px);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.1);
+}
+
+/* Input Area */
+.input-area {
+  padding: 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e2e8f0;
+}
+
+.input-wrapper {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.message-input {
+  flex: 1;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  resize: none;
+  font-family: inherit;
+}
+
+.message-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.send-button {
+  height: 48px;
+  min-width: 120px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: none;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+  transition: all 0.2s ease;
+}
+
+.send-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* Loading States */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: #718096;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  background: #718096;
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+}
+
+/* Processing Alert */
+.processing-alert {
+  margin: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.processing-alert .MuiCircularProgress-root {
+  color: white;
+}
+
+/* Status Specific Styles */
+.idea-assistant-container.validated {
+  border-top: 4px solid #10b981;
+}
+
+.idea-assistant-container.rejected {
+  border-top: 4px solid #ef4444;
+}
+
+.idea-assistant-container.converted {
+  border-top: 4px solid #3b82f6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .idea-header {
+    padding: 16px;
+  }
+  
+  .idea-header-title {
+    font-size: 1.25rem;
+  }
+  
+  .message-content {
+    max-width: 85%;
+  }
+  
+  .chat-messages {
+    padding: 16px;
+  }
+  
+  .input-area {
+    padding: 16px;
+  }
+  
+  .send-button {
+    min-width: 100px;
+  }
+}
+
+/* Floating Action Button */
+.delete-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #ef4444;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.delete-fab:hover {
+  background: #dc2626;
+  transform: scale(1.05);
+}
+
+/* Dialog Styles */
+.idea-dialog .MuiDialog-paper {
+  border-radius: 16px;
+  padding: 8px;
+}
+
+.idea-dialog .MuiDialogTitle-root {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.idea-dialog .MuiDialogContent-root {
+  padding-top: 24px;
+}
+
+.create-idea-info {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
