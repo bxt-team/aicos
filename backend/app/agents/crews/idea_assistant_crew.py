@@ -2,6 +2,7 @@
 Idea Assistant Crew for refining, validating, and converting ideas to tasks
 """
 import json
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import logging
@@ -57,11 +58,43 @@ class IdeaAssistantCrew(BaseCrew):
     """Crew for processing ideas through refinement, validation, and task generation"""
     
     def __init__(self):
-        super().__init__(
-            agents_config='idea_assistant_agents.yaml',
-            tasks_config='idea_assistant_tasks.yaml'
-        )
+        super().__init__()
+        # Load specific configuration files for idea assistant
+        self.idea_agents_config = self._load_yaml('idea_assistant_agents.yaml')
+        self.idea_tasks_config = self._load_yaml('idea_assistant_tasks.yaml')
+        self.idea_crews_config = self._load_yaml('idea_assistant_crews.yaml')
+        
+        # Create agent instances
+        self.agents = {}
+        for agent_name, agent_config in self.idea_agents_config.items():
+            self.agents[agent_name] = self._create_agent_from_config(agent_name, agent_config)
+        
+        # Store tasks and crews configuration
+        self.tasks = self.idea_tasks_config
+        self.crews_config = self.idea_crews_config  # Make crews config available to parent
         self.conversation_history: List[ConversationMessage] = []
+    
+    def _create_agent_from_config(self, agent_name: str, config: Dict[str, Any]) -> Any:
+        """Create an agent from configuration"""
+        from crewai import Agent
+        from langchain_openai import ChatOpenAI
+        from app.core.config import settings
+        
+        llm = ChatOpenAI(
+            model=config.get('llm', {}).get('model', 'gpt-4o-mini'),
+            temperature=config.get('llm', {}).get('temperature', 0.7),
+            api_key=settings.OPENAI_API_KEY
+        )
+        
+        return Agent(
+            role=config['role'],
+            goal=config['goal'],
+            backstory=config['backstory'],
+            llm=llm,
+            allow_delegation=config.get('allow_delegation', False),
+            verbose=config.get('verbose', True),
+            max_iter=config.get('max_iter', 5)
+        )
     
     def refine_idea(self, input_data: IdeaRefinementInput) -> CrewOutput:
         """
@@ -89,10 +122,11 @@ class IdeaAssistantCrew(BaseCrew):
             and help the user develop a clear, actionable proposal.
             """,
             agent=self.agents['idea_refiner'],
-            expected_output=self.tasks['refine_idea'].expected_output
+            expected_output=self.tasks['refine_idea']['expected_output']
         )
         
         crew = self.create_crew(
+            crew_name='idea_assistant_crew',
             agents=[self.agents['idea_refiner']],
             tasks=[refine_task]
         )
@@ -100,12 +134,13 @@ class IdeaAssistantCrew(BaseCrew):
         result = crew.kickoff()
         
         return CrewOutput(
-            raw=result.raw,
-            tasks_output=[{
+            success=True,
+            result={
                 'task': 'refine_idea',
                 'output': result.raw,
                 'questions': self._extract_questions(result.raw)
-            }]
+            },
+            message="Idea refined successfully"
         )
     
     def validate_idea(self, input_data: IdeaValidationInput) -> CrewOutput:
@@ -133,10 +168,11 @@ class IdeaAssistantCrew(BaseCrew):
             Provide a comprehensive validation with scoring.
             """,
             agent=self.agents['idea_validator'],
-            expected_output=self.tasks['validate_idea'].expected_output
+            expected_output=self.tasks['validate_idea']['expected_output']
         )
         
         crew = self.create_crew(
+            crew_name='idea_assistant_crew',
             agents=[self.agents['idea_validator']],
             tasks=[validate_task]
         )
@@ -147,13 +183,14 @@ class IdeaAssistantCrew(BaseCrew):
         validation_data = self._parse_validation_result(result.raw)
         
         return CrewOutput(
-            raw=result.raw,
-            tasks_output=[{
+            success=True,
+            result={
                 'task': 'validate_idea',
                 'output': result.raw,
                 'validation_score': validation_data['score'],
                 'validation_reasons': validation_data['reasons']
-            }]
+            },
+            message="Idea validated successfully"
         )
     
     def generate_tasks(self, input_data: TaskGenerationInput) -> CrewOutput:
@@ -178,10 +215,11 @@ class IdeaAssistantCrew(BaseCrew):
             Create a comprehensive task breakdown with all required details.
             """,
             agent=self.agents['task_generator'],
-            expected_output=self.tasks['generate_tasks'].expected_output
+            expected_output=self.tasks['generate_tasks']['expected_output']
         )
         
         crew = self.create_crew(
+            crew_name='idea_assistant_crew',
             agents=[self.agents['task_generator']],
             tasks=[generate_task]
         )
@@ -192,12 +230,13 @@ class IdeaAssistantCrew(BaseCrew):
         tasks = self._parse_generated_tasks(result.raw)
         
         return CrewOutput(
-            raw=result.raw,
-            tasks_output=[{
+            success=True,
+            result={
                 'task': 'generate_tasks',
                 'output': result.raw,
                 'generated_tasks': tasks
-            }]
+            },
+            message="Tasks generated successfully"
         )
     
     def process_idea_workflow(
